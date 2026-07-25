@@ -11,18 +11,31 @@ p.subtitle { color: #666; margin-top: 0; margin-bottom: 1rem; }
 #chat {
   border: 1px solid #ccc;
   border-radius: 8px;
-  height: 420px;
+  height: min(420px, 60vh);
   overflow-y: auto;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-.msg { padding: 0.5rem 0.75rem; border-radius: 8px; max-width: 85%; white-space: pre-wrap; }
+.msg { padding: 0.5rem 0.75rem; border-radius: 8px; max-width: 85%; white-space: pre-wrap; word-wrap: break-word; }
 .msg.user { align-self: flex-end; background: #2563eb; color: white; }
 .msg.assistant { align-self: flex-start; background: #f1f1f1; color: #111; }
 .msg.assistant.pending { opacity: 0.6; font-style: italic; }
 form { display: flex; gap: 0.5rem; margin-top: 1rem; }
-input[type="text"] { flex: 1; padding: 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 16px; /* keeps iOS Safari from auto-zooming on focus */
+}
 button { padding: 0.6rem 1.1rem; border-radius: 6px; border: none; background: #2563eb; color: white; font-size: 1rem; cursor: pointer; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  body { margin: 1rem auto; padding: 0 0.75rem; }
+  #chat { height: min(420px, 55vh); padding: 0.75rem; }
+  .msg { max-width: 90%; }
+}
