@@ -75,7 +75,10 @@ This is a single shared secret, not per-customer auth - it blocks anonymous bots
 
 ### Rate limiting
 
-`/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound Claude API cost under abuse or accidental retry loops. Exceeding it returns `429`.
+- `/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound Claude API cost under abuse or accidental retry loops.
+- `/api/orders/:id` is capped at `RATE_LIMIT_ORDERS_MAX` requests (default 30) per `RATE_LIMIT_ORDERS_WINDOW_MS` (default 60s) per client, to slow down order-number enumeration/scanning attempts.
+
+Both are independent limiters (separate quotas). Exceeding either returns `429`.
 
 ## Testing
 

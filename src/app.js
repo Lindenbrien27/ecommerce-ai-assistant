@@ -4,7 +4,7 @@ const express = require('express');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const { requireApiKey } = require('./middleware/apiKeyAuth');
-const { chatLimiter } = require('./middleware/rateLimiter');
+const { chatLimiter, ordersLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
@@ -24,6 +24,6 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/chat', requireApiKey, chatLimiter, chatRoutes);
-app.use('/api/orders', requireApiKey, orderRoutes);
+app.use('/api/orders', requireApiKey, ordersLimiter, orderRoutes);
 
 module.exports = app;
