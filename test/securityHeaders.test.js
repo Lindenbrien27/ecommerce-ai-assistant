@@ -53,3 +53,18 @@ test('does not set HSTS outside production - the header is a no-op over plain HT
     assert.equal(res.headers.get('strict-transport-security'), null);
   });
 });
+
+test('does not include upgrade-insecure-requests in the CSP outside production', async (t) => {
+  // Found while debugging why the cross-browser e2e suite failed on every
+  // single WebKit/Mobile Safari test: this directive tells the browser to
+  // silently rewrite every subresource fetch to https:, and unlike
+  // Chromium/Firefox (which special-case loopback addresses), WebKit
+  // applies it to 127.0.0.1/localhost too - with no real TLS listener on
+  // the test/dev port, every asset request then fails and the app never
+  // renders. Only meaningful once the app is actually served over HTTPS,
+  // same reasoning as HSTS above.
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/health`);
+    assert.doesNotMatch(res.headers.get('content-security-policy'), /upgrade-insecure-requests/);
+  });
+});

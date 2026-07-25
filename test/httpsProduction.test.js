@@ -33,3 +33,12 @@ test('production app trusts X-Forwarded-Proto from Render\'s proxy and sets HSTS
     assert.match(res.headers.get('strict-transport-security'), /max-age=31536000/);
   });
 });
+
+test('production app includes upgrade-insecure-requests in the CSP', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/health`, {
+      headers: { 'X-Forwarded-Proto': 'https' },
+    });
+    assert.match(res.headers.get('content-security-policy'), /upgrade-insecure-requests/);
+  });
+});
