@@ -1,7 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
+const { orderCache } = require('../src/config/cache');
 const orderService = require('../src/services/orderService');
+
+// A clean cache before every test - several tests below mock the same
+// order number/email with different pool.query results, and a cache hit
+// from an earlier test would otherwise serve stale data instead of calling
+// the newly-mocked pool.query.
+test.beforeEach(() => orderCache.clear());
 
 test('getOrderByNumber returns the matching row', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
@@ -112,4 +119,70 @@ test('getOrderByTrackingNumber returns null when nothing matches', async (t) => 
 
   const order = await orderService.getOrderByTrackingNumber('BOGUS');
   assert.equal(order, null);
+});
+
+test('getOrderByNumber serves a second lookup from cache without querying again', async (t) => {
+  const query = t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', status: 'shipped' }],
+  }));
+
+  const first = await orderService.getOrderByNumber('ORD-1001');
+  const second = await orderService.getOrderByNumber('ORD-1001');
+
+  assert.equal(query.mock.callCount(), 1);
+  assert.deepEqual(second, first);
+});
+
+test('getOrderByNumber caches a not-found result too - repeated probing of a bogus order number costs one query, not one per attempt', async (t) => {
+  const query = t.mock.method(pool, 'query', async () => ({ rows: [] }));
+
+  await orderService.getOrderByNumber('NOPE');
+  await orderService.getOrderByNumber('NOPE');
+  await orderService.getOrderByNumber('NOPE');
+
+  assert.equal(query.mock.callCount(), 1);
+});
+
+test('getOrderByNumber does not cache across different order numbers', async (t) => {
+  const query = t.mock.method(pool, 'query', async (sql, [orderNumber]) => ({
+    rows: [{ order_number: orderNumber, status: 'shipped' }],
+  }));
+
+  await orderService.getOrderByNumber('ORD-1001');
+  await orderService.getOrderByNumber('ORD-1002');
+
+  assert.equal(query.mock.callCount(), 2);
+});
+
+test('getOrdersByEmail serves a second identical page request from cache', async (t) => {
+  const query = t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001' }],
+  }));
+
+  await orderService.getOrdersByEmail('jane.doe@example.com', { limit: 20 });
+  await orderService.getOrdersByEmail('jane.doe@example.com', { limit: 20 });
+
+  assert.equal(query.mock.callCount(), 1);
+});
+
+test('getOrdersByEmail treats different customers as different cache entries', async (t) => {
+  const query = t.mock.method(pool, 'query', async (sql, [email]) => ({
+    rows: [{ order_number: 'ORD-1001', customer_email: email }],
+  }));
+
+  await orderService.getOrdersByEmail('jane.doe@example.com', { limit: 20 });
+  await orderService.getOrdersByEmail('john.smith@example.com', { limit: 20 });
+
+  assert.equal(query.mock.callCount(), 2);
+});
+
+test('getOrderByTrackingNumber serves a second lookup from cache without querying again', async (t) => {
+  const query = t.mock.method(pool, 'query', async () => ({
+    rows: [{ tracking_number: '1Z999AA10123456784' }],
+  }));
+
+  await orderService.getOrderByTrackingNumber('1Z999AA10123456784');
+  await orderService.getOrderByTrackingNumber('1Z999AA10123456784');
+
+  assert.equal(query.mock.callCount(), 1);
 });

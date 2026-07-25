@@ -26,6 +26,13 @@ async function getOrder(req, res) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
+    // private, not public - this is one customer's own order data, so only
+    // their browser's own cache may reuse it, never a shared/CDN cache that
+    // wouldn't know to key on the Authorization header. Short-lived on
+    // purpose: config/cache.js's own TTL is what actually absorbs repeat
+    // load; this just saves a full round trip for quick back/forward
+    // navigation within the same short window.
+    res.setHeader('Cache-Control', 'private, max-age=30');
     res.json(order);
   } catch (err) {
     logError('Order lookup error', err);
@@ -50,6 +57,7 @@ async function listMyOrders(req, res) {
       limit,
       cursor: req.query.cursor,
     });
+    res.setHeader('Cache-Control', 'private, max-age=30');
     res.json({ orders, nextCursor });
   } catch (err) {
     if (err instanceof orderService.InvalidCursorError) {
