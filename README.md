@@ -165,11 +165,22 @@ Secrets are also never *logged* - see [Structured logging](#structured-logging) 
 ```bash
 npm test                    # backend - node:test (test/)
 npm --prefix frontend test  # frontend - Vitest + React Testing Library
+npm run build && npm run test:e2e  # e2e - Playwright, full stack, real browser
 ```
 
 Backend tests mock `pool.query` and `anthropic.messages.create`, so they don't touch Neon or incur API costs. Frontend tests mock `fetch` and `sessionStorage` is reset between tests, so they don't need a running backend.
 
-Frontend tests are co-located next to what they cover (`Component.test.jsx` beside `Component.jsx`) rather than in a separate top-level folder like the backend's `test/` - the more common convention in the React ecosystem, and it keeps a component and its test moving together on a rename or delete. Coverage is deliberately scoped to logic and behavior with real branching (`AuthContext`'s login/logout/persistence, `useAuthorizedFetch`'s 401-triggers-logout behavior, the route guards' redirect logic, `VerifyForm`'s success/error/network-failure paths, `MessageBubble`'s class/content rendering) rather than every page top-to-bottom - full page flows (login → orders → detail → chat, cross-customer 404s, hard-refresh on a client route) are already covered by live headless-browser checks during development, which is a better fit for that kind of end-to-end assertion than a jsdom unit test would be.
+Frontend tests are co-located next to what they cover (`Component.test.jsx` beside `Component.jsx`) rather than in a separate top-level folder like the backend's `test/` - the more common convention in the React ecosystem, and it keeps a component and its test moving together on a rename or delete. Coverage is deliberately scoped to logic and behavior with real branching (`AuthContext`'s login/logout/persistence, `useAuthorizedFetch`'s 401-triggers-logout behavior, the route guards' redirect logic, `VerifyForm`'s success/error/network-failure paths, `MessageBubble`'s class/content rendering) rather than every page top-to-bottom - full page flows are what the e2e suite is for.
+
+### E2E tests
+
+`e2e/` (Playwright), against a real Chromium browser and a real running server - no mocks. `playwright.config.js`'s `webServer` builds nothing itself but starts `node server.js` (on a dedicated port, `NODE_ENV=test` so the HTTPS-redirect middleware stays off) and waits for `/health` before running:
+
+- **`auth.spec.js`** - unauthenticated visits redirect to `/verify`; verifying with a real order number + its email logs in; the wrong email for a real order shows an error and doesn't log in; logging out blocks protected routes again
+- **`orders.spec.js`** - the order list shows only the logged-in customer's own orders; clicking into one shows the right fields; the browser back button returns via real history, not just component state; a hard-refresh on `/orders/:id` still works (proves the SPA-fallback catch-all in `src/app.js`); navigating directly to a *different* customer's order number by URL shows a not-found error rather than their data
+- **`chat.spec.js`** - the chat page is reachable, and sending a message without a configured AI provider surfaces a visible error bubble rather than hanging - this project intentionally doesn't pay to test real Claude replies end-to-end (see [Secrets management](#secrets-management)), so the graceful-failure path is what's asserted on instead
+
+Needs a real Postgres to run against - locally that's whatever `DATABASE_URL` is already set to (a `.env` or Doppler works exactly like it does for `npm start`, since `server.js` is what `webServer` runs); in CI it's an ephemeral `postgres:16` service container, schema'd and seeded fresh on every run by the same `database.sql` the app already applies on startup (its `INSERT ... ON CONFLICT DO NOTHING` makes this safe against a real, persistent dev database too - reruns don't duplicate rows). `src/config/db.js` only forces SSL when the target isn't `localhost`, since Neon requires it but a plain CI Postgres container doesn't support it at all.
 
 ## Docker
 
@@ -194,10 +205,11 @@ The free tier spins down after 15 minutes idle, so the first request after inact
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across three parallel jobs:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across four jobs:
 
-- **test** - builds `frontend/`, runs both test suites (backend `node:test`, frontend Vitest)
-- **docker** - builds the production Docker image
+- **test** - builds `frontend/`, runs both unit test suites (backend `node:test`, frontend Vitest)
+- **e2e** - runs after `test`; the Playwright suite against a real Chromium browser and an ephemeral `postgres:16` service container. Uploads the HTML report as a build artifact on failure.
+- **docker** - runs after `test`; builds the production Docker image
 - **audit** - `npm audit` against both `package-lock.json`s (root and `frontend/`)
 
 ### Dependency vulnerability scanning
@@ -254,8 +266,14 @@ frontend/          # React app (Vite) - separate package.json, own build
         └── MessageBubble.test.jsx
 frontend/dist/     # build output (gitignored) - what Express actually serves
 test/             # node:test suite (mocked DB/Claude, no live calls)
+e2e/              # Playwright suite - real browser, real server, real Postgres
+├── helpers.js         # verifyAs() - drives the real verify form
+├── auth.spec.js
+├── orders.spec.js
+└── chat.spec.js
+playwright.config.js   # webServer boots node server.js on :3010 for e2e/
 Dockerfile, docker-compose.yml, .dockerignore   # containerization; Dockerfile builds frontend/ in a separate stage
 render.yaml       # Render Blueprint for deployment
 .env.example      # documents required environment variables
-.github/workflows/ci.yml                        # frontend build + test + Docker build on push/PR
+.github/workflows/ci.yml                        # frontend build + unit tests + e2e + Docker build + audit on push/PR
 ```
