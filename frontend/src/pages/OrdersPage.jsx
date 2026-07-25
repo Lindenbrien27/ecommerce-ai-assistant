@@ -7,26 +7,35 @@ export function OrdersPage() {
   const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [orders, setOrders] = useState(null);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+
+  async function loadPage(cursor) {
+    const url = cursor ? `/api/orders?cursor=${encodeURIComponent(cursor)}` : '/api/orders';
+    const res = await authorizedFetch(url);
+
+    if (res.status === 401) {
+      return null;
+    }
+
+    if (!res.ok) {
+      setError('Something went wrong loading your orders.');
+      return null;
+    }
+
+    return res.json();
+  }
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const res = await authorizedFetch('/api/orders');
-
-        if (res.status === 401) {
-          return;
-        }
-
-        if (!res.ok) {
-          if (!cancelled) setError('Something went wrong loading your orders.');
-          return;
-        }
-
-        const data = await res.json();
-        if (!cancelled) setOrders(data);
+        const data = await loadPage();
+        if (!data || cancelled) return;
+        setOrders(data.orders);
+        setNextCursor(data.nextCursor);
       } catch {
         if (!cancelled) setError("Couldn't reach the server. Please check your connection and try again.");
       }
@@ -37,6 +46,20 @@ export function OrdersPage() {
       cancelled = true;
     };
   }, [authorizedFetch]);
+
+  async function handleLoadMore() {
+    setLoadingMore(true);
+    try {
+      const data = await loadPage(nextCursor);
+      if (!data) return;
+      setOrders((prev) => [...prev, ...data.orders]);
+      setNextCursor(data.nextCursor);
+    } catch {
+      setError("Couldn't reach the server. Please check your connection and try again.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <>
@@ -68,6 +91,12 @@ export function OrdersPage() {
               </li>
             ))}
           </ul>
+        )}
+
+        {nextCursor && (
+          <button type="button" onClick={handleLoadMore} disabled={loadingMore}>
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </button>
         )}
       </div>
     </>

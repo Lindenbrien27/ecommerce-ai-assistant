@@ -49,7 +49,7 @@ flowchart LR
 | GET    | `/health`         | Liveness check for load balancers / container orchestrators (no auth) |
 | POST   | `/api/auth/verify` | Prove ownership of an order (order number + email) and receive a customer-scoped token (no auth) |
 | POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools scoped to the authenticated customer (requires `Authorization: Bearer <token>`) |
-| GET    | `/api/orders`     | List every order belonging to the authenticated customer (requires `Authorization: Bearer <token>`) |
+| GET    | `/api/orders`     | Paginated list of orders belonging to the authenticated customer - keyset pagination via `?limit=` (default 20, max 100) and `?cursor=` (opaque, from the previous page's `nextCursor`); responds `{ orders, nextCursor }` (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/orders/:id` | Fetch a single order by order number - only if it belongs to the authenticated customer (requires `Authorization: Bearer <token>`) |
 
 ## Setup

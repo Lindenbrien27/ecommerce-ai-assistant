@@ -1,5 +1,11 @@
 const orderService = require('../services/orderService');
 
+// Fixed, not the paginated default - the model has no cursor to hand back
+// on a follow-up call, so this has to be a single self-contained page. Caps
+// what a "list my orders" question can pull into the conversation, so a
+// customer with a very long order history doesn't blow up the prompt.
+const MAX_ORDERS_FOR_CHAT = 20;
+
 const definitions = [
   {
     name: 'get_order_by_number',
@@ -14,7 +20,7 @@ const definitions = [
   },
   {
     name: 'get_my_orders',
-    description: 'List every order placed by the current customer. Takes no parameters - the customer is already known from their authenticated session.',
+    description: `List the current customer's most recent orders (up to ${MAX_ORDERS_FOR_CHAT}, newest first). Takes no parameters - the customer is already known from their authenticated session. If the customer needs their full order history, point them to the orders page instead.`,
     input_schema: {
       type: 'object',
       properties: {},
@@ -47,7 +53,12 @@ const implementations = {
     const order = await orderService.getOrderByNumber(orderNumber);
     return ownedBy(order, customerEmail);
   },
-  get_my_orders: async (_input, { customerEmail }) => orderService.getOrdersByEmail(customerEmail),
+  get_my_orders: async (_input, { customerEmail }) => {
+    const { orders } = await orderService.getOrdersByEmail(customerEmail, {
+      limit: MAX_ORDERS_FOR_CHAT,
+    });
+    return orders;
+  },
   get_order_by_tracking_number: async ({ trackingNumber }, { customerEmail }) => {
     const order = await orderService.getOrderByTrackingNumber(trackingNumber);
     return ownedBy(order, customerEmail);

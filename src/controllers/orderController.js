@@ -33,11 +33,28 @@ async function getOrder(req, res) {
   }
 }
 
+function parseLimit(rawLimit) {
+  if (rawLimit === undefined) return undefined;
+  const limit = Number(rawLimit);
+  return Number.isInteger(limit) ? limit : NaN;
+}
+
 async function listMyOrders(req, res) {
+  const limit = parseLimit(req.query.limit);
+  if (Number.isNaN(limit)) {
+    return res.status(400).json({ error: 'limit must be an integer.' });
+  }
+
   try {
-    const orders = await orderService.getOrdersByEmail(req.customerEmail);
-    res.json(orders);
+    const { orders, nextCursor } = await orderService.getOrdersByEmail(req.customerEmail, {
+      limit,
+      cursor: req.query.cursor,
+    });
+    res.json({ orders, nextCursor });
   } catch (err) {
+    if (err instanceof orderService.InvalidCursorError) {
+      return res.status(400).json({ error: 'Invalid cursor.' });
+    }
     logError('Order list error', err);
     res.status(500).json({ error: 'Something went wrong looking up your orders.' });
   }

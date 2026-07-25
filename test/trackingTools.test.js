@@ -45,9 +45,10 @@ test('get_order_by_number returns null when the order does not exist', async (t)
 });
 
 test("get_my_orders always uses the authenticated customer's email, ignoring any model input", async (t) => {
-  t.mock.method(orderService, 'getOrdersByEmail', async (email) => {
+  t.mock.method(orderService, 'getOrdersByEmail', async (email, { limit } = {}) => {
     assert.equal(email, 'jane@example.com');
-    return [{ order_number: 'ORD-1001' }];
+    assert.ok(Number.isInteger(limit) && limit > 0);
+    return { orders: [{ order_number: 'ORD-1001' }], nextCursor: null };
   });
 
   const result = await implementations.get_my_orders({}, { customerEmail: 'jane@example.com' });

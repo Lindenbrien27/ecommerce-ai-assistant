@@ -79,7 +79,7 @@ test('GET /api/orders without a token is rejected', async (t) => {
 test('GET /api/orders lists only the authenticated customer\'s orders', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.match(sql, /WHERE customer_email = \$1/);
-    assert.deepEqual(params, ['jane@example.com']);
+    assert.equal(params[0], 'jane@example.com');
     return { rows: [{ order_number: 'ORD-1001' }, { order_number: 'ORD-1002' }] };
   });
 
@@ -91,7 +91,56 @@ test('GET /api/orders lists only the authenticated customer\'s orders', async (t
     });
     assert.equal(res.status, 200);
     const body = await res.json();
-    assert.equal(body.length, 2);
+    assert.equal(body.orders.length, 2);
+    assert.equal(body.nextCursor, null);
+  });
+});
+
+test('GET /api/orders returns a nextCursor and honors limit when more rows remain', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    assert.match(sql, /LIMIT \$4/);
+    assert.equal(params[3], 3); // limit + 1, to detect a next page
+    return {
+      rows: [
+        { order_number: 'ORD-1001', created_at: '2026-01-03T00:00:00Z', id: 3 },
+        { order_number: 'ORD-1002', created_at: '2026-01-02T00:00:00Z', id: 2 },
+        { order_number: 'ORD-1003', created_at: '2026-01-01T00:00:00Z', id: 1 },
+      ],
+    };
+  });
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders?limit=2`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.orders.length, 2);
+    assert.ok(typeof body.nextCursor === 'string' && body.nextCursor.length > 0);
+  });
+});
+
+test('GET /api/orders rejects a non-integer limit', async (t) => {
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders?limit=abc`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /api/orders rejects a malformed cursor', async (t) => {
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders?cursor=not-valid-base64url-json`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 400);
   });
 });
 
