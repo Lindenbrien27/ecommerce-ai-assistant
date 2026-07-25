@@ -69,7 +69,7 @@ The `orders` table and seed rows are created automatically on startup via `datab
 curl -H "X-API-Key: $API_KEY" http://localhost:3000/api/orders/ORD-1001
 ```
 
-This is a single shared secret, not per-customer auth - it blocks anonymous bots from hitting the API directly, but the static chat UI (`public/app.js`) embeds the key in client-side JS, so anyone who views the page source can read it. Treat this as a minimal deterrent for the current dev/staging phase, not a substitute for real user authentication before handling real customer data.
+This is a single shared secret, not per-customer auth - it blocks anonymous bots from hitting the API directly, but the chat UI serves it to the browser (`GET /app.js` injects `API_KEY` into the response at request time, so anyone who views the page source can still read it - it's just no longer hardcoded into tracked source, so it doesn't end up committed to git). Treat this as a minimal deterrent for the current dev/staging phase, not a substitute for real user authentication before handling real customer data.
 
 ### Rate limiting
 
