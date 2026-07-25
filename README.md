@@ -193,7 +193,7 @@ The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s depend
 
 ## Deploy
 
-`render.yaml` defines a free Render web service that builds the existing `Dockerfile` and health-checks `/health`.
+Live at **https://ecommerce-ai-assistant-917v.onrender.com** (Render's free tier, auto-deploys from `main` on every push). `render.yaml` defines the web service, which builds the existing `Dockerfile` and health-checks `/health`.
 
 1. Push to GitHub (already done if you're reading this from the repo)
 2. In [Doppler](https://doppler.com), create a project, add `ANTHROPIC_API_KEY`/`DATABASE_URL`/`JWT_SECRET` to its production config, and generate a service token scoped to that config
@@ -202,6 +202,8 @@ The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s depend
 5. Deploy - Render assigns a public `https://<name>.onrender.com` URL; the container fetches the other three secrets from Doppler at startup
 
 The free tier spins down after 15 minutes idle, so the first request after inactivity has a cold-start delay (same tradeoff as Neon's compute auto-suspend).
+
+**Custom domain:** not set up yet - still on Render's shared `onrender.com` subdomain rather than a domain this project owns. Deliberately deferred (a domain is a real ongoing cost), not overlooked. When that changes: buy/point a domain at the registrar, add it under the Render service's Settings → Custom Domains, and Render provisions a free TLS certificate for it automatically - no application code changes needed, since nothing in the app hardcodes its own origin.
 
 ## CI
 
