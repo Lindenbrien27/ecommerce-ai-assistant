@@ -3,7 +3,11 @@ services:
     build: .
     ports:
       - "3000:3000"
-    env_file:
-      - .env
+    # The container's CMD (doppler run -- node server.js) fetches secrets
+    # from Doppler itself - export a Doppler service token as DOPPLER_TOKEN
+    # in this shell before running `docker compose up` and it passes
+    # through untouched. Nothing secret is read from a file on disk.
+    environment:
+      - DOPPLER_TOKEN
     restart: unless-stopped
   

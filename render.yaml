@@ -5,9 +5,8 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: JWT_SECRET
+      # The container's own CMD (doppler run -- node server.js) fetches
+      # ANTHROPIC_API_KEY, DATABASE_URL, and JWT_SECRET from Doppler at
+      # startup - this is the only secret Render itself needs to hold.
+      - key: DOPPLER_TOKEN
         sync: false

@@ -17,6 +17,14 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
+# Doppler CLI: fetches ANTHROPIC_API_KEY/DATABASE_URL/JWT_SECRET at container
+# start and injects them into the process env (see CMD below) - the only
+# secret this container is configured with directly is DOPPLER_TOKEN.
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' \
+      -O /etc/apk/keys/cli@doppler.com-8004d9ff50437357.rsa.pub && \
+    echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' >> /etc/apk/repositories && \
+    apk add --no-cache doppler
+
 COPY . .
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
@@ -26,4 +34,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["node", "server.js"]
+# doppler run fetches secrets using DOPPLER_TOKEN and injects them into the
+# environment before exec-ing the wrapped command - server.js's
+# process.env.* reads are unchanged, only where the values come from.
+CMD ["doppler", "run", "--", "node", "server.js"]

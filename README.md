@@ -57,10 +57,11 @@ flowchart LR
 ```bash
 npm install
 npm run build       # builds frontend/dist (installs frontend deps first)
-cp .env.example .env
-# fill in ANTHROPIC_API_KEY, DATABASE_URL (from your Neon project), and JWT_SECRET in .env
-npm start
+doppler setup       # links this directory to your Doppler project/config (one-time)
+doppler run -- npm start
 ```
+
+No Doppler account? `cp .env.example .env`, fill in `ANTHROPIC_API_KEY`, `DATABASE_URL` (from your Neon project), and `JWT_SECRET`, then plain `npm start` still works - see [Secrets management](#secrets-management).
 
 For frontend-only iteration, `npm --prefix frontend run dev` runs Vite's dev server on its own port and proxies `/api/*` to a locally running `npm start` on port 3000.
 
@@ -144,16 +145,18 @@ When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain
 
 ### Secrets management
 
-Three secrets: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`. Handled consistently, but not identically, across every environment:
+Three application secrets: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`. They live in [Doppler](https://doppler.com) (free tier), not as raw values scattered across environments - Doppler is the single source of truth, with versioning and an audit log of who changed what, when.
 
-| Environment | How secrets get in | Never in the repo because |
-|---|---|---|
-| Local dev | `.env`, loaded by `dotenv` | `.env` is gitignored; `.env.example` documents variable names only, never values |
-| CI (GitHub Actions) | Hardcoded placeholder values in `package.json`'s `test` script (`test-key-for-ci`, etc.) | Nothing real is needed - `pool.query` and `anthropic.messages.create` are mocked in every test, so CI never makes a live DB or Claude call |
-| Docker | `docker-compose.yml`'s `env_file: .env` | The `Dockerfile` never `COPY`s `.env` or bakes a value into a layer - secrets are injected at container start, not build time |
-| Render (production) | Entered directly in the Render dashboard | `render.yaml` marks all three `sync: false`, which tells Render to prompt for them interactively rather than storing them in the Blueprint file |
+| Environment | How secrets get in |
+|---|---|
+| Local dev | `doppler run -- npm start` fetches secrets and injects them into the process env at startup - nothing touches disk. `.env` still works as a documented, Doppler-free fallback for quick local iteration (see `.env.example`). |
+| CI (GitHub Actions) | Untouched by Doppler - hardcoded placeholder values in `package.json`'s `test` script (`test-key-for-ci`, etc.), since `pool.query` and `anthropic.messages.create` are mocked in every test and CI never makes a live DB or Claude call. |
+| Docker (local `docker compose up`) | The image's own `CMD` is `doppler run -- node server.js` - export a Doppler service token as `DOPPLER_TOKEN` in the shell running `docker compose up` and `environment: [DOPPLER_TOKEN]` in `docker-compose.yml` passes it through. |
+| Render (production) | Same `CMD` as above runs inside the deployed container. `render.yaml` now holds exactly one `sync: false` secret, `DOPPLER_TOKEN` (a service token scoped to the production config) - Render never sees `ANTHROPIC_API_KEY`, `DATABASE_URL`, or `JWT_SECRET` directly; Doppler hands them to the process at startup instead. |
 
-`src/config/requiredEnv.js` + a check at the top of `server.js` make `DATABASE_URL` and `JWT_SECRET` hard requirements - the process logs a clear "Missing required environment variable(s)" error and exits immediately (`process.exit(1)`) rather than starting in a broken state. `ANTHROPIC_API_KEY` is deliberately excluded from that check: a missing key already degrades gracefully per-request (`POST /api/chat` returns a generic `500` instead of the whole app refusing to start), which is what lets this project run locally without an Anthropic account or spending API credits.
+This is a real trade-off, made deliberately rather than defaulted into: this app has three secrets, one small service, and no rotation/audit requirement yet, so a dedicated secrets manager is arguably more infrastructure than the current scale strictly needs. Doppler's free tier and the fact that `doppler run` requires zero application code changes (it injects into `process.env` exactly like `dotenv` did) made adopting one now cheap enough to be worth the upgrade path - centralized rotation and an audit trail exist before they're needed, not after an incident forces the issue.
+
+`src/config/requiredEnv.js` + a check at the top of `server.js` still make `DATABASE_URL` and `JWT_SECRET` hard requirements regardless of *how* they arrived - the process logs a clear "Missing required environment variable(s)" error and exits immediately (`process.exit(1)`) rather than starting in a broken state (e.g. `DOPPLER_TOKEN` itself missing or invalid, so `doppler run` never populates anything). `ANTHROPIC_API_KEY` is deliberately excluded from that check: a missing key already degrades gracefully per-request (`POST /api/chat` returns a generic `500` instead of the whole app refusing to start), which is what lets this project run locally without an Anthropic account or spending API credits.
 
 Secrets are also never *logged* - see [Structured logging](#structured-logging) above for the `pino` redact config and custom error serializer that keep them out of both request logs and error output.
 
@@ -171,19 +174,21 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 ## Docker
 
 ```bash
+export DOPPLER_TOKEN=<a Doppler service token>
 docker compose up --build
 ```
 
-The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s dependencies and runs `vite build`, stage two installs the backend's production dependencies and copies in the built `frontend/dist`. Runs the resulting image against your `.env` (`docker-compose.yml`). The container exposes a `/health` check.
+The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s dependencies and runs `vite build`, stage two installs the backend's production dependencies, the Doppler CLI, and copies in the built `frontend/dist`. The container's `CMD` (`doppler run -- node server.js`) fetches `ANTHROPIC_API_KEY`/`DATABASE_URL`/`JWT_SECRET` from Doppler at startup using `DOPPLER_TOKEN` (passed through by `docker-compose.yml`) - see [Secrets management](#secrets-management). The container exposes a `/health` check.
 
 ## Deploy
 
 `render.yaml` defines a free Render web service that builds the existing `Dockerfile` and health-checks `/health`.
 
 1. Push to GitHub (already done if you're reading this from the repo)
-2. On [render.com](https://render.com), **New +** → **Blueprint** → connect this repo → Render detects `render.yaml`
-3. Fill in the three prompted secrets (`ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`) - they're marked `sync: false` so Render asks for them rather than storing them in the repo
-4. Deploy - Render assigns a public `https://<name>.onrender.com` URL
+2. In [Doppler](https://doppler.com), create a project, add `ANTHROPIC_API_KEY`/`DATABASE_URL`/`JWT_SECRET` to its production config, and generate a service token scoped to that config
+3. On [render.com](https://render.com), **New +** → **Blueprint** → connect this repo → Render detects `render.yaml`
+4. Fill in the one prompted secret, `DOPPLER_TOKEN` (the service token from step 2) - it's marked `sync: false` so Render asks for it rather than storing it in the repo
+5. Deploy - Render assigns a public `https://<name>.onrender.com` URL; the container fetches the other three secrets from Doppler at startup
 
 The free tier spins down after 15 minutes idle, so the first request after inactivity has a cold-start delay (same tradeoff as Neon's compute auto-suspend).
 
