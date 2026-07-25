@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from '../components/MessageBubble.jsx';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 export function ChatPage() {
+  useDocumentTitle('Chat');
   const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [messages, setMessages] = useState([]); // API conversation history: {role, content}

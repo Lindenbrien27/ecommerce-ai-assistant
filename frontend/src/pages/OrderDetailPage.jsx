@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
+  useDocumentTitle(orderNumber);
   const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [order, setOrder] = useState(null);
