@@ -132,6 +132,22 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 
 `src/utils/logger.js`'s `logError(label, err)` wraps this for caught errors, and the configured `err` serializer only ever includes `type`/`message`/`stack` - never the raw error object. Some HTTP client libraries attach debug properties (request config, headers) directly to thrown errors, and pino's *default* error serializer would include those; ours doesn't, closing a real path for an API key or Authorization header to end up in logs. Client-facing error responses are always a fixed generic message regardless of the underlying failure.
 
+### Audit logging
+
+`pino-http`'s access log records that a request happened; it doesn't record what it *meant*. `src/config/auditLog.js` adds a separate, filterable trail (`audit: true`, via a pino [child logger](https://getpino.io/#/docs/child-loggers)) for the events actually worth reviewing after the fact:
+
+| Event | Where | Fires on |
+|---|---|---|
+| `auth.verify_failed` | `authController.js` | Wrong order number/email pair at `/api/auth/verify` |
+| `auth.verify_succeeded` | `authController.js` | A customer successfully verifies and gets a token |
+| `auth.token_rejected` | `customerAuth.js` | Missing/invalid/expired JWT on a protected route (`reason`: `missing`/`invalid`/`expired`) |
+| `order.access_denied` | `orderController.js` | `GET /api/orders/:id` denied (`reason`: `not_found`/`not_owned`) |
+| `rate_limit.exceeded` | `rateLimiter.js` | Any of the three limiters trips (`limiter`: `chat`/`orders`/`auth`) |
+
+`order.access_denied` is the one worth calling out specifically: the HTTP response is a `404` regardless of whether the order doesn't exist or belongs to someone else - deliberately, so a client can't use it to enumerate real order numbers (see [Authorization](#authorization)). The audit log entry still tells the two apart internally, and for the `not_owned` case, records *which other customer's* order was requested (`actualOwner`) - an authenticated customer's token hitting an order that genuinely belongs to someone else is meaningfully different signal (possible token leakage/reuse, or targeted probing) than one that just doesn't exist, even though neither is visible to the requester. This is the general shape of audit logging: the external response stays minimal, the internal record stays complete.
+
+Verified live against the real database, not just in mocked tests: a failed verify, a successful verify, a cross-customer access attempt, and an invalid token each produce the exact structured entry documented above, including `order.access_denied` correctly capturing both `requestedBy` and `actualOwner`. `test/auditLog.test.js` covers all five events, including asserting `actualOwner` is *absent* from a `not_found` entry (there's no other customer to name) but present for `not_owned`.
+
 ### Frontend routing
 
 `react-router-dom` (`BrowserRouter`), not just conditionally-rendered state. Four real routes, each with a distinct URL, browser back/forward, and direct-link support:
@@ -287,7 +303,7 @@ Both are re-evaluated whenever dependencies are bumped, since "not applicable gi
 
 ```
 src/
-├── config/       # DB connection (pg Pool), migration runner, Claude client, pino logger, required-env-var check
+├── config/       # DB connection (pg Pool), migration runner, Claude client, pino logger, audit log, required-env-var check
 ├── services/     # business logic - order/auth queries, AI chat/tool-calling loop
 ├── tools/        # LLM tool/function definitions, scoped to the authenticated customer
 ├── controllers/  # request/response handling
