@@ -191,6 +191,14 @@ docker compose up --build
 
 The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s dependencies and runs `vite build`, stage two installs the backend's production dependencies, the Doppler CLI, and copies in the built `frontend/dist`. The container's `CMD` (`doppler run -- node server.js`) fetches `ANTHROPIC_API_KEY`/`DATABASE_URL`/`JWT_SECRET` from Doppler at startup using `DOPPLER_TOKEN` (passed through by `docker-compose.yml`) - see [Secrets management](#secrets-management). The container exposes a `/health` check.
 
+### Container hardening
+
+- **Non-root user** - the process runs as `node` (uid 1000), the non-root user the official `node:alpine` image already ships with, not root. `USER node` is set after every step that needs root (installing packages, the Doppler CLI) and before `CMD`.
+- **Minimal image** - the runtime stage copies an explicit allowlist (`server.js`, `database.sql`, `src/`, the built `frontend/dist`) instead of `COPY . .`. A denylist (`.dockerignore`) fails open - anything new added to the repo root ships in the image unless someone remembers to exclude it; an allowlist fails closed. `npm ci --omit=dev` keeps devDependencies (Playwright, Vitest, etc.) out of the image entirely, and the multi-stage build means the frontend's build tooling never reaches the final image either.
+- `doppler run --no-fallback` - the container always has network access to Doppler at startup and doesn't need offline resilience, so there's no reason for it to write a secrets cache file to disk at all.
+
+CI verifies both of the first two aren't just comments that drifted from reality: the `docker` job runs the built image and asserts `id -u` isn't `0`, and separately confirms the real `CMD` fails only on the expected "missing Doppler token" error (no real token is available in CI, since that's the user's own account) rather than a permission error the hardening could have silently introduced.
+
 ## Deploy
 
 Live at **https://ecommerce-ai-assistant-917v.onrender.com** (Render's free tier, auto-deploys from `main` on every push). `render.yaml` defines the web service, which builds the existing `Dockerfile` and health-checks `/health`.

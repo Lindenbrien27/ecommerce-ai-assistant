@@ -27,6 +27,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -t ecommerce-ai-assistant:ci .
+      - name: Verify the container runs as a non-root user
+        run: |
+          actual="$(docker run --rm --entrypoint id ecommerce-ai-assistant:ci -u)"
+          echo "container uid: $actual"
+          if [ "$actual" = "0" ]; then
+            echo "::error::Container is running as root (uid 0) - USER node in the Dockerfile isn't taking effect"
+            exit 1
+          fi
+      # No real DOPPLER_TOKEN is available here (it's the user's own Doppler
+      # account) - this proves the real CMD path runs cleanly as the non-root
+      # user up to the point where it legitimately needs one, rather than
+      # failing on a permission error the hardening change could've caused.
+      - name: Verify the real CMD fails only on the expected missing-token error
+        run: |
+          output="$(docker run --rm ecommerce-ai-assistant:ci 2>&1 || true)"
+          echo "$output"
+          if ! echo "$output" | grep -q "Doppler Error: you must provide a token"; then
+            echo "::error::Container didn't fail with the expected Doppler auth error - it may be failing for an unrelated (e.g. permission) reason instead"
+            exit 1
+          fi
 
   e2e:
     needs: test
