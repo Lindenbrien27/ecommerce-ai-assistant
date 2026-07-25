@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ecommerce-ai-assistant
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: API_KEY
+        sync: false

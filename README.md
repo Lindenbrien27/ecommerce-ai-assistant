@@ -91,6 +91,17 @@ docker compose up --build
 
 Builds the app image and runs it against your `.env` (`docker-compose.yml`). The container exposes a `/health` check.
 
+## Deploy
+
+`render.yaml` defines a free Render web service that builds the existing `Dockerfile` and health-checks `/health`.
+
+1. Push to GitHub (already done if you're reading this from the repo)
+2. On [render.com](https://render.com), **New +** → **Blueprint** → connect this repo → Render detects `render.yaml`
+3. Fill in the three prompted secrets (`OPENAI_API_KEY`, `DATABASE_URL`, `API_KEY`) - they're marked `sync: false` so Render asks for them rather than storing them in the repo
+4. Deploy - Render assigns a public `https://<name>.onrender.com` URL
+
+The free tier spins down after 15 minutes idle, so the first request after inactivity has a cold-start delay (same tradeoff as Neon's compute auto-suspend).
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the test suite and builds the Docker image on every push/PR to `main`.
@@ -109,6 +120,7 @@ server.js         # process entry point - inits DB schema, then listens
 public/           # static frontend chat UI
 test/             # node:test suite (mocked DB/OpenAI, no live calls)
 Dockerfile, docker-compose.yml, .dockerignore   # containerization
+render.yaml       # Render Blueprint for deployment
 .env.example      # documents required environment variables
 .github/workflows/ci.yml                        # test + Docker build on push/PR
 ```
