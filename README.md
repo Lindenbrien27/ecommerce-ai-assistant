@@ -160,10 +160,13 @@ Secrets are also never *logged* - see [Structured logging](#structured-logging) 
 ## Testing
 
 ```bash
-npm test
+npm test                    # backend - node:test (test/)
+npm --prefix frontend test  # frontend - Vitest + React Testing Library
 ```
 
-Runs the `node:test` suite (`test/`). Database and Claude calls are mocked, so tests don't touch Neon or incur API costs.
+Backend tests mock `pool.query` and `anthropic.messages.create`, so they don't touch Neon or incur API costs. Frontend tests mock `fetch` and `sessionStorage` is reset between tests, so they don't need a running backend.
+
+Frontend tests are co-located next to what they cover (`Component.test.jsx` beside `Component.jsx`) rather than in a separate top-level folder like the backend's `test/` - the more common convention in the React ecosystem, and it keeps a component and its test moving together on a rename or delete. Coverage is deliberately scoped to logic and behavior with real branching (`AuthContext`'s login/logout/persistence, `useAuthorizedFetch`'s 401-triggers-logout behavior, the route guards' redirect logic, `VerifyForm`'s success/error/network-failure paths, `MessageBubble`'s class/content rendering) rather than every page top-to-bottom - full page flows (login → orders → detail → chat, cross-customer 404s, hard-refresh on a client route) are already covered by live headless-browser checks during development, which is a better fit for that kind of end-to-end assertion than a jsdom unit test would be.
 
 ## Docker
 
@@ -188,7 +191,7 @@ The free tier spins down after 15 minutes idle, so the first request after inact
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across three parallel jobs:
 
-- **test** - builds `frontend/`, runs the test suite
+- **test** - builds `frontend/`, runs both test suites (backend `node:test`, frontend Vitest)
 - **docker** - builds the production Docker image
 - **audit** - `npm audit` against both `package-lock.json`s (root and `frontend/`)
 
@@ -222,10 +225,13 @@ frontend/          # React app (Vite) - separate package.json, own build
     ├── main.jsx               # mounts <App />
     ├── App.jsx                 # BrowserRouter + route definitions
     ├── index.css               # design tokens + component styles
+    ├── setupTests.js           # Vitest setup - loads jest-dom matchers
     ├── context/
-    │   └── AuthContext.jsx     # token state (sessionStorage-backed), login/logout
+    │   ├── AuthContext.jsx      # token state (sessionStorage-backed), login/logout
+    │   └── AuthContext.test.jsx
     ├── hooks/
-    │   └── useAuthorizedFetch.js # attaches the token to a request, logs out on 401
+    │   ├── useAuthorizedFetch.js # attaches the token to a request, logs out on 401
+    │   └── useAuthorizedFetch.test.jsx
     ├── pages/
     │   ├── VerifyPage.jsx      # order number + email verification
     │   ├── OrdersPage.jsx      # GET /api/orders list
@@ -233,10 +239,14 @@ frontend/          # React app (Vite) - separate package.json, own build
     │   └── ChatPage.jsx        # the chat widget
     └── components/
         ├── ProtectedRoute.jsx    # redirects to /verify when logged out
+        ├── ProtectedRoute.test.jsx
         ├── PublicOnlyRoute.jsx   # redirects to /orders when already logged in
+        ├── PublicOnlyRoute.test.jsx
         ├── Layout.jsx            # nav bar (Orders / Chat / Log out) + <Outlet/>
         ├── VerifyForm.jsx        # the verification form itself
-        └── MessageBubble.jsx     # reusable bubble component (user/assistant/pending/error)
+        ├── VerifyForm.test.jsx
+        ├── MessageBubble.jsx     # reusable bubble component (user/assistant/pending/error)
+        └── MessageBubble.test.jsx
 frontend/dist/     # build output (gitignored) - what Express actually serves
 test/             # node:test suite (mocked DB/Claude, no live calls)
 Dockerfile, docker-compose.yml, .dockerignore   # containerization; Dockerfile builds frontend/ in a separate stage
