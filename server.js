@@ -1,6 +1,12 @@
 require('dotenv').config();
+// Before anything else, including ./src/app - Sentry's Express instrumentation
+// only picks up routes/middleware created after Sentry.init() runs.
+require('./src/config/sentry');
+const { registerCrashHandlers } = require('./src/config/crashHandlers');
 const { logger } = require('./src/config/logger');
 const { getMissingRequiredEnvVars } = require('./src/config/requiredEnv');
+
+registerCrashHandlers();
 
 // Fail fast and loud on a misconfigured environment - without this, a
 // missing JWT_SECRET in particular would let the process start and

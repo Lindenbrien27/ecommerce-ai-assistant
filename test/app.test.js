@@ -19,6 +19,42 @@ test('GET /health reports ok (no auth required)', async (t) => {
   });
 });
 
+test('GET /health/db reports ok when the database is reachable', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [{ '?column?': 1 }] }));
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/health/db`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { status: 'ok' });
+  });
+});
+
+test('GET /health/db reports 503 when the database is unreachable', async (t) => {
+  t.mock.method(pool, 'query', async () => {
+    throw new Error('connection refused');
+  });
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/health/db`);
+    assert.equal(res.status, 503);
+    assert.deepEqual(await res.json(), { status: 'error' });
+  });
+});
+
+test('a malformed JSON request body gets a JSON 400, not Express\'s default HTML error page', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{not valid json',
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.headers.get('content-type'), /application\/json/);
+    const body = await res.json();
+    assert.equal(body.error, 'Malformed JSON in request body.');
+  });
+});
+
 test('POST /api/auth/verify issues a token when order number + email match', async (t) => {
   t.mock.method(pool, 'query', async () => ({
     rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }],

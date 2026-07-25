@@ -10,6 +10,9 @@ const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLi
 const { enforceHttps } = require('./middleware/httpsEnforce');
 const { securityHeaders } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
+const { logError } = require('./utils/logger');
+const Sentry = require('./config/sentry');
+const { pool } = require('./config/db');
 
 const app = express();
 
@@ -63,6 +66,21 @@ app.use(
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// A shallow /health only proves the Node process is up - useful as Render's
+// own healthCheckPath (restart-on-failure shouldn't fire just because Neon
+// hiccuped, since restarting this process doesn't fix that), but not a
+// trustworthy "is the product actually working" signal on its own. This is
+// the one meant for an external uptime monitor to poll and alert on.
+app.get('/health/db', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch (err) {
+    logError('Database health check failed', err);
+    res.status(503).json({ status: 'error' });
+  }
+});
+
 // A customer proves ownership of an order (order number + email) here and
 // gets back a token scoped to their own email - no shared secret involved.
 app.use('/api/auth', authLimiter, authRoutes);
@@ -78,6 +96,26 @@ app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(INDEX_HTML);
+});
+
+// Backstop for anything that reaches here instead of one of the try/catch
+// blocks every route handler already has of its own - e.g. a malformed
+// request body: express.json() calls next(err) on unparseable JSON, and
+// with nothing registered to handle that, Express's own default error
+// handler used to take over instead, serving the client an HTML page with
+// a full stack trace (including server file paths) and never touching the
+// structured logs at all. Sentry's handler runs first so it can still
+// report/capture the error even though this one sends the actual response;
+// it only reports 5xx by default, so this doesn't add noise for anything
+// already being handled deliberately elsewhere as a 4xx.
+Sentry.setupExpressErrorHandler(app);
+
+app.use((err, req, res, _next) => {
+  logError('Unhandled request error', err);
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Malformed JSON in request body.' });
+  }
+  res.status(500).json({ error: 'Something went wrong.' });
 });
 
 module.exports = app;
