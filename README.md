@@ -15,7 +15,7 @@ Automated order & tracking support assistant. An Express API that lets customers
 - Natural-language chat endpoint that looks up real order data via Claude tool calling, scoped to the authenticated customer
 - REST endpoints for listing a customer's orders and fetching one by number
 - React UI (`frontend/`, Vite) with client-side routing: an order list, per-order detail pages, and the chat view, gated behind order-ownership verification
-- Postgres-backed via Neon; schema auto-applies on startup
+- Postgres-backed via Neon; versioned migrations (`node-pg-migrate`) auto-apply on startup
 
 ## Tech Stack
 
@@ -67,7 +67,21 @@ For frontend-only iteration, `npm --prefix frontend run dev` runs Vite's dev ser
 
 `ANTHROPIC_API_KEY` comes from an Anthropic Console account (console.anthropic.com) - separate from any claude.ai chat subscription, billed per token.
 
-The `orders` table and seed rows are created automatically on startup via `database.sql`. Server runs at `http://localhost:3000`.
+The `orders` table and seed rows are created automatically on startup by running any pending database migrations - see [Database migrations](#database-migrations). Server runs at `http://localhost:3000`.
+
+### Database migrations
+
+Versioned, not just the idempotent `database.sql` this used to be - [`node-pg-migrate`](https://github.com/salsita/node-pg-migrate), plain SQL migration files in `migrations/`. `server.js` runs any pending migrations before `app.listen()`, same as before, just through a real migration runner instead of re-applying one big SQL file on every boot.
+
+```bash
+npm run migrate:create -- add-a-column   # scaffolds migrations/<timestamp>_add-a-column.sql
+npm run migrate:up                        # apply manually (server.js already does this at startup)
+npm run migrate:down                      # roll back the most recent migration
+```
+
+Each migration file has an `-- Up Migration` and `-- Down Migration` section. `node-pg-migrate` tracks what's already run in a `pgmigrations` table it manages itself, wraps a run in a single transaction (a failure partway through rolls back cleanly instead of leaving the schema half-migrated), and takes a Postgres advisory lock so two instances starting at once can't race each other.
+
+`migrations/1784973065584_initial-schema.sql` (the only migration so far) uses `CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING` - not because that's the general pattern, but specifically because it had to be safe to adopt onto the live Neon database, which already had this exact schema and seed data from the old `database.sql`-on-every-boot approach. Verified live: ran it against production data with the table/rows already present (idempotent skip via `IF NOT EXISTS`, all 5 seed rows still intact afterward) and again against an already-migrated database (correctly logged "No migrations to run!" and did nothing). Every migration *after* this one should be plain `CREATE`/`ALTER` - once `pgmigrations` has recorded a migration as run, it never runs again, so there's no need to hedge against re-execution.
 
 ### Auth
 
@@ -191,7 +205,7 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 - **`chat.spec.js`** - the chat page is reachable, and sending a message without a configured AI provider surfaces a visible error bubble rather than hanging - this project intentionally doesn't pay to test real Claude replies end-to-end (see [Secrets management](#secrets-management)), so the graceful-failure path is what's asserted on instead
 - **`accessibility.spec.js`** - runs `@axe-core/playwright` against every key page and asserts zero violations - see [Accessibility](#accessibility)
 
-Needs a real Postgres to run against - locally that's whatever `DATABASE_URL` is already set to (a `.env` or Doppler works exactly like it does for `npm start`, since `server.js` is what `webServer` runs); in CI it's an ephemeral `postgres:16` service container, schema'd and seeded fresh on every run by the same `database.sql` the app already applies on startup (its `INSERT ... ON CONFLICT DO NOTHING` makes this safe against a real, persistent dev database too - reruns don't duplicate rows). `src/config/db.js` only forces SSL when the target isn't `localhost`, since Neon requires it but a plain CI Postgres container doesn't support it at all.
+Needs a real Postgres to run against - locally that's whatever `DATABASE_URL` is already set to (a `.env` or Doppler works exactly like it does for `npm start`, since `server.js` is what `webServer` runs); in CI it's an ephemeral `postgres:16` service container, schema'd and seeded fresh on every run by the same migrations the app already applies on startup - see [Database migrations](#database-migrations). `src/config/db.js` only forces SSL when the target isn't `localhost`, since Neon requires it but a plain CI Postgres container doesn't support it at all.
 
 ## Docker
 
@@ -205,7 +219,7 @@ The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s depend
 ### Container hardening
 
 - **Non-root user** - the process runs as `node` (uid 1000), the non-root user the official `node:alpine` image already ships with, not root. `USER node` is set after every step that needs root (installing packages, the Doppler CLI) and before `CMD`.
-- **Minimal image** - the runtime stage copies an explicit allowlist (`server.js`, `database.sql`, `src/`, the built `frontend/dist`) instead of `COPY . .`. A denylist (`.dockerignore`) fails open - anything new added to the repo root ships in the image unless someone remembers to exclude it; an allowlist fails closed. `npm ci --omit=dev` keeps devDependencies (Playwright, Vitest, etc.) out of the image entirely, and the multi-stage build means the frontend's build tooling never reaches the final image either.
+- **Minimal image** - the runtime stage copies an explicit allowlist (`server.js`, `migrations/`, `src/`, the built `frontend/dist`) instead of `COPY . .`. A denylist (`.dockerignore`) fails open - anything new added to the repo root ships in the image unless someone remembers to exclude it; an allowlist fails closed. `npm ci --omit=dev` keeps devDependencies (Playwright, Vitest, etc.) out of the image entirely, and the multi-stage build means the frontend's build tooling never reaches the final image either.
 - `doppler run --no-fallback` - the container always has network access to Doppler at startup and doesn't need offline resilience, so there's no reason for it to write a secrets cache file to disk at all.
 
 CI verifies both of the first two aren't just comments that drifted from reality: the `docker` job runs the built image and asserts `id -u` isn't `0`, and separately confirms the real `CMD` fails only on the expected "missing Doppler token" error (no real token is available in CI, since that's the user's own account) rather than a permission error the hardening could have silently introduced.
@@ -248,14 +262,15 @@ Both are re-evaluated whenever dependencies are bumped, since "not applicable gi
 
 ```
 src/
-├── config/       # DB connection (pg Pool), Claude client, pino logger, required-env-var check
+├── config/       # DB connection (pg Pool), migration runner, Claude client, pino logger, required-env-var check
 ├── services/     # business logic - order/auth queries, AI chat/tool-calling loop
 ├── tools/        # LLM tool/function definitions, scoped to the authenticated customer
 ├── controllers/  # request/response handling
 ├── routes/       # Express route definitions
 ├── middleware/   # customerAuth (JWT), rate limiters, HTTPS enforcement
 └── app.js        # Express app assembly - serves frontend/dist
-server.js         # process entry point - inits DB schema, then listens
+server.js         # process entry point - runs pending migrations, then listens
+migrations/       # node-pg-migrate - versioned schema changes, see Database migrations
 frontend/          # React app (Vite) - separate package.json, own build
 ├── index.html               # Vite entry HTML
 ├── vite.config.js

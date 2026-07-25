@@ -9,7 +9,10 @@
     "dev": "node --watch server.js",
     "build": "npm --prefix frontend ci && npm --prefix frontend run build",
     "test": "ANTHROPIC_API_KEY=test-key-for-ci DATABASE_URL=postgresql://test:test@localhost:5432/test JWT_SECRET=test-secret-for-ci RATE_LIMIT_MAX=20 RATE_LIMIT_WINDOW_MS=60000 RATE_LIMIT_ORDERS_MAX=20 RATE_LIMIT_ORDERS_WINDOW_MS=60000 RATE_LIMIT_AUTH_MAX=20 RATE_LIMIT_AUTH_WINDOW_MS=60000 LOG_LEVEL=silent node --test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "migrate:create": "node-pg-migrate create -j sql",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -17,6 +20,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^8.6.0",
     "jsonwebtoken": "^9.0.3",
+    "node-pg-migrate": "^9.0.0",
     "pg": "^8.12.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0"

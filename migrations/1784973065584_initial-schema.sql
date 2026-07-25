@@ -1,3 +1,12 @@
+-- Up Migration
+
+-- IF NOT EXISTS / ON CONFLICT DO NOTHING here specifically because this
+-- migration is being adopted onto a database (the live Neon instance) that
+-- already has this exact schema and seed data from before migration
+-- tooling existed - this app used to apply database.sql idempotently on
+-- every boot instead. Future migrations should NOT need this pattern: once
+-- a migration has run, node-pg-migrate's tracking table (pgmigrations)
+-- guarantees it never runs again, so plain CREATE/ALTER is correct there.
 CREATE TABLE IF NOT EXISTS orders (
   id SERIAL PRIMARY KEY,
   order_number TEXT NOT NULL UNIQUE,
@@ -21,3 +30,7 @@ VALUES
   ('ORD-1004', 'john.smith@example.com', 'Ergonomic Office Chair', 'out_for_delivery', 'FedEx', '789012345678', '2026-07-25'),
   ('ORD-1005', 'ada.lovelace@example.com', '27" 4K Monitor', 'cancelled', NULL, NULL, NULL)
 ON CONFLICT (order_number) DO NOTHING;
+
+-- Down Migration
+
+DROP TABLE IF EXISTS orders;

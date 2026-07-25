@@ -12,18 +12,18 @@ if (missingEnvVars.length > 0) {
 }
 
 const app = require('./src/app');
-const { initSchema } = require('./src/config/db');
+const { runMigrations } = require('./src/config/migrate');
 const { logError } = require('./src/utils/logger');
 
 const PORT = process.env.PORT || 3000;
 
-initSchema()
+runMigrations()
   .then(() => {
     app.listen(PORT, () => {
       logger.info(`E-commerce assistant running at http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    logError('Failed to initialize database schema', err);
+    logError('Failed to run database migrations', err);
     process.exit(1);
   });
