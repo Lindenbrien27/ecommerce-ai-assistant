@@ -295,12 +295,14 @@ The free tier spins down after 15 minutes idle, so the first request after inact
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across four jobs:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across five jobs, plus a separate CodeQL workflow on the same triggers:
 
 - **test** - builds `frontend/`, runs both unit test suites (backend `node:test`, frontend Vitest)
 - **e2e** - runs after `test`; the Playwright suite against a real Chromium browser and an ephemeral `postgres:16` service container. Uploads the HTML report as a build artifact on failure.
 - **docker** - runs after `test`; builds the production Docker image
+- **dast** - runs after `test`; OWASP ZAP baseline scan against the real app - see [Dynamic scanning](#dynamic-scanning-dast)
 - **audit** - `npm audit` against both `package-lock.json`s (root and `frontend/`)
+- **CodeQL** (`.github/workflows/codeql.yml`, separate workflow) - static analysis - see [Static analysis](#static-analysis-sast)
 
 ### Dependency vulnerability scanning
 
@@ -312,6 +314,18 @@ The `audit` job always prints the full `npm audit` report for both projects, but
 | `react-router` | High | [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2) only affects apps using React Router's unstable RSC (React Server Components) APIs. This app is a plain client-side SPA (`BrowserRouter`/`Routes`/`Route` - no RSC, no framework mode, verified by grepping `frontend/src` for any RSC import), so it isn't exposed. No patched version exists on npm yet at time of writing (registry tops out at `7.18.1`; the advisory's fix, `8.3.0`, isn't published). |
 
 Both are re-evaluated whenever dependencies are bumped, since "not applicable given current usage" can stop being true the moment the code that uses a library changes.
+
+### Static analysis (SAST)
+
+`npm audit` only ever tells you about *known-vulnerable dependencies* - it has nothing to say about a bug in this project's own code. [CodeQL](https://codeql.github.com) (`.github/workflows/codeql.yml`, GitHub's native SAST) closes that gap: it builds a semantic model of the actual source (both the Express backend and the React frontend, `javascript-typescript`) and queries it for real vulnerability patterns - injection, unsafe regexes, prototype pollution, that kind of thing - not just pattern-matching text. Free for a public repo, no separate account or token to manage. Findings land in the repo's [Security tab](../../security/code-scanning) as code scanning alerts, not as a CI failure - a query flagging something is a "go look at this," not an automatic verdict, and a hard fail here would block every PR on a human's backlog instead of just surfacing it. Runs on every push/PR like the rest of CI, plus a weekly schedule so newly-published query coverage still gets checked against code that hasn't changed - the same reasoning as running `npm audit` on a schedule would follow, if this project's dependency graph ever stopped changing entirely.
+
+### Dynamic scanning (DAST)
+
+Static analysis and dependency audits both work from source - CodeQL reads the code, `npm audit` reads `package-lock.json`. Neither one ever actually sends a request to the running app, so neither can tell you what's really observable from the outside: response headers, cookie flags, information disclosure in error responses, that category of finding. The `dast` job (`.github/workflows/ci.yml`) runs the [OWASP ZAP](https://www.zaproxy.org) baseline scan (`zaproxy/action-baseline`) against the real app - migrations run, server started, spidered and passively analyzed over HTTP, same as `e2e`'s ephemeral `postgres:16` setup.
+
+Baseline specifically, not a full active scan: it spiders and passively inspects traffic rather than actively attempting exploitation (SQLi payloads, etc.) against a database seeded with the same fixture data other CI jobs share - a full active scan is a deliberately separate, heavier decision this project isn't making yet, not an oversight.
+
+Report-only for now (`fail_action: false`), same reasoning as `npm audit`'s severity threshold: a fresh baseline scan surfaces a mix of real findings and low-signal informational ones (e.g. a missing `Cache-control` on a response nobody considers sensitive), and a hard fail on all of it either blocks CI on noise or trains people to ignore red - `npm audit`'s solution was a severity floor; ZAP's is a `rules_file_name` (`.zap/rules.tsv`) explicitly listing which specific alert IDs are reviewed-and-accepted, once there's a real report to review. The full report is available as a build artifact (`zap_scan`, uploaded automatically by the action) on every run.
 
 ## Project Structure
 

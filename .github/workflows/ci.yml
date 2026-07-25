@@ -89,6 +89,68 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  dast:
+    needs: test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://e2e:e2e@localhost:5432/e2e
+      JWT_SECRET: e2e-test-secret
+      ANTHROPIC_API_KEY: e2e-fake-key
+      PORT: 3000
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start the app in the background
+        run: |
+          node server.js &
+          ready=false
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "::error::Server never became healthy"
+            exit 1
+          fi
+      # Passive baseline scan (spidering + passive analysis, no active
+      # exploitation attempts) against the real running app - not a
+      # substitute for the header/CSP-specific assertions already in
+      # test/securityHeaders.test.js, but those only check the headers this
+      # app sets deliberately; this checks what a scanner sees end-to-end,
+      # including anything nobody thought to write an assertion for.
+      # Report-only for now (fail_action: false) - see README > Dynamic
+      # scanning for why, same reasoning as npm audit not hard-failing on
+      # every finding regardless of severity/applicability.
+      - name: OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'http://localhost:3000'
+          fail_action: false
+          allow_issue_writing: false
+
   audit:
     runs-on: ubuntu-latest
     steps:
