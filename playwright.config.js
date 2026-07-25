@@ -13,7 +13,19 @@ module.exports = defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Cross-browser (three engines - Chromium, Firefox, WebKit) and
+  // cross-device (two touch/mobile-viewport presets, which is what
+  // actually exercises the <=480px responsive CSS in frontend/src/index.css
+  // - Desktop Chrome never triggers it) rather than just Chromium at one
+  // fixed viewport. Every spec in e2e/ runs under all five as-is; nothing
+  // here is Chromium-specific.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'Mobile Chrome', use: { ...devices['Pixel 5'] } },
+    { name: 'Mobile Safari', use: { ...devices['iPhone 13'] } },
+  ],
   webServer: {
     // A dedicated port so this doesn't collide with `npm run dev`/`npm start`
     // running locally at the same time. server.js's own `require('dotenv')

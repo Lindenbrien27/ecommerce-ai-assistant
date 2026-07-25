@@ -248,7 +248,7 @@ Secrets are also never *logged* - see [Structured logging](#structured-logging) 
 ```bash
 npm test                    # backend - node:test (test/)
 npm --prefix frontend test  # frontend - Vitest + React Testing Library
-npm run build && npm run test:e2e  # e2e - Playwright, full stack, real browser
+npm run build && npm run test:e2e  # e2e - Playwright, full stack, real browsers, real devices
 ```
 
 Backend tests mock `pool.query` and `anthropic.messages.create`, so they don't touch Neon or incur API costs. Frontend tests mock `fetch` and `sessionStorage` is reset between tests, so they don't need a running backend.
@@ -257,7 +257,7 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 
 ### E2E tests
 
-`e2e/` (Playwright), against a real Chromium browser and a real running server - no mocks. `playwright.config.js`'s `webServer` builds nothing itself but starts `node server.js` (on a dedicated port, `NODE_ENV=test` so the HTTPS-redirect middleware stays off) and waits for `/health` before running:
+`e2e/` (Playwright), against real browsers and a real running server - no mocks. `playwright.config.js`'s `webServer` builds nothing itself but starts `node server.js` (on a dedicated port, `NODE_ENV=test` so the HTTPS-redirect middleware stays off) and waits for `/health` before running:
 
 - **`auth.spec.js`** - unauthenticated visits redirect to `/verify`; verifying with a real order number + its email logs in; the wrong email for a real order shows an error and doesn't log in; logging out blocks protected routes again
 - **`orders.spec.js`** - the order list shows only the logged-in customer's own orders; clicking into one shows the right fields; the browser back button returns via real history, not just component state; a hard-refresh on `/orders/:id` still works (proves the SPA-fallback catch-all in `src/app.js`); navigating directly to a *different* customer's order number by URL shows a not-found error rather than their data
@@ -266,6 +266,14 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 - **`performance.spec.js`** - compression, cache headers, and lazy-loaded route chunks, verified against real network requests - see [Performance](#performance)
 
 Needs a real Postgres to run against - locally that's whatever `DATABASE_URL` is already set to (a `.env` or Doppler works exactly like it does for `npm start`, since `server.js` is what `webServer` runs); in CI it's an ephemeral `postgres:16` service container, schema'd and seeded fresh on every run by the same migrations the app already applies on startup - see [Database migrations](#database-migrations). `src/config/db.js` only forces SSL when the target isn't `localhost`, since Neon requires it but a plain CI Postgres container doesn't support it at all.
+
+### Cross-browser / cross-device coverage
+
+Every spec above runs under five `projects` in `playwright.config.js`, not just one fixed Chromium window: Chromium, Firefox, and WebKit at desktop size, plus two touch/mobile-viewport presets (Pixel 5, iPhone 13). Nothing in `e2e/` is Chromium-specific, so this is the same 20-ish tests re-run five ways rather than a separate mobile-only suite to maintain - one spec file, one source of truth for what "correct" means, checked against five real rendering engines/viewports instead of trusting that Chromium behavior generalizes.
+
+The two mobile presets are the ones that actually matter here, not just box-checking: both fall under the `max-width: 480px` breakpoint in `frontend/src/index.css` (edge-to-edge layout, no card chrome, a shorter chat transcript height) that Desktop Chrome at its default viewport never triggers - without a device project running the same specs at that width, that entire CSS path had no automated coverage at all, mobile-specific bugs there would only ever surface manually.
+
+CI installs all three engines (`npx playwright install --with-deps`, no longer just `chromium`) - the tradeoff is roughly 5x the `e2e` job's runtime for what's genuinely new coverage (a real rendering/JS engine difference, or the mobile breakpoint), not test count for its own sake.
 
 ## Docker
 
@@ -387,7 +395,7 @@ frontend/          # React app (Vite) - separate package.json, own build
         └── MessageBubble.test.jsx
 frontend/dist/     # build output (gitignored) - what Express actually serves
 test/             # node:test suite (mocked DB/Claude, no live calls)
-e2e/              # Playwright suite - real browser, real server, real Postgres
+e2e/              # Playwright suite - real browsers, real devices, real server, real Postgres
 ├── helpers.js         # verifyAs() - drives the real verify form
 ├── auth.spec.js
 ├── orders.spec.js
