@@ -249,6 +249,7 @@ Secrets are also never *logged* - see [Structured logging](#structured-logging) 
 npm test                    # backend - node:test (test/)
 npm --prefix frontend test  # frontend - Vitest + React Testing Library
 npm run build && npm run test:e2e  # e2e - Playwright, full stack, real browsers, real devices
+npm run loadtest             # load test - real concurrency against a running server (see below)
 ```
 
 Backend tests mock `pool.query` and `anthropic.messages.create`, so they don't touch Neon or incur API costs. Frontend tests mock `fetch` and `sessionStorage` is reset between tests, so they don't need a running backend.
@@ -274,6 +275,14 @@ Every spec above runs under five `projects` in `playwright.config.js`, not just 
 The two mobile presets are the ones that actually matter here, not just box-checking: both fall under the `max-width: 480px` breakpoint in `frontend/src/index.css` (edge-to-edge layout, no card chrome, a shorter chat transcript height) that Desktop Chrome at its default viewport never triggers - without a device project running the same specs at that width, that entire CSS path had no automated coverage at all, mobile-specific bugs there would only ever surface manually.
 
 CI installs all three engines (`npx playwright install --with-deps`, no longer just `chromium`) - the tradeoff is roughly 5x the `e2e` job's runtime for what's genuinely new coverage (a real rendering/JS engine difference, or the mobile breakpoint), not test count for its own sake.
+
+### Load testing
+
+Every other test in this project mocks `pool.query` or, in the e2e suite, exercises a handful of sequential requests against a real database - neither says anything about what happens to the actual Postgres connection pool (`src/config/db.js`, an unconfigured `pg.Pool` - 10 connections by default) or the keyset-paginated `GET /api/orders` query under real concurrency. `loadtest/run.js` (`npm run loadtest`) closes that gap: verifies once as the seed customer (`jane.doe@example.com`), then drives concurrent [`autocannon`](https://github.com/mcollina/autocannon) load at `GET /api/orders?limit=20` and `GET /api/orders/:id` with that token, for a configurable duration/connection count (`LOADTEST_DURATION`/`LOADTEST_CONNECTIONS`, defaulting to 15s/20 connections).
+
+`autocannon` over the more full-featured `artillery` specifically because of what it *doesn't* pull in - see the `uuid`/`hyperid` row in [Dependency vulnerability scanning](#dependency-vulnerability-scanning) for the actual comparison; a load-testing devDependency isn't worth 26 transitive vulnerabilities and a Node version bump this project isn't otherwise making.
+
+`.github/workflows/loadtest.yml` runs this in CI - `workflow_dispatch` (on demand) plus a weekly schedule, deliberately *not* on every push like the rest of `ci.yml`. That's a real distinction, not an inconsistency: a security finding or an accessibility violation is deterministic regardless of what hardware happens to run the check, so gating every push on those is correct. Absolute latency numbers are a function of whatever shared GitHub Actions runner got assigned that day - a per-push gate on p99 would eventually fail for no reason related to the code. `loadtest/run.js` reflects that split: it prints full latency percentiles for a human to read, but only fails the run on an actual error, timeout, or non-2xx response - a real backend failure under load, not a slow environment. The job also sets `RATE_LIMIT_ORDERS_MAX` far above production defaults, since the rate limiter's own behavior already has deterministic coverage in `test/rateLimiter.test.js` and isn't what this is trying to measure.
 
 ## Docker
 
@@ -325,8 +334,9 @@ The `audit` job always prints the full `npm audit` report for both projects, but
 |---|---|---|
 | `esbuild` (via `vite`) | Moderate | [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99) only affects Vite's dev server accepting requests from any origin. The dev server never runs in production - Express serves the static `frontend/dist` build - so this is unreachable in the deployed app. |
 | `react-router` | High | [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2) only affects apps using React Router's unstable RSC (React Server Components) APIs. This app is a plain client-side SPA (`BrowserRouter`/`Routes`/`Route` - no RSC, no framework mode, verified by grepping `frontend/src` for any RSC import), so it isn't exposed. No patched version exists on npm yet at time of writing (registry tops out at `7.18.1`; the advisory's fix, `8.3.0`, isn't published). |
+| `uuid` (via `autocannon`'s `hyperid`) | Moderate | [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) is a buffer-bounds bug reachable only when a caller passes its own undersized `buf` into `uuid`'s v3/v5/v6 generation - `hyperid` never does that (internal request-ID generation only, no caller-supplied buffer). `autocannon` is also a `devDependency` used only to drive [load tests](#load-testing) against a local/CI server - it never ships in the production image (`npm ci --omit=dev`) or runs against anything but test infrastructure. Considered choosing an older `autocannon` to dodge this, but the alternative most people reach for for this kind of test, `artillery`, pulled in 26 vulnerabilities (several high) and requires Node ≥22.13 against this project's Node 20 - one reviewed moderate finding in a devDependency was the better trade. |
 
-Both are re-evaluated whenever dependencies are bumped, since "not applicable given current usage" can stop being true the moment the code that uses a library changes.
+All three are re-evaluated whenever dependencies are bumped, since "not applicable given current usage" can stop being true the moment the code that uses a library changes.
 
 ### Static analysis (SAST)
 

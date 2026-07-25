@@ -1,0 +1,70 @@
+name: Load test
+
+# Manual + weekly, not on every push like ci.yml's other jobs. Deterministic
+# checks (a security finding, an accessibility violation, a test assertion)
+# are worth gating every push on regardless of hardware; this run's latency
+# numbers are a function of whatever shared GitHub Actions runner happens to
+# be assigned that day, which makes a per-push latency gate inherently
+# flaky. loadtest/run.js still fails the job on errors/timeouts/non-2xx
+# responses (a real backend failure, not a slow environment) - see README >
+# Load testing.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '32 4 * * 1'
+
+jobs:
+  loadtest:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: loadtest
+          POSTGRES_PASSWORD: loadtest
+          POSTGRES_DB: loadtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://loadtest:loadtest@localhost:5432/loadtest
+      JWT_SECRET: loadtest-secret
+      ANTHROPIC_API_KEY: loadtest-fake-key
+      PORT: 3000
+      NODE_ENV: test
+      # This is what's actually under test here - the backend/database's
+      # own throughput headroom, not the rate limiter (which already has
+      # deterministic coverage in test/rateLimiter.test.js). Left at
+      # production defaults, the orders limiter (30/60s) would turn this
+      # into a 429 benchmark instead.
+      RATE_LIMIT_ORDERS_MAX: '100000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start the app in the background
+        run: |
+          node server.js &
+          ready=false
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "::error::Server never became healthy"
+            exit 1
+          fi
+      - run: npm run loadtest
+        env:
+          LOADTEST_TARGET: 'http://localhost:3000'
