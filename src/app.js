@@ -1,4 +1,3 @@
-const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const pinoHttp = require('pino-http');
@@ -29,16 +28,16 @@ app.use(pinoHttp({ logger }));
 
 app.use(express.json());
 
-// Registered before express.static so this takes precedence over the
-// static public/app.js file - the API key placeholder is swapped for the
-// real value at request time, so the real key never lives in tracked source.
-app.get('/app.js', (req, res) => {
-  const filePath = path.join(__dirname, '..', 'public', 'app.js');
-  const content = fs.readFileSync(filePath, 'utf8').replace('__API_KEY__', process.env.API_KEY || '');
-  res.type('application/javascript').send(content);
+// The frontend is a built React app (frontend/dist, produced by
+// `npm run build`) served as static assets. It fetches this at runtime for
+// its API key instead of the key being baked into the build - that way
+// rotating the key server-side doesn't require rebuilding the frontend. The
+// key is still visible to any browser visitor by design; see README Auth.
+app.get('/api/config', (req, res) => {
+  res.json({ apiKey: process.env.API_KEY || '' });
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

@@ -12,13 +12,12 @@ async function withServer(t, run) {
   await run(`http://localhost:${port}`);
 }
 
-test('GET /app.js injects the real API key at request time', async (t) => {
+test('GET /api/config returns the real API key at request time (no auth required)', async (t) => {
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/app.js`);
+    const res = await fetch(`${base}/api/config`);
     assert.equal(res.status, 200);
-    const body = await res.text();
-    assert.ok(body.includes(process.env.API_KEY));
-    assert.ok(!body.includes('__API_KEY__'));
+    const body = await res.json();
+    assert.equal(body.apiKey, process.env.API_KEY);
   });
 });
 
