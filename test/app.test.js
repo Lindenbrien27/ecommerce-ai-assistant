@@ -74,6 +74,12 @@ test('POST /api/auth/verify issues a token when order number + email match', asy
       body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' }),
     });
     assert.equal(res.status, 200);
+    // Never a Set-Cookie - session fixation targets a server-side session
+    // identifier the server accepts/continues across the auth boundary,
+    // typically a cookie. This app has no session store at all; a guard
+    // against ever accidentally growing one here (see README > Penetration
+    // testing).
+    assert.equal(res.headers.get('set-cookie'), null);
     const body = await res.json();
     assert.ok(typeof body.token === 'string' && body.token.length > 0);
   });
