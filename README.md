@@ -71,6 +71,10 @@ curl -H "X-API-Key: $API_KEY" http://localhost:3000/api/orders/ORD-1001
 
 This is a single shared secret, not per-customer auth - it blocks anonymous bots from hitting the API directly, but the static chat UI (`public/app.js`) embeds the key in client-side JS, so anyone who views the page source can read it. Treat this as a minimal deterrent for the current dev/staging phase, not a substitute for real user authentication before handling real customer data.
 
+### Rate limiting
+
+`/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound OpenAI API cost under abuse or accidental retry loops. Exceeding it returns `429`.
+
 ## Testing
 
 ```bash
