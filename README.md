@@ -142,6 +142,21 @@ No global store beyond `AuthContext` - the app doesn't have enough shared, cross
 
 When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301) and sets `Strict-Transport-Security` on secure responses. `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
 
+### Secrets management
+
+Three secrets: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`. Handled consistently, but not identically, across every environment:
+
+| Environment | How secrets get in | Never in the repo because |
+|---|---|---|
+| Local dev | `.env`, loaded by `dotenv` | `.env` is gitignored; `.env.example` documents variable names only, never values |
+| CI (GitHub Actions) | Hardcoded placeholder values in `package.json`'s `test` script (`test-key-for-ci`, etc.) | Nothing real is needed - `pool.query` and `anthropic.messages.create` are mocked in every test, so CI never makes a live DB or Claude call |
+| Docker | `docker-compose.yml`'s `env_file: .env` | The `Dockerfile` never `COPY`s `.env` or bakes a value into a layer - secrets are injected at container start, not build time |
+| Render (production) | Entered directly in the Render dashboard | `render.yaml` marks all three `sync: false`, which tells Render to prompt for them interactively rather than storing them in the Blueprint file |
+
+`src/config/requiredEnv.js` + a check at the top of `server.js` make `DATABASE_URL` and `JWT_SECRET` hard requirements - the process logs a clear "Missing required environment variable(s)" error and exits immediately (`process.exit(1)`) rather than starting in a broken state. `ANTHROPIC_API_KEY` is deliberately excluded from that check: a missing key already degrades gracefully per-request (`POST /api/chat` returns a generic `500` instead of the whole app refusing to start), which is what lets this project run locally without an Anthropic account or spending API credits.
+
+Secrets are also never *logged* - see [Structured logging](#structured-logging) above for the `pino` redact config and custom error serializer that keep them out of both request logs and error output.
+
 ## Testing
 
 ```bash
@@ -177,7 +192,7 @@ GitHub Actions (`.github/workflows/ci.yml`) builds `frontend/`, runs the test su
 
 ```
 src/
-├── config/       # DB connection (pg Pool), Claude client, and pino logger setup
+├── config/       # DB connection (pg Pool), Claude client, pino logger, required-env-var check
 ├── services/     # business logic - order/auth queries, AI chat/tool-calling loop
 ├── tools/        # LLM tool/function definitions, scoped to the authenticated customer
 ├── controllers/  # request/response handling
