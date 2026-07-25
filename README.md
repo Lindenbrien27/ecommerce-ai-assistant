@@ -80,9 +80,11 @@ This is a single shared secret, not per-customer auth - it blocks anonymous bots
 
 Both are independent limiters (separate quotas). Exceeding either returns `429`.
 
-### Error logging
+### Structured logging
 
-All caught errors are logged via `src/utils/logger.js`, which only ever prints an error's `message` and `stack` - never the raw error object. Some HTTP client libraries attach debug properties (request config, headers) directly to thrown errors; logging the object as-is risks printing an API key or Authorization header into server logs. Client-facing error responses are always a fixed generic message regardless of the underlying failure.
+Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting structured JSON lines (level, timestamp, message, fields) instead of plain strings - readable by Render's log viewer or any log aggregator. `pino-http` logs every request/response (method, url, status, response time, a generated request id), including ones that never reach a route (404s, auth rejections, rate limits). Level is configurable via `LOG_LEVEL` (default `info`).
+
+`src/utils/logger.js`'s `logError(label, err)` wraps this for caught errors, and the configured `err` serializer only ever includes `type`/`message`/`stack` - never the raw error object. Some HTTP client libraries attach debug properties (request config, headers) directly to thrown errors, and pino's *default* error serializer would include those; ours doesn't, closing a real path for an API key or Authorization header to end up in logs. Client-facing error responses are always a fixed generic message regardless of the underlying failure.
 
 ### HTTPS enforcement
 
@@ -123,7 +125,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the test suite and builds the D
 
 ```
 src/
-├── config/       # DB connection (pg Pool) and Claude client setup
+├── config/       # DB connection (pg Pool), Claude client, and pino logger setup
 ├── services/     # business logic - order queries, AI chat/tool-calling loop
 ├── tools/        # LLM tool/function definitions and their implementations
 ├── controllers/  # request/response handling

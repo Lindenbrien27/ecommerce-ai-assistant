@@ -1,11 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const pinoHttp = require('pino-http');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const { requireApiKey } = require('./middleware/apiKeyAuth');
 const { chatLimiter, ordersLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
+const { logger } = require('./config/logger');
 
 const app = express();
 
@@ -19,6 +21,11 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
   app.use(enforceHttps);
 }
+
+// Structured request/response logging (method, url, status, response time,
+// a generated request id) for every request, including ones that never
+// reach a route (404s, auth rejections, rate limits).
+app.use(pinoHttp({ logger }));
 
 app.use(express.json());
 
