@@ -1,12 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const openai = require('../src/config/ai');
+const anthropic = require('../src/config/ai');
 const { implementations } = require('../src/tools/trackingTools');
 const { runChat } = require('../src/services/aiService');
 
 test('returns the assistant reply directly when no tool call is made', async (t) => {
-  t.mock.method(openai.chat.completions, 'create', async () => ({
-    choices: [{ message: { role: 'assistant', content: 'Hello there!' } }],
+  t.mock.method(anthropic.messages, 'create', async () => ({
+    content: [{ type: 'text', text: 'Hello there!' }],
+    stop_reason: 'end_turn',
   }));
 
   const reply = await runChat([{ role: 'user', content: 'hi' }]);
@@ -20,32 +21,24 @@ test('executes a tool call and feeds the result back before replying', async (t)
   }));
 
   let callCount = 0;
-  t.mock.method(openai.chat.completions, 'create', async () => {
+  t.mock.method(anthropic.messages, 'create', async () => {
     callCount += 1;
 
     if (callCount === 1) {
       return {
-        choices: [
+        content: [
           {
-            message: {
-              role: 'assistant',
-              content: null,
-              tool_calls: [
-                {
-                  id: 'call_1',
-                  function: {
-                    name: 'get_order_by_number',
-                    arguments: '{"orderNumber":"ORD-1001"}',
-                  },
-                },
-              ],
-            },
+            type: 'tool_use',
+            id: 'toolu_01',
+            name: 'get_order_by_number',
+            input: { orderNumber: 'ORD-1001' },
           },
         ],
+        stop_reason: 'tool_use',
       };
     }
 
-    return { choices: [{ message: { role: 'assistant', content: 'Your order has shipped.' } }] };
+    return { content: [{ type: 'text', text: 'Your order has shipped.' }], stop_reason: 'end_turn' };
   });
 
   const reply = await runChat([{ role: 'user', content: "Where's ORD-1001?" }]);
@@ -55,26 +48,17 @@ test('executes a tool call and feeds the result back before replying', async (t)
 
 test('reports an unknown tool instead of throwing', async (t) => {
   let callCount = 0;
-  t.mock.method(openai.chat.completions, 'create', async () => {
+  t.mock.method(anthropic.messages, 'create', async () => {
     callCount += 1;
 
     if (callCount === 1) {
       return {
-        choices: [
-          {
-            message: {
-              role: 'assistant',
-              content: null,
-              tool_calls: [
-                { id: 'call_1', function: { name: 'not_a_real_tool', arguments: '{}' } },
-              ],
-            },
-          },
-        ],
+        content: [{ type: 'tool_use', id: 'toolu_01', name: 'not_a_real_tool', input: {} }],
+        stop_reason: 'tool_use',
       };
     }
 
-    return { choices: [{ message: { role: 'assistant', content: "Sorry, I couldn't do that." } }] };
+    return { content: [{ type: 'text', text: "Sorry, I couldn't do that." }], stop_reason: 'end_turn' };
   });
 
   const reply = await runChat([{ role: 'user', content: 'do the impossible' }]);

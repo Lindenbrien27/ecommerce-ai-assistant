@@ -1,5 +1,5 @@
-const OpenAI = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic();
 
-module.exports = openai;
+module.exports = anthropic;

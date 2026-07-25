@@ -4,7 +4,7 @@ const orderService = require('../src/services/orderService');
 const { definitions, implementations } = require('../src/tools/trackingTools');
 
 test('exposes exactly the three expected tool definitions', () => {
-  const names = definitions.map((d) => d.function.name).sort();
+  const names = definitions.map((d) => d.name).sort();
   assert.deepEqual(names, [
     'get_order_by_number',
     'get_order_by_tracking_number',
