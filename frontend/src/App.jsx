@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from './components/MessageBubble.jsx';
+import { VerifyForm } from './components/VerifyForm.jsx';
+
+const TOKEN_STORAGE_KEY = 'orderAssistantToken';
 
 export default function App() {
-  const [apiKey, setApiKey] = useState(null);
+  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_STORAGE_KEY));
   const [messages, setMessages] = useState([]); // API conversation history: {role, content}
   const [bubbles, setBubbles] = useState([]); // render list: {id, role, content, variant}
   const [input, setInput] = useState('');
@@ -13,21 +16,22 @@ export default function App() {
   const nextIdRef = useRef(0);
 
   useEffect(() => {
-    // The API key is fetched at runtime rather than baked into the build,
-    // so rotating it server-side doesn't require a frontend rebuild. It's
-    // still visible to any browser visitor by design - see README Auth
-    // section - this just changes how it's delivered.
-    fetch('/api/config')
-      .then((res) => res.json())
-      .then((data) => setApiKey(data.apiKey || ''))
-      .catch(() => setApiKey(''));
-  }, []);
-
-  useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [bubbles]);
+
+  function handleVerified(newToken) {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, newToken);
+    setToken(newToken);
+  }
+
+  function handleAuthExpired() {
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    setToken(null);
+    setMessages([]);
+    setBubbles([]);
+  }
 
   function nextId() {
     nextIdRef.current += 1;
@@ -37,7 +41,7 @@ export default function App() {
   async function handleSubmit(e) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || pending || !apiKey) return;
+    if (!text || pending) return;
 
     setInput('');
     setPending(true);
@@ -55,9 +59,14 @@ export default function App() {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ messages: nextMessages }),
       });
+
+      if (res.status === 401) {
+        handleAuthExpired();
+        return;
+      }
 
       let data = null;
       try {
@@ -96,12 +105,14 @@ export default function App() {
     }
   }
 
-  const formDisabled = pending || !apiKey;
+  if (!token) {
+    return <VerifyForm onVerified={handleVerified} />;
+  }
 
   return (
     <>
       <h1>Order Support Assistant</h1>
-      <p className="subtitle">Ask about an order status or tracking - try "Where's my order ORD-1001?"</p>
+      <p className="subtitle">Ask about your order status or tracking - try "Where's my order?"</p>
 
       <div id="chat" ref={chatRef}>
         {bubbles.map((b) =>
@@ -122,10 +133,10 @@ export default function App() {
           autoComplete="off"
           required
           value={input}
-          disabled={formDisabled}
+          disabled={pending}
           onChange={(e) => setInput(e.target.value)}
         />
-        <button type="submit" disabled={formDisabled}>
+        <button type="submit" disabled={pending}>
           Send
         </button>
       </form>

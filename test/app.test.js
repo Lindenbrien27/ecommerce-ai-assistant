@@ -1,9 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
+const { issueToken } = require('../src/services/authService');
 const app = require('../src/app');
-
-const AUTH_HEADERS = { 'X-API-Key': process.env.API_KEY };
 
 async function withServer(t, run) {
   const server = app.listen(0);
@@ -11,15 +10,6 @@ async function withServer(t, run) {
   const { port } = server.address();
   await run(`http://localhost:${port}`);
 }
-
-test('GET /api/config returns the real API key at request time (no auth required)', async (t) => {
-  await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/config`);
-    assert.equal(res.status, 200);
-    const body = await res.json();
-    assert.equal(body.apiKey, process.env.API_KEY);
-  });
-});
 
 test('GET /health reports ok (no auth required)', async (t) => {
   await withServer(t, async (base) => {
@@ -29,14 +19,57 @@ test('GET /health reports ok (no auth required)', async (t) => {
   });
 });
 
-test('GET /api/orders/:id without an API key is rejected', async (t) => {
+test('POST /api/auth/verify issues a token when order number + email match', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }],
+  }));
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(typeof body.token === 'string' && body.token.length > 0);
+  });
+});
+
+test('POST /api/auth/verify rejects a mismatched email', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }],
+  }));
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'someone-else@example.com' }),
+    });
+    assert.equal(res.status, 401);
+  });
+});
+
+test('POST /api/auth/verify rejects missing fields', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNumber: 'ORD-1001' }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /api/orders/:id without a token is rejected', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/orders/ORD-1001`);
     assert.equal(res.status, 401);
   });
 });
 
-test('POST /api/chat without an API key is rejected', async (t) => {
+test('POST /api/chat without a token is rejected', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/chat`, {
       method: 'POST',
@@ -47,33 +80,58 @@ test('POST /api/chat without an API key is rejected', async (t) => {
   });
 });
 
-test('GET /api/orders/:id returns order data with a valid API key', async (t) => {
+test('GET /api/orders/:id returns order data when the token owner matches', async (t) => {
   t.mock.method(pool, 'query', async () => ({
-    rows: [{ order_number: 'ORD-1001', status: 'shipped' }],
+    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com', status: 'shipped' }],
   }));
 
+  const token = issueToken('jane@example.com');
+
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/orders/ORD-1001`, { headers: AUTH_HEADERS });
+    const res = await fetch(`${base}/api/orders/ORD-1001`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.order_number, 'ORD-1001');
   });
 });
 
+test('GET /api/orders/:id returns 404 when the order belongs to a different customer', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com', status: 'shipped' }],
+  }));
+
+  const token = issueToken('someone-else@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders/ORD-1001`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 404);
+  });
+});
+
 test('GET /api/orders/:id returns 404 when missing', async (t) => {
   t.mock.method(pool, 'query', async () => ({ rows: [] }));
 
+  const token = issueToken('jane@example.com');
+
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/orders/NOPE`, { headers: AUTH_HEADERS });
+    const res = await fetch(`${base}/api/orders/NOPE`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     assert.equal(res.status, 404);
   });
 });
 
 test('POST /api/chat rejects a request with no messages', async (t) => {
+  const token = issueToken('jane@example.com');
+
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ messages: [] }),
     });
     assert.equal(res.status, 400);

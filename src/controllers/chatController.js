@@ -9,7 +9,7 @@ async function postChat(req, res) {
   }
 
   try {
-    const reply = await runChat(messages);
+    const reply = await runChat(messages, req.customerEmail);
     res.json({ reply });
   } catch (err) {
     logError('Chat error', err);

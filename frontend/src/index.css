@@ -108,7 +108,24 @@ p.subtitle { color: var(--color-text-muted); margin-top: 0; margin-bottom: var(-
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
 
-input[type="text"] {
+#verify-form {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 360px;
+}
+
+.verify-error {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  font-size: 0.9rem;
+}
+
+input[type="text"],
+input[type="email"] {
   flex: 1;
   min-width: 0;
   padding: 0.6rem var(--space-2);
@@ -133,6 +150,7 @@ button:hover:not(:disabled) { background: var(--color-primary-hover); }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 input[type="text"]:focus-visible,
+input[type="email"]:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

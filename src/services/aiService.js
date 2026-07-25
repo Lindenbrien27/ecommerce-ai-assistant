@@ -3,13 +3,15 @@ const { definitions: tools, implementations } = require('../tools/trackingTools'
 
 const MODEL = 'claude-haiku-4-5';
 
-const SYSTEM_PROMPT = `You are a support assistant for an e-commerce store. You help customers check their order status and shipment tracking.
+const SYSTEM_PROMPT = `You are a support assistant for an e-commerce store. You help the currently authenticated customer check the status and shipment tracking of their own orders.
 Use the provided tools to look up real order data before answering - never guess or invent order details.
-If a lookup returns no results, tell the customer you couldn't find a matching order and ask them to double-check the order number, tracking number, or email address.
+The tools are already scoped to this customer - you cannot look up anyone else's order, so don't ask for or accept another customer's email address.
+If a lookup returns no results, tell the customer you couldn't find a matching order and ask them to double-check the order number or tracking number.
 Keep responses concise and friendly.`;
 
-async function runChat(messages) {
+async function runChat(messages, customerEmail) {
   const conversation = [...messages];
+  const context = { customerEmail };
 
   for (let turn = 0; turn < 5; turn += 1) {
     const response = await anthropic.messages.create({
@@ -32,7 +34,7 @@ async function runChat(messages) {
       if (block.type !== 'tool_use') continue;
 
       const impl = implementations[block.name];
-      const result = impl ? await impl(block.input) : { error: 'Unknown tool' };
+      const result = impl ? await impl(block.input, context) : { error: 'Unknown tool' };
 
       toolResults.push({
         type: 'tool_result',

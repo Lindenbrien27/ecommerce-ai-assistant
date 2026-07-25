@@ -16,4 +16,14 @@ const ordersLimiter = rateLimit({
   message: { error: 'Too many order lookups, please try again shortly.' },
 });
 
-module.exports = { chatLimiter, ordersLimiter };
+// Stricter: this endpoint lets someone try guessing (order number, email)
+// pairs, so it gets a tighter default than the read endpoints above.
+const authLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_AUTH_WINDOW_MS) || 60_000,
+  max: Number(process.env.RATE_LIMIT_AUTH_MAX) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts, please try again shortly.' },
+});
+
+module.exports = { chatLimiter, ordersLimiter, authLimiter };

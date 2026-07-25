@@ -1,10 +1,11 @@
 const path = require('path');
 const express = require('express');
 const pinoHttp = require('pino-http');
+const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
-const { requireApiKey } = require('./middleware/apiKeyAuth');
-const { chatLimiter, ordersLimiter } = require('./middleware/rateLimiter');
+const { requireCustomerAuth } = require('./middleware/customerAuth');
+const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
 const { logger } = require('./config/logger');
 
@@ -28,20 +29,15 @@ app.use(pinoHttp({ logger }));
 
 app.use(express.json());
 
-// The frontend is a built React app (frontend/dist, produced by
-// `npm run build`) served as static assets. It fetches this at runtime for
-// its API key instead of the key being baked into the build - that way
-// rotating the key server-side doesn't require rebuilding the frontend. The
-// key is still visible to any browser visitor by design; see README Auth.
-app.get('/api/config', (req, res) => {
-  res.json({ apiKey: process.env.API_KEY || '' });
-});
-
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.use('/api/chat', requireApiKey, chatLimiter, chatRoutes);
-app.use('/api/orders', requireApiKey, ordersLimiter, orderRoutes);
+// A customer proves ownership of an order (order number + email) here and
+// gets back a token scoped to their own email - no shared secret involved.
+app.use('/api/auth', authLimiter, authRoutes);
+
+app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
+app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
 
 module.exports = app;

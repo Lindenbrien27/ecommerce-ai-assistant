@@ -48,9 +48,9 @@ flowchart LR
 | Method | Path              | Description                                                      |
 |--------|-------------------|--------------------------------------------------------------------|
 | GET    | `/health`         | Liveness check for load balancers / container orchestrators (no auth) |
-| GET    | `/api/config`     | Returns the API key for the frontend to use (no auth - see Auth below) |
-| POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools (requires `X-API-Key`) |
-| GET    | `/api/orders/:id` | Fetch a single order by order number (requires `X-API-Key`)        |
+| POST   | `/api/auth/verify` | Prove ownership of an order (order number + email) and receive a customer-scoped token (no auth) |
+| POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools scoped to the authenticated customer (requires `Authorization: Bearer <token>`) |
+| GET    | `/api/orders/:id` | Fetch a single order by order number - only if it belongs to the authenticated customer (requires `Authorization: Bearer <token>`) |
 
 ## Setup
 
@@ -58,7 +58,7 @@ flowchart LR
 npm install
 npm run build       # builds frontend/dist (installs frontend deps first)
 cp .env.example .env
-# fill in ANTHROPIC_API_KEY, DATABASE_URL (from your Neon project), and API_KEY in .env
+# fill in ANTHROPIC_API_KEY, DATABASE_URL (from your Neon project), and JWT_SECRET in .env
 npm start
 ```
 
@@ -70,20 +70,33 @@ The `orders` table and seed rows are created automatically on startup via `datab
 
 ### Auth
 
-`/api/chat` and `/api/orders/:id` require an `X-API-Key` header matching `API_KEY` in `.env`:
+Per-customer, not a shared key. A customer proves who they are with something only they'd know: their order number *and* the email it was placed under - the same low-friction pattern real package-tracking tools use (Shopify, UPS, FedEx). No password to store, no email-sending service required.
 
 ```bash
-curl -H "X-API-Key: $API_KEY" http://localhost:3000/api/orders/ORD-1001
+# 1. Verify ownership, get a token scoped to that customer's email
+curl -X POST http://localhost:3000/api/auth/verify \
+  -H "Content-Type: application/json" \
+  -d '{"orderNumber": "ORD-1001", "email": "jane.doe@example.com"}'
+# => {"token": "eyJhbGciOi..."}
+
+# 2. Use it on subsequent requests
+curl -H "Authorization: Bearer eyJhbGciOi..." http://localhost:3000/api/orders/ORD-1001
 ```
 
-This is a single shared secret, not per-customer auth - it blocks anonymous bots from hitting the API directly, but the React app fetches it from `GET /api/config` at runtime (rather than baking it into the build), so anyone who views devtools/network requests can still read it. That runtime-fetch approach also means rotating `API_KEY` server-side doesn't require rebuilding the frontend. Treat this as a minimal deterrent for the current dev/staging phase, not a substitute for real user authentication before handling real customer data.
+The token is a JWT (`JWT_SECRET`, 1 hour expiry) carrying the customer's email. Every protected route uses it, never a value the client supplies:
+
+- `GET /api/orders/:id` - `orderController` returns `404` (not `403`, to avoid confirming another customer's order exists) if the order's `customer_email` doesn't match the token.
+- `POST /api/chat` - the authenticated email is passed into `aiService.runChat()` and threaded through to every tool implementation in `trackingTools.js`. Each one enforces the ownership check server-side (`get_my_orders` ignores any email the model might be told to pass and always uses the authenticated one), so the assistant can't be prompted into revealing a different customer's order - the model never has the ability to ask for someone else's data in the first place.
+
+`RATE_LIMIT_AUTH_MAX` (default 10 per `RATE_LIMIT_AUTH_WINDOW_MS`, default 60s) limits `/api/auth/verify` specifically, since it's a credential-guessing surface.
 
 ### Rate limiting
 
+- `/api/auth/verify` is capped at `RATE_LIMIT_AUTH_MAX` requests (default 10) per `RATE_LIMIT_AUTH_WINDOW_MS` (default 60s) per client, to slow down (order number, email) guessing.
 - `/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound Claude API cost under abuse or accidental retry loops.
 - `/api/orders/:id` is capped at `RATE_LIMIT_ORDERS_MAX` requests (default 30) per `RATE_LIMIT_ORDERS_WINDOW_MS` (default 60s) per client, to slow down order-number enumeration/scanning attempts.
 
-Both are independent limiters (separate quotas). Exceeding either returns `429`.
+Each is an independent limiter (separate quota). Exceeding any of them returns `429`.
 
 ### Structured logging
 
@@ -117,7 +130,7 @@ The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s depend
 
 1. Push to GitHub (already done if you're reading this from the repo)
 2. On [render.com](https://render.com), **New +** → **Blueprint** → connect this repo → Render detects `render.yaml`
-3. Fill in the three prompted secrets (`ANTHROPIC_API_KEY`, `DATABASE_URL`, `API_KEY`) - they're marked `sync: false` so Render asks for them rather than storing them in the repo
+3. Fill in the three prompted secrets (`ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`) - they're marked `sync: false` so Render asks for them rather than storing them in the repo
 4. Deploy - Render assigns a public `https://<name>.onrender.com` URL
 
 The free tier spins down after 15 minutes idle, so the first request after inactivity has a cold-start delay (same tradeoff as Neon's compute auto-suspend).
@@ -131,21 +144,23 @@ GitHub Actions (`.github/workflows/ci.yml`) builds `frontend/`, runs the test su
 ```
 src/
 ├── config/       # DB connection (pg Pool), Claude client, and pino logger setup
-├── services/     # business logic - order queries, AI chat/tool-calling loop
-├── tools/        # LLM tool/function definitions and their implementations
+├── services/     # business logic - order/auth queries, AI chat/tool-calling loop
+├── tools/        # LLM tool/function definitions, scoped to the authenticated customer
 ├── controllers/  # request/response handling
 ├── routes/       # Express route definitions
-└── app.js        # Express app assembly - serves frontend/dist, exposes GET /api/config
+├── middleware/   # customerAuth (JWT), rate limiters, HTTPS enforcement
+└── app.js        # Express app assembly - serves frontend/dist
 server.js         # process entry point - inits DB schema, then listens
 frontend/          # React app (Vite) - separate package.json, own build
 ├── index.html               # Vite entry HTML
 ├── vite.config.js
 └── src/
-    ├── main.jsx              # mounts <App />
-    ├── App.jsx                # chat widget - state, submit handling, /api/config fetch
-    ├── index.css              # design tokens + component styles
+    ├── main.jsx               # mounts <App />
+    ├── App.jsx                 # verify-or-chat state, submit handling, Bearer token auth
+    ├── index.css               # design tokens + component styles
     └── components/
-        └── MessageBubble.jsx  # reusable bubble component (user/assistant/pending/error)
+        ├── VerifyForm.jsx      # order number + email verification screen
+        └── MessageBubble.jsx   # reusable bubble component (user/assistant/pending/error)
 frontend/dist/     # build output (gitignored) - what Express actually serves
 test/             # node:test suite (mocked DB/Claude, no live calls)
 Dockerfile, docker-compose.yml, .dockerignore   # containerization; Dockerfile builds frontend/ in a separate stage

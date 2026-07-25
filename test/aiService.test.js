@@ -10,15 +10,16 @@ test('returns the assistant reply directly when no tool call is made', async (t)
     stop_reason: 'end_turn',
   }));
 
-  const reply = await runChat([{ role: 'user', content: 'hi' }]);
+  const reply = await runChat([{ role: 'user', content: 'hi' }], 'jane@example.com');
   assert.equal(reply, 'Hello there!');
 });
 
-test('executes a tool call and feeds the result back before replying', async (t) => {
-  t.mock.method(implementations, 'get_order_by_number', async () => ({
-    order_number: 'ORD-1001',
-    status: 'shipped',
-  }));
+test('executes a tool call scoped to the authenticated customer and feeds the result back before replying', async (t) => {
+  t.mock.method(implementations, 'get_order_by_number', async (input, context) => {
+    assert.equal(input.orderNumber, 'ORD-1001');
+    assert.equal(context.customerEmail, 'jane@example.com');
+    return { order_number: 'ORD-1001', status: 'shipped' };
+  });
 
   let callCount = 0;
   t.mock.method(anthropic.messages, 'create', async () => {
@@ -41,7 +42,7 @@ test('executes a tool call and feeds the result back before replying', async (t)
     return { content: [{ type: 'text', text: 'Your order has shipped.' }], stop_reason: 'end_turn' };
   });
 
-  const reply = await runChat([{ role: 'user', content: "Where's ORD-1001?" }]);
+  const reply = await runChat([{ role: 'user', content: "Where's ORD-1001?" }], 'jane@example.com');
   assert.equal(reply, 'Your order has shipped.');
   assert.equal(callCount, 2);
 });
@@ -61,6 +62,6 @@ test('reports an unknown tool instead of throwing', async (t) => {
     return { content: [{ type: 'text', text: "Sorry, I couldn't do that." }], stop_reason: 'end_turn' };
   });
 
-  const reply = await runChat([{ role: 'user', content: 'do the impossible' }]);
+  const reply = await runChat([{ role: 'user', content: 'do the impossible' }], 'jane@example.com');
   assert.equal(reply, "Sorry, I couldn't do that.");
 });
