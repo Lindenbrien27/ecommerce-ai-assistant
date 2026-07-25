@@ -219,7 +219,12 @@ When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain
 
 Everything else - `default-src 'self'`, `object-src 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, and more - is helmet's default set, verified live via `curl -I` against a running instance rather than assumed. `Strict-Transport-Security` is the one header gated to `NODE_ENV=production` specifically (browsers ignore it entirely when it arrives over plain HTTP per RFC 6797, so there's no reason to emit a permanently-inert header on every local/CI response) - `httpsEnforce.js`'s redirect is the other, also production-only, half of that story; it no longer sets the header itself now that helmet owns it.
 
-`test/securityHeaders.test.js` asserts the tightened CSP directives and the standard header set are actually present, and the full e2e suite (a real Chromium browser) passing after this was added is itself evidence the CSP isn't too strict - a wrong directive would have silently blocked the app's own script or stylesheet and broken every page.
+Two headers added on top of helmet's own defaults, both found by the [OWASP ZAP baseline scan](#dynamic-scanning-dast) rather than added speculatively - the first real findings that scan turned up:
+
+- **`Cross-Origin-Embedder-Policy: require-corp`** - helmet supports this but leaves it off by default, since `require-corp` breaks any page that loads cross-origin resources without CORP/CORS. This app doesn't (same fact the CSP tightening above already relies on), so it's safe to turn on.
+- **`Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()`** - helmet dropped Permissions-Policy support entirely as of v8 (the standardized feature set changes too often for helmet to keep an authoritative default), so this is set directly (`permissionsPolicy` in `securityHeaders.js`) rather than through a helmet option. This app never uses any of these browser features, so they're disabled outright.
+
+`test/securityHeaders.test.js` asserts the tightened CSP directives and the standard header set - including these two - are actually present, and the full e2e suite (a real Chromium browser) passing after this was added is itself evidence the CSP isn't too strict - a wrong directive would have silently blocked the app's own script or stylesheet and broken every page.
 
 ### Secrets management
 
@@ -325,7 +330,17 @@ Static analysis and dependency audits both work from source - CodeQL reads the c
 
 Baseline specifically, not a full active scan: it spiders and passively inspects traffic rather than actively attempting exploitation (SQLi payloads, etc.) against a database seeded with the same fixture data other CI jobs share - a full active scan is a deliberately separate, heavier decision this project isn't making yet, not an oversight.
 
-Report-only for now (`fail_action: false`), same reasoning as `npm audit`'s severity threshold: a fresh baseline scan surfaces a mix of real findings and low-signal informational ones (e.g. a missing `Cache-control` on a response nobody considers sensitive), and a hard fail on all of it either blocks CI on noise or trains people to ignore red - `npm audit`'s solution was a severity floor; ZAP's is a `rules_file_name` (`.zap/rules.tsv`) explicitly listing which specific alert IDs are reviewed-and-accepted, once there's a real report to review. The full report is available as a build artifact (`zap_scan`, uploaded automatically by the action) on every run.
+The first real scan came back clean at High/Medium (0/0), with 2 Low and 4 Informational findings - triaged rather than left as noise:
+
+| Finding | Risk | Disposition |
+|---|---|---|
+| `Cross-Origin-Embedder-Policy` missing | Low | **Fixed** - helmet supports it but defaults it off; safe to enable given this app never loads cross-origin resources (see [Security headers](#security-headers)) |
+| `Permissions-Policy` not set | Low | **Fixed** - helmet dropped this header entirely as of v8; set directly, disabling every feature (camera/mic/geolocation/etc.) this app never uses |
+| Suspicious comment (`10027`) | Info | **Accepted, ignored** (`.zap/rules.tsv`) - false positive, a substring of React's own bundled runtime string containing the word "bug" |
+| Modern Web Application (`10109`) | Info | **Accepted, ignored** - purely descriptive, not a finding |
+| Storable/cacheable content (`10049`) | Info | **Accepted, ignored** - the deliberate immutable-caching and SPA-fallback `no-cache` behavior documented in [Performance](#performance), neither serving anything sensitive |
+
+Same reasoning as `npm audit`'s severity floor for the same underlying tension (a hard fail on every finding regardless of applicability trains people to ignore CI red) - `npm audit`'s solution was a threshold; ZAP's is `rules_file_name` (`.zap/rules.tsv`), an explicit allowlist of specifically-reviewed alert IDs, checked into the repo rather than only living in this table. With the two real findings fixed and the rest curated down to zero, `fail_action` is set to `true` - a *new* alert, of any severity, now fails the build rather than blending into a permanently-yellow report nobody reads closely. The full report is still uploaded as a build artifact (`zap_scan`) on every run regardless of outcome.
 
 ## Project Structure
 

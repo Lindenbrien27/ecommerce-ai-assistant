@@ -141,14 +141,17 @@ jobs:
       # test/securityHeaders.test.js, but those only check the headers this
       # app sets deliberately; this checks what a scanner sees end-to-end,
       # including anything nobody thought to write an assertion for.
-      # Report-only for now (fail_action: false) - see README > Dynamic
-      # scanning for why, same reasoning as npm audit not hard-failing on
-      # every finding regardless of severity/applicability.
+      # .zap/rules.tsv is an explicit allowlist of specifically-reviewed
+      # alert IDs (see README > Dynamic scanning) - with that curated down
+      # to zero remaining alerts, fail_action: true means a *new* one, of
+      # any severity, fails the build instead of blending into a report
+      # nobody reads closely.
       - name: OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: 'http://localhost:3000'
-          fail_action: false
+          rules_file_name: '.zap/rules.tsv'
+          fail_action: true
           allow_issue_writing: false
 
   audit:

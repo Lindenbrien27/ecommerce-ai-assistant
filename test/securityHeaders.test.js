@@ -34,6 +34,19 @@ test('sets the standard defense-in-depth headers', async (t) => {
   });
 });
 
+test('sets Cross-Origin-Embedder-Policy and Permissions-Policy - flagged by the ZAP baseline scan, not on by default', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/health`);
+
+    assert.equal(res.headers.get('cross-origin-embedder-policy'), 'require-corp');
+    const permissionsPolicy = res.headers.get('permissions-policy');
+    assert.ok(permissionsPolicy, 'expected a Permissions-Policy header');
+    for (const feature of ['camera=()', 'microphone=()', 'geolocation=()', 'payment=()', 'usb=()']) {
+      assert.ok(permissionsPolicy.includes(feature), `expected Permissions-Policy to include ${feature}`);
+    }
+  });
+});
+
 test('does not set HSTS outside production - the header is a no-op over plain HTTP anyway', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/health`);

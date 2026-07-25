@@ -1,0 +1,20 @@
+# Alert IDs reviewed and accepted after the first real baseline scan run -
+# see README > Dynamic scanning. Re-evaluate whenever the app changes in a
+# way that could make one of these stop being a non-issue (same discipline
+# as the npm audit acceptance table in the same README section).
+#
+# 10027 Information Disclosure - Suspicious Comments: false positive. The
+#   one instance is a substring of React's own minified production runtime
+#   ("...likely caused by a bug in React. Please fi[le an issue]..."),
+#   flagged because it contains "bug" - not a comment this project wrote,
+#   and nothing sensitive.
+10027	IGNORE	(Information Disclosure - Suspicious Comments)
+# 10109 Modern Web Application: purely descriptive ("consider the Client
+#   Spider instead of the standard one") - not a finding, no action possible.
+10109	IGNORE	(Modern Web Application)
+# 10049 Storable and Cacheable / Storable but Non-Cacheable Content: both
+#   instances are the intended, deliberate behavior documented in README >
+#   Performance (immutable long-lived caching for content-hashed JS/CSS) and
+#   the SPA-fallback index.html (no-cache) - neither serves anything
+#   sensitive or user-specific.
+10049	IGNORE	(Storable and Cacheable Content)
