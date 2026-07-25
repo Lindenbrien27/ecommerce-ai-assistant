@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
+import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 
 export function OrdersPage() {
+  const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [orders, setOrders] = useState(null);
   const [error, setError] = useState(null);
@@ -38,28 +40,36 @@ export function OrdersPage() {
 
   return (
     <>
-      <h1>Your Orders</h1>
+      <h1 ref={headingRef} tabIndex={-1}>
+        Your Orders
+      </h1>
       <p className="subtitle">Every order placed under your verified email.</p>
 
-      {error && <p className="verify-error">{error}</p>}
-      {!error && orders === null && <p className="subtitle">Loading...</p>}
-      {orders && orders.length === 0 && <p className="subtitle">No orders found.</p>}
+      <div aria-live="polite">
+        {error && (
+          <p className="verify-error" role="alert">
+            {error}
+          </p>
+        )}
+        {!error && orders === null && <p className="subtitle">Loading...</p>}
+        {orders && orders.length === 0 && <p className="subtitle">No orders found.</p>}
 
-      {orders && orders.length > 0 && (
-        <ul className="order-list">
-          {orders.map((order) => (
-            <li key={order.order_number}>
-              <Link to={`/orders/${order.order_number}`} className="order-list-item">
-                <span className="order-number">{order.order_number}</span>
-                <span className="order-product">{order.product_name}</span>
-                <span className={`order-status status-${order.status}`}>
-                  {order.status.replace(/_/g, ' ')}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+        {orders && orders.length > 0 && (
+          <ul className="order-list">
+            {orders.map((order) => (
+              <li key={order.order_number}>
+                <Link to={`/orders/${order.order_number}`} className="order-list-item">
+                  <span className="order-number">{order.order_number}</span>
+                  <span className="order-product">{order.product_name}</span>
+                  <span className={`order-status status-${order.status}`}>
+                    {order.status.replace(/_/g, ' ')}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </>
   );
 }

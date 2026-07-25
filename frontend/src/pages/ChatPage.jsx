@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from '../components/MessageBubble.jsx';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
+import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 
 export function ChatPage() {
+  const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [messages, setMessages] = useState([]); // API conversation history: {role, content}
   const [bubbles, setBubbles] = useState([]); // render list: {id, role, content, variant}
@@ -92,10 +94,12 @@ export function ChatPage() {
 
   return (
     <>
-      <h1>Order Support Assistant</h1>
+      <h1 ref={headingRef} tabIndex={-1}>
+        Order Support Assistant
+      </h1>
       <p className="subtitle">Ask about your order status or tracking - try "Where's my order?"</p>
 
-      <div id="chat" ref={chatRef}>
+      <div id="chat" ref={chatRef} role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation">
         {bubbles.map((b) =>
           b.variant === 'pending' ? (
             <TypingIndicator key={b.id} />
@@ -106,6 +110,9 @@ export function ChatPage() {
       </div>
 
       <form id="chat-form" onSubmit={handleSubmit}>
+        <label htmlFor="chat-input" className="sr-only">
+          Ask about your order
+        </label>
         <input
           id="chat-input"
           ref={inputRef}

@@ -139,6 +139,16 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 
 No global store beyond `AuthContext` - the app doesn't have enough shared, cross-page data to justify one, and adding one would just be indirection around two pieces of state (a token and whatever the current page fetched).
 
+### Accessibility
+
+- **Real `<label>`s, not placeholder-only inputs** - every text input (order verification, chat) has a `<label>` associated via `htmlFor`/`id`. Visually hidden (`.sr-only`) to keep the existing compact design, but announced to screen readers - placeholder text alone disappears the moment someone types and isn't a reliable label substitute.
+- **Landmarks** - `<main>` wraps the routed page content (in `Layout` for protected pages, directly in `VerifyPage` for the public one), so assistive tech can jump straight to it instead of tabbing through the nav first.
+- **Errors are announced** - every error message (`role="alert"`) and loading/status region (`aria-live="polite"`) is wired so a screen reader user finds out a request failed or finished without having to go looking for it.
+- **The chat transcript is a live region** - `#chat` has `role="log"` + `aria-live="polite"`, so new assistant replies get announced as they arrive instead of requiring the user to manually re-navigate to the bottom of the conversation after every message.
+- **Focus follows route changes** - `useFocusOnMount` (`frontend/src/hooks/useFocusOnMount.js`) moves focus to each page's `<h1>` on mount. A full page navigation resets browser focus automatically; client-side routing doesn't, so without this, nothing tells a keyboard/screen-reader user that a new "page" just loaded.
+
+Backed by an automated check, not just a one-time manual pass: `e2e/accessibility.spec.js` runs `@axe-core/playwright` against `/verify`, `/orders`, `/orders/:id`, and `/chat` on every push and asserts zero violations, so a future change that regresses any of this fails CI instead of shipping unnoticed.
+
 ### HTTPS enforcement
 
 When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301) and sets `Strict-Transport-Security` on secure responses. `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
@@ -179,6 +189,7 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 - **`auth.spec.js`** - unauthenticated visits redirect to `/verify`; verifying with a real order number + its email logs in; the wrong email for a real order shows an error and doesn't log in; logging out blocks protected routes again
 - **`orders.spec.js`** - the order list shows only the logged-in customer's own orders; clicking into one shows the right fields; the browser back button returns via real history, not just component state; a hard-refresh on `/orders/:id` still works (proves the SPA-fallback catch-all in `src/app.js`); navigating directly to a *different* customer's order number by URL shows a not-found error rather than their data
 - **`chat.spec.js`** - the chat page is reachable, and sending a message without a configured AI provider surfaces a visible error bubble rather than hanging - this project intentionally doesn't pay to test real Claude replies end-to-end (see [Secrets management](#secrets-management)), so the graceful-failure path is what's asserted on instead
+- **`accessibility.spec.js`** - runs `@axe-core/playwright` against every key page and asserts zero violations - see [Accessibility](#accessibility)
 
 Needs a real Postgres to run against - locally that's whatever `DATABASE_URL` is already set to (a `.env` or Doppler works exactly like it does for `npm start`, since `server.js` is what `webServer` runs); in CI it's an ephemeral `postgres:16` service container, schema'd and seeded fresh on every run by the same `database.sql` the app already applies on startup (its `INSERT ... ON CONFLICT DO NOTHING` makes this safe against a real, persistent dev database too - reruns don't duplicate rows). `src/config/db.js` only forces SSL when the target isn't `localhost`, since Neon requires it but a plain CI Postgres container doesn't support it at all.
 
@@ -258,7 +269,8 @@ frontend/          # React app (Vite) - separate package.json, own build
     │   └── AuthContext.test.jsx
     ├── hooks/
     │   ├── useAuthorizedFetch.js # attaches the token to a request, logs out on 401
-    │   └── useAuthorizedFetch.test.jsx
+    │   ├── useAuthorizedFetch.test.jsx
+    │   └── useFocusOnMount.js   # moves focus to a page's <h1> on mount (a11y)
     ├── pages/
     │   ├── VerifyPage.jsx      # order number + email verification
     │   ├── OrdersPage.jsx      # GET /api/orders list
@@ -280,7 +292,8 @@ e2e/              # Playwright suite - real browser, real server, real Postgres
 ├── helpers.js         # verifyAs() - drives the real verify form
 ├── auth.spec.js
 ├── orders.spec.js
-└── chat.spec.js
+├── chat.spec.js
+└── accessibility.spec.js  # axe-core scan of every key page
 playwright.config.js   # webServer boots node server.js on :3010 for e2e/
 Dockerfile, docker-compose.yml, .dockerignore   # containerization; Dockerfile builds frontend/ in a separate stage
 render.yaml       # Render Blueprint for deployment

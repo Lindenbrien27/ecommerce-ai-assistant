@@ -11,5 +11,9 @@ export function VerifyPage() {
     navigate('/orders');
   }
 
-  return <VerifyForm onVerified={handleVerified} />;
+  return (
+    <main>
+      <VerifyForm onVerified={handleVerified} />
+    </main>
+  );
 }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
+import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
+  const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
@@ -49,10 +51,18 @@ export function OrderDetailPage() {
       <Link to="/orders" className="back-link">
         &larr; Back to orders
       </Link>
-      <h1>{orderNumber}</h1>
+      <h1 ref={headingRef} tabIndex={-1}>
+        {orderNumber}
+      </h1>
 
-      {error && <p className="verify-error">{error}</p>}
-      {!error && !order && <p className="subtitle">Loading...</p>}
+      <div aria-live="polite">
+        {error && (
+          <p className="verify-error" role="alert">
+            {error}
+          </p>
+        )}
+        {!error && !order && <p className="subtitle">Loading...</p>}
+      </div>
 
       {order && (
         <dl className="order-detail">

@@ -17,7 +17,9 @@ export function Layout() {
           Log out
         </button>
       </nav>
-      <Outlet />
+      <main>
+        <Outlet />
+      </main>
     </>
   );
 }

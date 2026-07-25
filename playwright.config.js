@@ -30,6 +30,15 @@ module.exports = defineConfig({
       // Never 'production' - that would turn on the HTTPS-redirect
       // middleware, which would break every plain http://localhost request.
       NODE_ENV: 'test',
+      // Every spec's beforeEach calls the real /api/auth/verify endpoint,
+      // and they run in parallel - the default RATE_LIMIT_AUTH_MAX (10/60s)
+      // is sized for real users, not a whole test suite logging in
+      // repeatedly within the same window. The actual rate-limiting
+      // behavior is already precisely covered by test/rateLimiter.test.js;
+      // this just keeps it from interfering with unrelated specs here.
+      RATE_LIMIT_AUTH_MAX: '100',
+      RATE_LIMIT_ORDERS_MAX: '100',
+      RATE_LIMIT_MAX: '100',
     },
   },
 });
