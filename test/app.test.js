@@ -69,6 +69,32 @@ test('GET /api/orders/:id without a token is rejected', async (t) => {
   });
 });
 
+test('GET /api/orders without a token is rejected', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders`);
+    assert.equal(res.status, 401);
+  });
+});
+
+test('GET /api/orders lists only the authenticated customer\'s orders', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    assert.match(sql, /WHERE customer_email = \$1/);
+    assert.deepEqual(params, ['jane@example.com']);
+    return { rows: [{ order_number: 'ORD-1001' }, { order_number: 'ORD-1002' }] };
+  });
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.length, 2);
+  });
+});
+
 test('POST /api/chat without a token is rejected', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/chat`, {

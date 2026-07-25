@@ -12,10 +12,9 @@ Automated order & tracking support assistant. An Express API that lets customers
 
 ## Features
 
-- Natural-language chat endpoint that looks up real order data via Claude tool calling
-- Order lookup by order number, customer email, or tracking number
-- REST endpoint for direct order lookups (`GET /api/orders/:id`)
-- React chat UI (`frontend/`), built with Vite
+- Natural-language chat endpoint that looks up real order data via Claude tool calling, scoped to the authenticated customer
+- REST endpoints for listing a customer's orders and fetching one by number
+- React UI (`frontend/`, Vite) with client-side routing: an order list, per-order detail pages, and the chat view, gated behind order-ownership verification
 - Postgres-backed via Neon; schema auto-applies on startup
 
 ## Tech Stack
@@ -50,6 +49,7 @@ flowchart LR
 | GET    | `/health`         | Liveness check for load balancers / container orchestrators (no auth) |
 | POST   | `/api/auth/verify` | Prove ownership of an order (order number + email) and receive a customer-scoped token (no auth) |
 | POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools scoped to the authenticated customer (requires `Authorization: Bearer <token>`) |
+| GET    | `/api/orders`     | List every order belonging to the authenticated customer (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/orders/:id` | Fetch a single order by order number - only if it belongs to the authenticated customer (requires `Authorization: Bearer <token>`) |
 
 ## Setup
@@ -104,6 +104,19 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 
 `src/utils/logger.js`'s `logError(label, err)` wraps this for caught errors, and the configured `err` serializer only ever includes `type`/`message`/`stack` - never the raw error object. Some HTTP client libraries attach debug properties (request config, headers) directly to thrown errors, and pino's *default* error serializer would include those; ours doesn't, closing a real path for an API key or Authorization header to end up in logs. Client-facing error responses are always a fixed generic message regardless of the underlying failure.
 
+### Frontend routing
+
+`react-router-dom` (`BrowserRouter`), not just conditionally-rendered state. Four real routes, each with a distinct URL, browser back/forward, and direct-link support:
+
+| Route | Page | Access |
+|---|---|---|
+| `/verify` | `VerifyPage` | Public only - redirects to `/orders` if already authenticated |
+| `/orders` | `OrdersPage` | Protected - lists the customer's orders (`GET /api/orders`) |
+| `/orders/:orderNumber` | `OrderDetailPage` | Protected - single order (`GET /api/orders/:id`); a different customer's order number 404s here the same as it does over the API |
+| `/chat` | `ChatPage` | Protected |
+
+`AuthContext` (`frontend/src/context/AuthContext.jsx`) holds the token and is read by `ProtectedRoute`/`PublicOnlyRoute` to decide whether to render the route or `<Navigate>` elsewhere. Since `express.static` alone 404s on a hard refresh of a client-side route like `/orders/ORD-1001` (no such file exists), `src/app.js` has a catch-all `app.get('*', ...)` after every real route that serves `frontend/dist/index.html` and lets React Router take over - verified working for both in-app navigation and direct/hard-loaded URLs.
+
 ### HTTPS enforcement
 
 When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301) and sets `Strict-Transport-Security` on secure responses. `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
@@ -156,11 +169,21 @@ frontend/          # React app (Vite) - separate package.json, own build
 ├── vite.config.js
 └── src/
     ├── main.jsx               # mounts <App />
-    ├── App.jsx                 # verify-or-chat state, submit handling, Bearer token auth
+    ├── App.jsx                 # BrowserRouter + route definitions
     ├── index.css               # design tokens + component styles
+    ├── context/
+    │   └── AuthContext.jsx     # token state (sessionStorage-backed), login/logout
+    ├── pages/
+    │   ├── VerifyPage.jsx      # order number + email verification
+    │   ├── OrdersPage.jsx      # GET /api/orders list
+    │   ├── OrderDetailPage.jsx # GET /api/orders/:id, reads useParams
+    │   └── ChatPage.jsx        # the chat widget
     └── components/
-        ├── VerifyForm.jsx      # order number + email verification screen
-        └── MessageBubble.jsx   # reusable bubble component (user/assistant/pending/error)
+        ├── ProtectedRoute.jsx    # redirects to /verify when logged out
+        ├── PublicOnlyRoute.jsx   # redirects to /orders when already logged in
+        ├── Layout.jsx            # nav bar (Orders / Chat / Log out) + <Outlet/>
+        ├── VerifyForm.jsx        # the verification form itself
+        └── MessageBubble.jsx     # reusable bubble component (user/assistant/pending/error)
 frontend/dist/     # build output (gitignored) - what Express actually serves
 test/             # node:test suite (mocked DB/Claude, no live calls)
 Dockerfile, docker-compose.yml, .dockerignore   # containerization; Dockerfile builds frontend/ in a separate stage

@@ -40,4 +40,11 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
 app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
 
+// SPA fallback: anything that isn't a static asset or an API route is a
+// client-side route (e.g. /orders/ORD-1001) - hand it index.html and let
+// React Router take over, so direct navigation/refresh on those URLs works.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+});
+
 module.exports = app;

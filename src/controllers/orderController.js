@@ -19,4 +19,14 @@ async function getOrder(req, res) {
   }
 }
 
-module.exports = { getOrder };
+async function listMyOrders(req, res) {
+  try {
+    const orders = await orderService.getOrdersByEmail(req.customerEmail);
+    res.json(orders);
+  } catch (err) {
+    logError('Order list error', err);
+    res.status(500).json({ error: 'Something went wrong looking up your orders.' });
+  }
+}
+
+module.exports = { getOrder, listMyOrders };
