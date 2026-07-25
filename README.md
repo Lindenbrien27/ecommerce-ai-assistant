@@ -186,7 +186,22 @@ The free tier spins down after 15 minutes idle, so the first request after inact
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) builds `frontend/`, runs the test suite, and builds the Docker image on every push/PR to `main`.
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across three parallel jobs:
+
+- **test** - builds `frontend/`, runs the test suite
+- **docker** - builds the production Docker image
+- **audit** - `npm audit` against both `package-lock.json`s (root and `frontend/`)
+
+### Dependency vulnerability scanning
+
+The `audit` job always prints the full `npm audit` report for both projects, but only fails the build on a `critical`-severity finding (`--audit-level=critical`). Moderate/high findings routinely depend on *how* a package is actually used, not just which version is installed, and npm audit has no way to express "reviewed, not applicable to us" - a hard fail on every high-severity advisory trains people to ignore CI red, which defeats the point. Two known findings are currently accepted for that reason:
+
+| Package | Severity | Why it's accepted |
+|---|---|---|
+| `esbuild` (via `vite`) | Moderate | [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99) only affects Vite's dev server accepting requests from any origin. The dev server never runs in production - Express serves the static `frontend/dist` build - so this is unreachable in the deployed app. |
+| `react-router` | High | [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2) only affects apps using React Router's unstable RSC (React Server Components) APIs. This app is a plain client-side SPA (`BrowserRouter`/`Routes`/`Route` - no RSC, no framework mode, verified by grepping `frontend/src` for any RSC import), so it isn't exposed. No patched version exists on npm yet at time of writing (registry tops out at `7.18.1`; the advisory's fix, `8.3.0`, isn't published). |
+
+Both are re-evaluated whenever dependencies are bumped, since "not applicable given current usage" can stop being true the moment the code that uses a library changes.
 
 ## Project Structure
 

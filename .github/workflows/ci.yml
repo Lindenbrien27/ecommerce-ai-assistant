@@ -26,3 +26,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -t ecommerce-ai-assistant:ci .
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # --audit-level=critical: the full report always prints regardless of
+      # this flag, but only a critical finding fails the build. Moderate/high
+      # findings often depend on how a package is actually used (e.g. a dev
+      # -server-only issue, or one gated behind an unstable API we don't
+      # import) and need a human to judge applicability, not an automatic
+      # block - critical is reserved for advisories that are exploitable
+      # essentially regardless of context.
+      - name: Audit backend dependencies
+        run: npm audit --audit-level=critical
+      - run: npm --prefix frontend ci
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=critical
+        working-directory: frontend
