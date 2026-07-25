@@ -2,13 +2,15 @@ const path = require('path');
 const express = require('express');
 const compression = require('compression');
 const pinoHttp = require('pino-http');
+const swaggerUi = require('swagger-ui-express');
+const openApiSpec = require('../openapi.json');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
 const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
-const { securityHeaders } = require('./middleware/securityHeaders');
+const { securityHeaders, apiDocsStyleOverride } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
 const { logError } = require('./utils/logger');
 const Sentry = require('./config/sentry');
@@ -87,6 +89,36 @@ app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
 app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
+
+// Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
+// also the source of truth /api-docs below renders from.
+app.get('/openapi.json', (req, res) => res.json(openApiSpec));
+
+// A hand-written HTML shell instead of swagger-ui-express's own setup() -
+// its generated page has inline <style> blocks, which this app's CSP
+// (style-src 'self', no unsafe-inline - see README > Security headers)
+// would silently block, breaking the docs page's layout. serveFiles still
+// handles the actual JS/CSS assets and generates swagger-ui-init.js per
+// request; those are all real external files under /api-docs/*, so
+// script-src 'self' already covers them without any CSP exception.
+app.use('/api-docs', apiDocsStyleOverride);
+app.use('/api-docs', swaggerUi.serveFiles(openApiSpec));
+app.get('/api-docs', (req, res) => {
+  res.send(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>API docs - Order Support Assistant</title>
+<link rel="stylesheet" href="./swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="./swagger-ui-bundle.js"></script>
+<script src="./swagger-ui-standalone-preset.js"></script>
+<script src="./swagger-ui-init.js"></script>
+</body>
+</html>`);
+});
 
 // SPA fallback: anything that isn't a static asset or an API route is a
 // client-side route (e.g. /orders/ORD-1001) - hand it index.html and let

@@ -60,4 +60,25 @@ const securityHeaders = [
   permissionsPolicy,
 ];
 
-module.exports = { securityHeaders };
+// Scoped to /api-docs only - swagger-ui-bundle.js (the interactive API
+// docs at /api-docs, see src/app.js) applies some of its own styling via
+// inline <style>/style attributes at runtime, a characteristic of the
+// library itself, not something this app controls. Confirmed live in a
+// real browser: the strict style-src above blocks it and the affected
+// element loses its styling, even though the page still renders and
+// functions. Runs after the global securityHeaders above and overrides
+// just this one directive for this one route (helmet's CSP middleware
+// uses res.setHeader, which replaces rather than merges, so only the
+// last one to run for a given request wins) - every other route keeps
+// the strict, no-unsafe-inline policy untouched.
+const apiDocsStyleOverride = helmet.contentSecurityPolicy({
+  directives: {
+    ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'font-src': ["'self'"],
+    'frame-ancestors': ["'none'"],
+    'upgrade-insecure-requests': process.env.NODE_ENV === 'production' ? [] : null,
+  },
+});
+
+module.exports = { securityHeaders, apiDocsStyleOverride };

@@ -30,6 +30,7 @@ RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.ke
 # root (docs, e2e/, CI config) ships in the image by default unless someone
 # remembers to exclude it; an allowlist fails the other, safer direction.
 COPY --chown=node:node server.js ./
+COPY --chown=node:node openapi.json ./
 COPY --chown=node:node src/ ./src/
 COPY --chown=node:node migrations/ ./migrations/
 COPY --chown=node:node --from=frontend-build /app/frontend/dist ./frontend/dist

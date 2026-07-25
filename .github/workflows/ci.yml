@@ -47,6 +47,17 @@ jobs:
             echo "::error::Container didn't fail with the expected Doppler auth error - it may be failing for an unrelated (e.g. permission) reason instead"
             exit 1
           fi
+      # Found the hard way: openapi.json shipped in src/app.js's own
+      # `require('../openapi.json')` without a matching line in the
+      # Dockerfile's COPY allowlist - the app would have crashed with
+      # MODULE_NOT_FOUND on every real deploy, and nothing above this would
+      # have caught it (the previous check only proves the container gets as
+      # far as needing a Doppler token, never as far as actually requiring
+      # this app's own files). Entrypoint overridden to `ls` specifically so
+      # this fails on a missing file, not on the unrelated Doppler error the
+      # real CMD would hit first.
+      - name: Verify openapi.json actually landed in the image
+        run: docker run --rm --entrypoint ls ecommerce-ai-assistant:ci openapi.json
 
   e2e:
     needs: test
