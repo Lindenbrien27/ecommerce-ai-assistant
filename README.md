@@ -371,6 +371,40 @@ The `Dockerfile` is a multi-stage build: stage one installs `frontend/`'s depend
 
 CI verifies both of the first two aren't just comments that drifted from reality: the `docker` job runs the built image and asserts `id -u` isn't `0`, and separately confirms the real `CMD` fails only on the expected "missing Doppler token" error (no real token is available in CI, since that's the user's own account) rather than a permission error the hardening could have silently introduced.
 
+## Reliability
+
+Every enterprise SLA template promises numbers this project's actual hosting tier can't back up - the honest version of "production-grade" here is stating real, measured behavior and real constraints, not copy-pasting "99.99% uptime" onto a free-tier deployment. Every number below is either taken directly from [Load testing](#load-testing) or measured live against this app's own real, deployed dependencies (Render free tier, Neon free tier) while writing this section - not projected or assumed.
+
+### What's actually measured
+
+- **Throughput/latency under concurrency** (from [Load testing](#load-testing)): 901-995 req/s against `GET /api/orders` and `GET /api/orders/:id` at 20 concurrent connections, p99 27-34ms, zero errors/timeouts - against the *default, unconfigured* 10-connection Postgres pool. No evidence of pool starvation at 2x its size; a real number to revisit if traffic patterns change, not a permanent guarantee.
+- **Cold vs. warm latency** (measured live, this session): `GET /health` (no DB touch) responds in ~7ms regardless of state. `GET /health/db` (a real `SELECT 1`) took **2.36s** on the first request after a fresh process start, then settled to a consistent **~250ms** on every subsequent request. That gap is Neon's free-tier autosuspend waking a suspended compute back up - not a bug, not this app's own latency, and not avoidable without a paid Neon tier that keeps compute always-on. Render's own free-tier container has the identical shape (documented in [Deploy](#deploy)): 15 minutes idle, then a cold-start delay on the next request.
+
+### Service Level Objectives
+
+| | Target | Basis |
+|---|---|---|
+| Availability | Best-effort. No formal uptime guarantee - this is a free-tier-hosted portfolio project, not a paid service with a contractual SLA, and saying otherwise would be dishonest. | Render/Neon free tier ToS |
+| Cold-start latency | Under ~3s for the first request after >15 min idle | Measured above (2.36s DB cold-start; Render's own container cold-start is separate and additive) |
+| Warm latency | p99 under 100ms for order-lookup endpoints under normal concurrency | Measured load-test p99: 27-34ms at 20 connections |
+| Error rate | 0 unhandled 5xx under the tested load profile (20 connections, 15s) | Measured load-test run: 0 errors/timeouts/non-2xx |
+
+The cold-start line exists specifically so it's an *acknowledged, expected* characteristic instead of something a future incident review mistakes for a regression - see [On-call process](#on-call-process) below.
+
+### On-call process
+
+One maintainer, no rotation - documenting that plainly is more useful than inventing an escalation chain that doesn't exist. What's real:
+
+- **Alert sources already wired up**: [Sentry](#monitoring--alerting) for unhandled 5xx/exceptions, an external uptime monitor (once configured per [Monitoring & alerting](#monitoring--alerting)) polling `GET /health/db` for a real "is the database reachable" signal, not just "is the process up."
+- **Response expectations**: best-effort, not contractual. A site-down or elevated-5xx-rate alert gets looked at when the maintainer is available - there's no paid on-call tooling (PagerDuty, Opsgenie) in front of a single-maintainer free-tier project, and pretending otherwise wouldn't make the response any faster.
+- **Triage order when an alert fires**:
+  1. `GET /health` - is the process even up? If not, check Render's dashboard/deploy logs for a crash-looping container.
+  2. `GET /health/db` - is Postgres reachable? A `503` here with `/health` healthy points at Neon (check Neon's own status/dashboard) rather than this app's own code.
+  3. Sentry's issue detail for the actual exception, tagged with the request's trace (see [Distributed tracing](#distributed-tracing)) - which span (routing, a specific query, the Claude API call) actually failed.
+  4. If a secret is the suspected cause (expired/rotated credential, `DOPPLER_TOKEN` itself invalid), see [Secrets management](#secrets-management) - Doppler is the single place every credential actually lives.
+- **Escalation**: none available. A single-maintainer project has no second person to hand off to; if the maintainer is unavailable, an incident waits until they're back. Documented here so it's an explicit, known limitation rather than a silent gap someone discovers during a real incident.
+- **Reproducing a reported slowdown**: `npm run loadtest` (see [Load testing](#load-testing)) runs the same concurrent-load scenario against any target - a real customer-reported "the app feels slow" can be checked against the same measured baseline above rather than guessed at.
+
 ## Deploy
 
 Live at **https://ecommerce-ai-assistant-917v.onrender.com** (Render's free tier, auto-deploys from `main` on every push). `render.yaml` defines the web service, which builds the existing `Dockerfile` and health-checks `/health`.
