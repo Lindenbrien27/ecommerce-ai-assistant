@@ -288,6 +288,15 @@ Every other test in this project mocks `pool.query` or, in the e2e suite, exerci
 
 `.github/workflows/loadtest.yml` runs this in CI - `workflow_dispatch` (on demand) plus a weekly schedule, deliberately *not* on every push like the rest of `ci.yml`. That's a real distinction, not an inconsistency: a security finding or an accessibility violation is deterministic regardless of what hardware happens to run the check, so gating every push on those is correct. Absolute latency numbers are a function of whatever shared GitHub Actions runner got assigned that day - a per-push gate on p99 would eventually fail for no reason related to the code. `loadtest/run.js` reflects that split: it prints full latency percentiles for a human to read, but only fails the run on an actual error, timeout, or non-2xx response - a real backend failure under load, not a slow environment. The job also sets `RATE_LIMIT_ORDERS_MAX` far above production defaults, since the rate limiter's own behavior already has deterministic coverage in `test/rateLimiter.test.js` and isn't what this is trying to measure.
 
+First real run, against a fresh ephemeral `postgres:16` on a GitHub Actions runner (20 connections, 15s per scenario) - measured, not projected:
+
+| Endpoint | Requests/sec | p50 | p90 | p99 | max | Errors/timeouts/non-2xx |
+|---|---|---|---|---|---|---|
+| `GET /api/orders?limit=20` | 901 | 21ms | 26ms | 34ms | 136ms | 0 / 0 / 0 |
+| `GET /api/orders/:id` | 995 | 19ms | 21ms | 27ms | 97ms | 0 / 0 / 0 |
+
+Clean at 20 concurrent connections against the *default, unconfigured* 10-connection pool - no errors, no timeouts, no evidence of connection-pool starvation (queued acquisitions would show up as a fatter tail than a 34ms p99 at 2x the pool size). No headroom problem this specific number surfaced, so no pool-size change made on the strength of it alone - a number worth re-checking as real traffic patterns emerge, not a one-time box to check.
+
 ## Docker
 
 ```bash
