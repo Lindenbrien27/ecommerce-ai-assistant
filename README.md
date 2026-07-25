@@ -84,6 +84,10 @@ Both are independent limiters (separate quotas). Exceeding either returns `429`.
 
 All caught errors are logged via `src/utils/logger.js`, which only ever prints an error's `message` and `stack` - never the raw error object. Some HTTP client libraries attach debug properties (request config, headers) directly to thrown errors; logging the object as-is risks printing an API key or Authorization header into server logs. Client-facing error responses are always a fixed generic message regardless of the underlying failure.
 
+### HTTPS enforcement
+
+When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301) and sets `Strict-Transport-Security` on secure responses. `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
+
 ## Testing
 
 ```bash
