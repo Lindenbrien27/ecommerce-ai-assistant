@@ -12,8 +12,10 @@ export function VerifyPage() {
   }
 
   return (
-    <main>
-      <VerifyForm onVerified={handleVerified} />
-    </main>
+    <div className="app-shell">
+      <main>
+        <VerifyForm onVerified={handleVerified} />
+      </main>
+    </div>
   );
 }

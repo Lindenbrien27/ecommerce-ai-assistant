@@ -5,7 +5,7 @@ export function Layout() {
   const { logout } = useAuth();
 
   return (
-    <>
+    <div className="app-shell">
       <nav className="app-nav">
         <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
           Orders
@@ -20,6 +20,6 @@ export function Layout() {
       <main>
         <Outlet />
       </main>
-    </>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
   color-scheme: light dark;
 
   --color-bg: #ffffff;
+  --color-page-bg: #f2f3f5;
   --color-text: #1a1a1a;
   --color-text-muted: #666666;
   --color-border: #cccccc;
@@ -34,6 +35,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --color-bg: #14161a;
+    --color-page-bg: #09090b;
     --color-text: #e8e8e8;
     --color-text-muted: #9a9a9a;
     --color-border: #3a3d42;
@@ -72,10 +74,29 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: var(--font-size-base);
   color: var(--color-text);
+  background: var(--color-page-bg);
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  padding: clamp(1.5rem, 8vh, 4.5rem) var(--space-3) var(--space-5);
+}
+
+/* The actual "page" - a contained panel instead of unstyled text floating
+   directly on the page background. align-self: flex-start (rather than
+   letting body's default stretch/center apply) keeps it anchored near the
+   top consistently regardless of how tall the viewport or the content is,
+   instead of visually jumping around as pages of different lengths get
+   vertically centered. */
+.app-shell {
+  width: 100%;
+  max-width: 720px;
+  align-self: flex-start;
   background: var(--color-bg);
-  max-width: 640px;
-  margin: var(--space-5) auto;
-  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  padding: var(--space-4) var(--space-5);
 }
 
 h1 { font-size: var(--font-size-lg); margin-bottom: 0.25rem; }
@@ -84,7 +105,7 @@ p.subtitle { color: var(--color-text-muted); margin-top: 0; margin-bottom: var(-
 #chat {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  height: min(420px, 60vh);
+  height: min(480px, 60vh);
   overflow-y: auto;
   padding: var(--space-3);
   display: flex;
@@ -178,6 +199,15 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* useFocusOnMount programmatically focuses each page's <h1> on route
+   change (see Accessibility in the README) - style that consistently with
+   every other focus ring instead of leaving it as the browser's default. */
+h1:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
 .app-nav {
   display: flex;
   align-items: center;
@@ -262,7 +292,17 @@ button:focus-visible {
 .order-detail dd { margin: 0; font-weight: 500; }
 
 @media (max-width: 480px) {
-  body { margin: var(--space-3) auto; padding: 0 var(--space-2); }
+  /* The card chrome (border/shadow/radius/side margins) is a nice-to-have
+     on a screen with room to spare, not on a phone - there it just eats
+     into already-scarce width, so this goes edge-to-edge instead. */
+  body { padding: var(--space-3) 0 0; }
+  .app-shell {
+    max-width: 100%;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: var(--space-3) var(--space-2) var(--space-5);
+  }
   #chat { height: min(420px, 55vh); padding: var(--space-2); }
   .msg { max-width: 90%; }
 }
