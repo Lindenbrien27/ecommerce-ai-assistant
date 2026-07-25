@@ -132,7 +132,13 @@ src/
 ├── routes/       # Express route definitions
 └── app.js        # Express app assembly
 server.js         # process entry point - inits DB schema, then listens
-public/           # static frontend chat UI
+public/
+├── index.html              # page shell
+├── style.css               # design tokens + component styles
+├── app.js                  # thin entry point (API key injected server-side, wires up the widget)
+├── chatWidget.js            # encapsulated chat state/behavior (ES module)
+└── components/
+    └── messageBubble.js     # reusable bubble-rendering component (user/assistant/pending/error)
 test/             # node:test suite (mocked DB/Claude, no live calls)
 Dockerfile, docker-compose.yml, .dockerignore   # containerization
 render.yaml       # Render Blueprint for deployment
