@@ -1,4 +1,5 @@
 const orderService = require('../services/orderService');
+const { logError } = require('../utils/logger');
 
 async function getOrder(req, res) {
   try {
@@ -10,7 +11,7 @@ async function getOrder(req, res) {
 
     res.json(order);
   } catch (err) {
-    console.error('Order lookup error:', err);
+    logError('Order lookup error', err);
     res.status(500).json({ error: 'Something went wrong looking up that order.' });
   }
 }

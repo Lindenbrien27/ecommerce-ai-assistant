@@ -1,4 +1,5 @@
 const { runChat } = require('../services/aiService');
+const { logError } = require('../utils/logger');
 
 async function postChat(req, res) {
   const { messages } = req.body;
@@ -11,7 +12,7 @@ async function postChat(req, res) {
     const reply = await runChat(messages);
     res.json({ reply });
   } catch (err) {
-    console.error('Chat error:', err);
+    logError('Chat error', err);
     res.status(500).json({ error: 'Something went wrong processing your request.' });
   }
 }

@@ -80,6 +80,10 @@ This is a single shared secret, not per-customer auth - it blocks anonymous bots
 
 Both are independent limiters (separate quotas). Exceeding either returns `429`.
 
+### Error logging
+
+All caught errors are logged via `src/utils/logger.js`, which only ever prints an error's `message` and `stack` - never the raw error object. Some HTTP client libraries attach debug properties (request config, headers) directly to thrown errors; logging the object as-is risks printing an API key or Authorization header into server logs. Client-facing error responses are always a fixed generic message regardless of the underlying failure.
+
 ## Testing
 
 ```bash
