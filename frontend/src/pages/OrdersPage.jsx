@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 
 export function OrdersPage() {
-  const { token, logout } = useAuth();
+  const authorizedFetch = useAuthorizedFetch();
   const [orders, setOrders] = useState(null);
   const [error, setError] = useState(null);
 
@@ -12,12 +12,9 @@ export function OrdersPage() {
 
     async function load() {
       try {
-        const res = await fetch('/api/orders', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authorizedFetch('/api/orders');
 
         if (res.status === 401) {
-          logout();
           return;
         }
 
@@ -37,7 +34,7 @@ export function OrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, logout]);
+  }, [authorizedFetch]);
 
   return (
     <>

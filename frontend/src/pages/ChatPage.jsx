@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from '../components/MessageBubble.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 
 export function ChatPage() {
-  const { token, logout } = useAuth();
+  const authorizedFetch = useAuthorizedFetch();
   const [messages, setMessages] = useState([]); // API conversation history: {role, content}
   const [bubbles, setBubbles] = useState([]); // render list: {id, role, content, variant}
   const [input, setInput] = useState('');
@@ -43,14 +43,13 @@ export function ChatPage() {
     ]);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await authorizedFetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: nextMessages }),
       });
 
       if (res.status === 401) {
-        logout();
         return;
       }
 

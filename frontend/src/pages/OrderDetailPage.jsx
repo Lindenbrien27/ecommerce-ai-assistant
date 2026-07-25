@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
-  const { token, logout } = useAuth();
+  const authorizedFetch = useAuthorizedFetch();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
 
@@ -15,12 +15,9 @@ export function OrderDetailPage() {
 
     async function load() {
       try {
-        const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authorizedFetch(`/api/orders/${encodeURIComponent(orderNumber)}`);
 
         if (res.status === 401) {
-          logout();
           return;
         }
 
@@ -45,7 +42,7 @@ export function OrderDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [orderNumber, token, logout]);
+  }, [orderNumber, authorizedFetch]);
 
   return (
     <>
