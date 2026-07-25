@@ -8,8 +8,9 @@ on:
   schedule:
     # Catches newly-published CodeQL query coverage against code that
     # hasn't changed - the same reasoning as running `npm audit` on a
-    # schedule in ci.yml: a query that didn't exist last week can still
-    # find something real in a file nobody touched today.
+    # schedule in dependency-audit.yml: a query (or advisory) that didn't
+    # exist last week can still find something real in a file, or a
+    # dependency, nobody touched today.
     - cron: '17 3 * * 1'
 
 jobs:

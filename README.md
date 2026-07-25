@@ -421,18 +421,17 @@ The free tier spins down after 15 minutes idle, so the first request after inact
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`staging` and every PR into `main`, across five jobs, plus a separate CodeQL workflow on the same triggers:
+GitHub Actions runs across three workflow files, each triggered on every push to `main`/`staging` and every PR into `main`:
 
-- **test** - builds `frontend/`, runs both unit test suites (backend `node:test`, frontend Vitest)
-- **e2e** - runs after `test`; the Playwright suite against a real Chromium browser and an ephemeral `postgres:16` service container. Uploads the HTML report as a build artifact on failure.
-- **docker** - runs after `test`; builds the production Docker image, checks it runs as non-root, and (see [API documentation](#api-documentation)) that files the app actually `require()`s at runtime, like `openapi.json`, really landed in it
-- **dast** - runs after `test`; OWASP ZAP baseline scan against the real app - see [Dynamic scanning](#dynamic-scanning-dast)
-- **audit** - `npm audit` against both `package-lock.json`s (root and `frontend/`)
-- **CodeQL** (`.github/workflows/codeql.yml`, separate workflow) - static analysis - see [Static analysis](#static-analysis-sast)
+- **`ci.yml`** - four jobs: **test** (builds `frontend/`, runs both unit test suites), **e2e** (runs after `test`; Playwright against a real Chromium browser and an ephemeral `postgres:16` container, uploads the HTML report as a build artifact on failure), **docker** (runs after `test`; builds the production image, checks it runs as non-root, and that files the app actually `require()`s at runtime, like `openapi.json`, really landed in it), **dast** (runs after `test`; OWASP ZAP baseline scan - see [Dynamic scanning](#dynamic-scanning-dast))
+- **`codeql.yml`** - static analysis, plus a weekly schedule - see [Static analysis](#static-analysis-sast)
+- **`dependency-audit.yml`** - `npm audit` against both `package-lock.json`s, plus a weekly schedule - see below
+
+`loadtest.yml` is the one exception - manual/weekly only, deliberately not on every push (see [Load testing](#load-testing) for why a latency gate on shared CI hardware would be flaky rather than meaningful).
 
 ### Dependency vulnerability scanning
 
-The `audit` job always prints the full `npm audit` report for both projects, but only fails the build on a `critical`-severity finding (`--audit-level=critical`). Moderate/high findings routinely depend on *how* a package is actually used, not just which version is installed, and npm audit has no way to express "reviewed, not applicable to us" - a hard fail on every high-severity advisory trains people to ignore CI red, which defeats the point. Two known findings are currently accepted for that reason:
+`dependency-audit.yml` always prints the full `npm audit` report for both projects, but only fails the build on a `critical`-severity finding (`--audit-level=critical`). Moderate/high findings routinely depend on *how* a package is actually used, not just which version is installed, and npm audit has no way to express "reviewed, not applicable to us" - a hard fail on every high-severity advisory trains people to ignore CI red, which defeats the point. Two known findings are currently accepted for that reason:
 
 | Package | Severity | Why it's accepted |
 |---|---|---|
@@ -441,6 +440,8 @@ The `audit` job always prints the full `npm audit` report for both projects, but
 | `uuid` (via `autocannon`'s `hyperid`) | Moderate | [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) is a buffer-bounds bug reachable only when a caller passes its own undersized `buf` into `uuid`'s v3/v5/v6 generation - `hyperid` never does that (internal request-ID generation only, no caller-supplied buffer). `autocannon` is also a `devDependency` used only to drive [load tests](#load-testing) against a local/CI server - it never ships in the production image (`npm ci --omit=dev`) or runs against anything but test infrastructure. Considered choosing an older `autocannon` to dodge this, but the alternative most people reach for for this kind of test, `artillery`, pulled in 26 vulnerabilities (several high) and requires Node ≥22.13 against this project's Node 20 - one reviewed moderate finding in a devDependency was the better trade. |
 
 All three are re-evaluated whenever dependencies are bumped, since "not applicable given current usage" can stop being true the moment the code that uses a library changes.
+
+Runs on every push/PR, plus a weekly schedule (`cron: '5 3 * * 1'`) - split into its own workflow file specifically for that schedule. A dependency already sitting in `package-lock.json` can become vulnerable with zero code changes on this repo's side (a new CVE gets disclosed against a version nobody touched), and a push-only trigger would never catch that until someone happened to push something unrelated.
 
 ### Static analysis (SAST)
 
@@ -487,6 +488,29 @@ Reviewed and confirmed *not* vulnerable, not just left unchecked - each of these
 The closest *related* real tradeoff, reviewed rather than overlooked: logout (`AuthContext.logout()`) only clears the token client-side (`sessionStorage.removeItem`) - the JWT itself stays cryptographically valid server-side until its natural 1-hour expiry, since there's no revocation list. Building one (a server-side store of revoked token IDs, checked on every request) would undo the entire point of a stateless JWT for what this app actually protects - read-only order lookups and tracking status, no payments, no account settings, nothing a same-hour token replay meaningfully escalates into. Accepted as-is given the short TTL and the data's actual sensitivity, not fixed - the same judgment call the "no password to store" design in [Auth](#auth) already made explicitly.
 
 None of this replaces a real third-party pentest before anything resembling a compliance requirement exists for this project - it's what a careful adversarial read of this specific app's own logic can catch that automated tooling structurally can't.
+
+### Continuous monitoring & compliance posture
+
+Everything above is scattered across whichever section covers that specific control - this pulls the "is anything actually watching this on an ongoing basis" question into one place, and says plainly what this project does and doesn't claim.
+
+**What's actually continuous**, not just run once and forgotten:
+
+| Mechanism | Cadence | Catches |
+|---|---|---|
+| [Dependabot alerts](https://github.com/Lindenbrien27/ecommerce-ai-assistant/security/dependabot) | Continuous, GitHub-native | A new CVE published against any dependency already installed, in real time - not on a schedule, on disclosure |
+| Dependabot security updates | Continuous, GitHub-native | Opens a PR automatically for a vulnerable dependency once Dependabot alerts flags it |
+| [Secret scanning + push protection](https://github.com/Lindenbrien27/ecommerce-ai-assistant/security/secret-scanning) | Continuous, GitHub-native | A credential matching a known pattern, *before* it's even committed (push protection actively blocks the push, not just alerts after) |
+| `dependency-audit.yml` (`npm audit`) | Every push/PR + weekly | A vulnerable dependency, cross-checked against the same advisory database Dependabot uses, from inside this repo's own CI rather than relying solely on GitHub's side |
+| `codeql.yml` (SAST) | Every push/PR + weekly | A vulnerability pattern in this project's own source, including newly-published query coverage against code nobody touched this week |
+| `dast` job (OWASP ZAP) | Every push/PR | What's actually observable from outside the app at runtime - headers, disclosure, cookie flags |
+| Sentry | Real-time, every request in production | Unhandled exceptions and crashes as they happen, not after the fact in a log someone has to go looking through |
+| Uptime monitor (external, see [Monitoring & alerting](#monitoring--alerting)) | Continuous polling | Whether `/health/db` - a real Postgres round trip, not just "is the process up" - is actually succeeding |
+
+The Dependabot/secret-scanning rows are genuinely free, zero-maintenance, and were simply **off by default** until enabled directly on this repo while writing this section - the kind of gap that's easy to miss precisely because it costs nothing to fix once found, but also doesn't announce its own absence.
+
+**What "compliance-grade" means here, and what it deliberately doesn't claim:** this project follows practices that map onto categories a compliance review would actually look for - authentication ([Auth](#auth)), access control ([Authorization](#authorization)), audit trails ([Audit logging](#audit-logging)), secrets management ([Secrets management](#secrets-management)), encryption in transit ([HTTPS enforcement](#https-enforcement)), dependency and vulnerability management (above), and logging/monitoring (above). What it is *not*: a certified or audited compliance program. SOC 2, ISO 27001, and PCI-DSS attestation all require a paid third-party auditor and a formally documented control framework this solo project doesn't have - claiming one without the audit behind it would be worse than not claiming it at all.
+
+Scope matters here, not just controls: this app never processes or stores payment card data (no PCI-DSS scope at all, by construction - not a control that was added, a category of data that was never accepted), and the only personal data involved is an order number and an email address tied to seed/demo data - not the kind of volume or sensitivity (health, financial, government ID) that would make a heavier regulatory regime (HIPAA, a full GDPR data-subject-request pipeline) a proportionate thing to build for at this project's actual scale. The controls above are real and load-bearing for what this app *does* handle; the absence of a formal certification is a scope decision, stated plainly, not an oversight left implicit.
 
 ## Project Structure
 

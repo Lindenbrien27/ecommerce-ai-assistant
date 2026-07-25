@@ -1,0 +1,41 @@
+name: Dependency audit
+
+# Moved out of ci.yml into its own workflow specifically to add the
+# schedule trigger below - a dependency already installed can become
+# vulnerable without a single line of this repo's own code changing (a new
+# CVE gets disclosed against a version already sitting in package-lock.json)
+# and a push-only trigger would never catch that. Same reasoning as
+# codeql.yml's own weekly schedule; still runs on every push/PR too, since
+# a newly-added vulnerable dependency is worth catching immediately, not
+# just discovered up to a week later.
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '5 3 * * 1'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # --audit-level=critical: the full report always prints regardless of
+      # this flag, but only a critical finding fails the build. Moderate/high
+      # findings often depend on how a package is actually used (e.g. a dev
+      # -server-only issue, or one gated behind an unstable API we don't
+      # import) and need a human to judge applicability, not an automatic
+      # block - critical is reserved for advisories that are exploitable
+      # essentially regardless of context.
+      - name: Audit backend dependencies
+        run: npm audit --audit-level=critical
+      - run: npm --prefix frontend ci
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=critical
+        working-directory: frontend
