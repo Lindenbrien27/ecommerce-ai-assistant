@@ -67,6 +67,7 @@ test.describe('accessibility', () => {
   test('/orders/:id has no violations in dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/orders/ORD-1001');
     await expect(page.locator('.order-detail')).toBeVisible();
     await expectNoViolations(page);
@@ -74,6 +75,7 @@ test.describe('accessibility', () => {
 
   test('/orders/:id has no violations on a not-found order', async ({ page }) => {
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await expect(page).toHaveURL(/\/orders$/);
     // ORD-1003 belongs to a different customer, so this exercises the same
     // 404 "not found" state a genuinely nonexistent order number would.
     await page.goto('/orders/ORD-1003');
@@ -83,6 +85,7 @@ test.describe('accessibility', () => {
 
   test('/chat has no violations', async ({ page }) => {
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/chat');
     await expectPageAnnounced(page, { heading: 'Order Support Assistant', titleContains: 'Chat' });
     await expectNoViolations(page);
@@ -91,12 +94,14 @@ test.describe('accessibility', () => {
   test('/chat has no violations in dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/chat');
     await expectNoViolations(page);
   });
 
   test('/chat has no violations once a message and an error reply are in the transcript', async ({ page }) => {
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/chat');
     await page.fill('#chat-input', "Where's my order?");
     await page.click('#chat-form button[type="submit"]');

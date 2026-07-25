@@ -10,7 +10,13 @@ module.exports = defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    // 127.0.0.1, not localhost - Playwright's Linux WebKit build resolves
+    // "localhost" to the IPv6 loopback (::1) first, which this server
+    // doesn't listen on, so every WebKit/Mobile Safari request just hangs
+    // until timeout. Chromium/Firefox resolve it fine either way, so this
+    // only ever showed up as a WebKit-only, fails-from-the-first-test
+    // pattern once webkit was added as a project.
+    baseURL: `http://127.0.0.1:${PORT}`,
     trace: 'on-first-retry',
   },
   // Cross-browser (three engines - Chromium, Firefox, WebKit) and
@@ -34,7 +40,7 @@ module.exports = defineConfig({
     // populated process.env before `playwright test` ran (Doppler locally,
     // explicit env in CI).
     command: 'node server.js',
-    url: `http://localhost:${PORT}/health`,
+    url: `http://127.0.0.1:${PORT}/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
     env: {
