@@ -29,7 +29,21 @@ function decodeCursor(cursor) {
   } catch {
     throw new InvalidCursorError('Invalid cursor');
   }
-  if (!decoded || typeof decoded.createdAt !== 'string' || typeof decoded.id !== 'number') {
+  // Found in a security review: a well-typed but nonsensical cursor (a
+  // string createdAt that isn't a real date, or a non-integer id) used to
+  // reach the query below and fail there instead - Postgres rejecting an
+  // invalid ::timestamptz literal, or an out-of-range integer, surfaces as
+  // an uncaught error from pool.query(), which the controller can't tell
+  // apart from InvalidCursorError and reports as a 500. Not exploitable -
+  // this is a bind parameter, never concatenated into the query text - but
+  // a malformed client cursor should never look like a server fault, and
+  // shouldn't be able to spam error-level logs on demand either.
+  if (
+    !decoded ||
+    typeof decoded.createdAt !== 'string' ||
+    Number.isNaN(Date.parse(decoded.createdAt)) ||
+    !Number.isInteger(decoded.id)
+  ) {
     throw new InvalidCursorError('Invalid cursor');
   }
   return decoded;

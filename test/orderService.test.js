@@ -74,6 +74,30 @@ test('getOrdersByEmail rejects a malformed cursor', async (t) => {
   );
 });
 
+function encodeCursor(obj) {
+  return Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
+}
+
+test('getOrdersByEmail rejects a well-typed cursor with a createdAt that is not a real date', async (t) => {
+  // Found in a security review: this used to reach the query and fail
+  // there instead (an invalid ::timestamptz literal), which the controller
+  // reports as a 500 - a malformed client cursor should 400, not look like
+  // a server fault.
+  const cursor = encodeCursor({ createdAt: 'not-a-real-date', id: 5 });
+  await assert.rejects(
+    orderService.getOrdersByEmail('jane.doe@example.com', { cursor }),
+    orderService.InvalidCursorError
+  );
+});
+
+test('getOrdersByEmail rejects a well-typed cursor with a non-integer id', async (t) => {
+  const cursor = encodeCursor({ createdAt: '2026-01-01T00:00:00Z', id: 1.5 });
+  await assert.rejects(
+    orderService.getOrdersByEmail('jane.doe@example.com', { cursor }),
+    orderService.InvalidCursorError
+  );
+});
+
 test('getOrdersByEmail clamps limit to the max page size', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.equal(params[3], orderService.MAX_PAGE_SIZE + 1);
