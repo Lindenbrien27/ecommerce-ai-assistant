@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const { requireApiKey } = require('./middleware/apiKeyAuth');
 
 const app = express();
 
@@ -10,7 +11,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.use('/api/chat', chatRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/chat', requireApiKey, chatRoutes);
+app.use('/api/orders', requireApiKey, orderRoutes);
 
 module.exports = app;

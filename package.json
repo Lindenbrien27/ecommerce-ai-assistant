@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "OPENAI_API_KEY=test-key-for-ci DATABASE_URL=postgresql://test:test@localhost:5432/test node --test"
+    "test": "OPENAI_API_KEY=test-key-for-ci DATABASE_URL=postgresql://test:test@localhost:5432/test API_KEY=test-api-key-for-ci node --test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

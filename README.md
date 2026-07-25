@@ -46,20 +46,30 @@ flowchart LR
 
 | Method | Path              | Description                                                      |
 |--------|-------------------|--------------------------------------------------------------------|
-| GET    | `/health`         | Liveness check for load balancers / container orchestrators        |
-| POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools    |
-| GET    | `/api/orders/:id` | Fetch a single order by order number                              |
+| GET    | `/health`         | Liveness check for load balancers / container orchestrators (no auth) |
+| POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools (requires `X-API-Key`) |
+| GET    | `/api/orders/:id` | Fetch a single order by order number (requires `X-API-Key`)        |
 
 ## Setup
 
 ```bash
 npm install
 cp .env.example .env
-# fill in OPENAI_API_KEY and DATABASE_URL (from your Neon project) in .env
+# fill in OPENAI_API_KEY, DATABASE_URL (from your Neon project), and API_KEY in .env
 npm start
 ```
 
 The `orders` table and seed rows are created automatically on startup via `database.sql`. Server runs at `http://localhost:3000`.
+
+### Auth
+
+`/api/chat` and `/api/orders/:id` require an `X-API-Key` header matching `API_KEY` in `.env`:
+
+```bash
+curl -H "X-API-Key: $API_KEY" http://localhost:3000/api/orders/ORD-1001
+```
+
+This is a single shared secret, not per-customer auth - it blocks anonymous bots from hitting the API directly, but the static chat UI (`public/app.js`) embeds the key in client-side JS, so anyone who views the page source can read it. Treat this as a minimal deterrent for the current dev/staging phase, not a substitute for real user authentication before handling real customer data.
 
 ## Testing
 

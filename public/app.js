@@ -1,3 +1,8 @@
+// NOTE: this is a shared secret visible to anyone who views this page's
+// source - it only keeps out anonymous bots hitting the API directly.
+// Replace with real per-customer auth before handling real order data.
+const API_KEY = '***REMOVED-LEAKED-SECRET***';
+
 const chatEl = document.getElementById('chat');
 const formEl = document.getElementById('chat-form');
 const inputEl = document.getElementById('chat-input');
@@ -29,7 +34,7 @@ formEl.addEventListener('submit', async (e) => {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
       body: JSON.stringify({ messages }),
     });
     const data = await res.json();
