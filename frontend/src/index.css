@@ -57,7 +57,14 @@
     --color-text: #e8e8e8;
     --color-text-muted: #9a9a9a;
     --color-border: #6b6f76;
-    --color-primary: #3b82f6;
+    /* #4a8bf7, not the more obvious #3b82f6 - lightening --color-bg for the
+       visual design pass (below AA differentiation, see git history)
+       dropped this exact pair to 4.48:1 against the new card background,
+       just under the 4.5:1 text minimum. Caught by actually re-running the
+       axe WCAG AA scan against the built pages after the change, not by
+       inspection - a purely additive-looking edit (lighten one background)
+       silently broke a text-contrast pair defined nowhere near it. */
+    --color-primary: #4a8bf7;
     --color-primary-text: #ffffff;
     --color-surface: #22252a;
     --color-surface-text: #e8e8e8;
