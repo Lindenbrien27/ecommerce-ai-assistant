@@ -7,9 +7,12 @@ const orderRoutes = require('./routes/orderRoutes');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
 const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
+const { securityHeaders } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
 
 const app = express();
+
+app.use(securityHeaders);
 
 if (process.env.NODE_ENV === 'production') {
   // Render terminates TLS at its edge and forwards plain HTTP to us over

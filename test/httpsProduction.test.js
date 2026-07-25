@@ -30,6 +30,6 @@ test('production app trusts X-Forwarded-Proto from Render\'s proxy and sets HSTS
       headers: { 'X-Forwarded-Proto': 'https' },
     });
     assert.equal(res.status, 200);
-    assert.match(res.headers.get('strict-transport-security'), /max-age=15552000/);
+    assert.match(res.headers.get('strict-transport-security'), /max-age=31536000/);
   });
 });

@@ -31,7 +31,7 @@ test('redirects to https when the request is not secure', () => {
   assert.equal(nextCalled, false);
 });
 
-test('sets HSTS and continues when the request is already secure', () => {
+test('continues without redirecting when the request is already secure', () => {
   const req = { secure: true, headers: { host: 'example.com' }, originalUrl: '/health' };
   const res = mockRes();
   let nextCalled = false;
@@ -42,5 +42,4 @@ test('sets HSTS and continues when the request is already secure', () => {
 
   assert.equal(nextCalled, true);
   assert.equal(res.redirectedTo, null);
-  assert.match(res.headers['Strict-Transport-Security'], /max-age=15552000/);
 });

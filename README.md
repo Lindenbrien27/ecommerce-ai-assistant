@@ -165,7 +165,21 @@ Backed by an automated check, not just a one-time manual pass: `e2e/accessibilit
 
 ### HTTPS enforcement
 
-When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301) and sets `Strict-Transport-Security` on secure responses. `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
+When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301). `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
+
+### Security headers
+
+[`helmet`](https://helmetjs.github.io/) (`src/middleware/securityHeaders.js`), applied to every response in every environment. This app is a fully self-contained SPA - no external fonts, CDN scripts, or inline `<style>`/`<script>` in the built output (verified: no `style={{}}` prop anywhere in `frontend/src` either, which CSP governs separately from `<style>` blocks), and nothing that needs to embed it in someone else's page - so a few of helmet's already-fairly-strict defaults are tightened further for this specific app:
+
+| Directive | This app | helmet's default |
+|---|---|---|
+| `style-src` | `'self'` | `'self' https: 'unsafe-inline'` |
+| `font-src` | `'self'` | `'self' https: data:` |
+| `frame-ancestors` | `'none'` | `'self'` |
+
+Everything else - `default-src 'self'`, `object-src 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, and more - is helmet's default set, verified live via `curl -I` against a running instance rather than assumed. `Strict-Transport-Security` is the one header gated to `NODE_ENV=production` specifically (browsers ignore it entirely when it arrives over plain HTTP per RFC 6797, so there's no reason to emit a permanently-inert header on every local/CI response) - `httpsEnforce.js`'s redirect is the other, also production-only, half of that story; it no longer sets the header itself now that helmet owns it.
+
+`test/securityHeaders.test.js` asserts the tightened CSP directives and the standard header set are actually present, and the full e2e suite (a real Chromium browser) passing after this was added is itself evidence the CSP isn't too strict - a wrong directive would have silently blocked the app's own script or stylesheet and broken every page.
 
 ### Secrets management
 
@@ -267,7 +281,7 @@ src/
 ├── tools/        # LLM tool/function definitions, scoped to the authenticated customer
 ├── controllers/  # request/response handling
 ├── routes/       # Express route definitions
-├── middleware/   # customerAuth (JWT), rate limiters, HTTPS enforcement
+├── middleware/   # customerAuth (JWT), rate limiters, HTTPS enforcement, security headers (helmet)
 └── app.js        # Express app assembly - serves frontend/dist
 server.js         # process entry point - runs pending migrations, then listens
 migrations/       # node-pg-migrate - versioned schema changes, see Database migrations
