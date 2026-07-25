@@ -7,6 +7,16 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/ ./
+# Vite bakes VITE_-prefixed env vars into the built bundle at build time
+# (import.meta.env), not read from process.env at container startup the way
+# every other secret in this project is (see README > Secrets management) -
+# a build ARG is the only way this optional value reaches vite build at
+# all, since this stage never has Doppler/DOPPLER_TOKEN available to it.
+# Unset (the default), the frontend build just doesn't include a DSN and
+# frontend monitoring stays off - same degrades-gracefully shape as
+# everything else Sentry-related here.
+ARG VITE_SENTRY_DSN
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 RUN npm run build
 
 # Stage 2: runtime
