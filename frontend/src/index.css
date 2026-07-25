@@ -39,13 +39,21 @@
   --space-5: 2rem;
 
   --font-size-base: 1rem;
-  --font-size-lg: 1.25rem;
+  --font-size-lg: 1.85rem;
+  --font-size-sm: 0.9rem;
+
+  /* Ambient background gradient, tuned per theme below - two soft radial
+     glows anchored off-center so the page reads as designed depth rather
+     than a flat fill, without needing an image asset (keeps img-src 'self'
+     data: in the CSP satisfied trivially, and adds ~0kb to the bundle). */
+  --bg-glow-1: rgba(37, 99, 235, 0.10);
+  --bg-glow-2: rgba(37, 99, 235, 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #14161a;
-    --color-page-bg: #09090b;
+    --color-bg: #1c1f26;
+    --color-page-bg: #0a0b0d;
     --color-text: #e8e8e8;
     --color-text-muted: #9a9a9a;
     --color-border: #6b6f76;
@@ -60,6 +68,8 @@
     --color-success-text: #86efac;
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
+    --bg-glow-1: rgba(59, 130, 246, 0.16);
+    --bg-glow-2: rgba(99, 102, 241, 0.08);
   }
 }
 
@@ -83,7 +93,15 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: var(--font-size-base);
   color: var(--color-text);
-  background: var(--color-page-bg);
+  /* Two soft radial glows over the flat page color, not an image - depth
+     without a network request or a CSP img-src exception. Fixed attachment
+     so the glow reads as ambient lighting on the whole viewport rather than
+     scrolling with (and looking pasted onto) the content. */
+  background:
+    radial-gradient(ellipse 900px 600px at 15% -10%, var(--bg-glow-1), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 100%, var(--bg-glow-2), transparent 55%),
+    var(--color-page-bg);
+  background-attachment: fixed;
   min-height: 100vh;
   margin: 0;
   display: flex;
@@ -104,12 +122,38 @@ body {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* A plain drop shadow all but disappears against an already-dark page -
+     stacking a wider, softer "elevation" shadow with a faint primary-color
+     glow reads as depth in both themes instead of just in light mode. */
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(37, 99, 235, 0.04);
   padding: var(--space-4) var(--space-5);
 }
 
-h1 { font-size: var(--font-size-lg); margin-bottom: 0.25rem; }
-p.subtitle { color: var(--color-text-muted); margin-top: 0; margin-bottom: var(--space-3); }
+@media (prefers-color-scheme: dark) {
+  .app-shell {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 20px 48px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(59, 130, 246, 0.06);
+  }
+}
+
+h1 {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 0.35rem;
+}
+p.subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+}
 
 #chat {
   border: 1px solid var(--color-border);
@@ -217,6 +261,23 @@ h1:focus-visible {
   border-radius: var(--radius-sm);
 }
 
+/* Brand mark - see components/Brand.jsx. Two sizes: sm (nav bar, alongside
+   the page tabs) and lg (standalone above the verify form, login-page
+   convention). */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--color-text);
+}
+.brand-name { font-weight: 700; letter-spacing: -0.01em; }
+.brand-sm { margin-right: var(--space-2); }
+.brand-sm .brand-name { font-size: 0.95rem; }
+.brand-lg { justify-content: center; margin-bottom: var(--space-4); }
+.brand-lg .brand-mark { width: 40px; height: 40px; }
+.brand-lg .brand-name { font-size: 1.15rem; }
+.brand-standalone { display: flex; justify-content: center; }
+
 .app-nav {
   display: flex;
   align-items: center;
@@ -224,6 +285,11 @@ h1:focus-visible {
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--color-border);
+}
+.app-nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 .app-nav a {
   color: var(--color-text-muted);

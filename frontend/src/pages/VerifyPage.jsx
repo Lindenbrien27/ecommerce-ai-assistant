@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { VerifyForm } from '../components/VerifyForm.jsx';
+import { Brand } from '../components/Brand.jsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 export function VerifyPage() {
@@ -15,6 +16,9 @@ export function VerifyPage() {
 
   return (
     <div className="app-shell">
+      <div className="brand-standalone">
+        <Brand size="lg" />
+      </div>
       <main>
         <VerifyForm onVerified={handleVerified} />
       </main>
