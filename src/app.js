@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const compression = require('compression');
 const pinoHttp = require('pino-http');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
@@ -32,7 +33,33 @@ app.use(pinoHttp({ logger }));
 
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
+// Gzips/brotli-compresses JSON and static responses based on the client's
+// Accept-Encoding - without this, the ~189KB JS bundle (and every API
+// response) was going out over the wire completely uncompressed, ~3x
+// larger than necessary, on every single request.
+app.use(compression());
+
+const FRONTEND_DIST = path.join(__dirname, '..', 'frontend', 'dist');
+const INDEX_HTML = path.join(FRONTEND_DIST, 'index.html');
+
+app.use(
+  express.static(FRONTEND_DIST, {
+    setHeaders(res, filePath) {
+      if (filePath.startsWith(path.join(FRONTEND_DIST, 'assets') + path.sep)) {
+        // Vite content-hashes filenames under assets/ (e.g. index-BkBoJTlF.js)
+        // - the hash changes whenever the content does, so it's always safe,
+        // and valuable, to tell the browser to cache these forever.
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        // index.html references the *current* hashed asset filenames by
+        // name - serving a stale copy would point the browser at assets
+        // that no longer exist. no-cache still allows caching, just forces
+        // revalidation (a fast 304 when unchanged) on every load.
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
+  })
+);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -46,8 +73,11 @@ app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
 // SPA fallback: anything that isn't a static asset or an API route is a
 // client-side route (e.g. /orders/ORD-1001) - hand it index.html and let
 // React Router take over, so direct navigation/refresh on those URLs works.
+// Same no-cache reasoning as the express.static case above - this is the
+// same file, just reached by a different path.
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(INDEX_HTML);
 });
 
 module.exports = app;

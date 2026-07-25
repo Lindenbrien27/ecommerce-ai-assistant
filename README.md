@@ -163,6 +163,16 @@ No global store beyond `AuthContext` - the app doesn't have enough shared, cross
 
 Backed by an automated check, not just a one-time manual pass: `e2e/accessibility.spec.js` runs `@axe-core/playwright` against `/verify`, `/orders`, `/orders/:id`, and `/chat` on every push and asserts zero violations, so a future change that regresses any of this fails CI instead of shipping unnoticed.
 
+### Performance
+
+Measured before optimizing, not assumed - the biggest win by far wasn't shrinking the JS, it was that the ~189KB bundle was being sent to every client completely **uncompressed**, even ones explicitly requesting `Accept-Encoding: gzip`:
+
+- **Compression** - `compression` middleware in `src/app.js`. Real measurement, not a config-looks-right claim: 188,945 bytes → 61,501 bytes over the wire for the main bundle, a client asking for it gzip-compressed. Modern browsers (this app's e2e suite included) get Brotli instead, which compresses even better - the middleware picks whichever the client's `Accept-Encoding` offers.
+- **Cache headers** - Vite content-hashes built filenames (`index-<hash>.js`) specifically so they're safe to cache forever; the hash itself changes the moment the content does. `express.static`'s `setHeaders` now sets `Cache-Control: public, max-age=31536000, immutable` for everything under `assets/`, versus `no-cache` for `index.html` (which references those hashed filenames by name, so it must always be revalidated - `no-cache` still allows caching, just forces a fast `304` check on every load rather than serving a stale copy). Previously neither had any real caching policy at all.
+- **Route-level lazy loading** - `frontend/src/App.jsx` uses `React.lazy()` per page instead of importing all four eagerly, so Vite code-splits each into its own chunk (~0.2-2.5KB each) fetched only when that route is actually visited, wrapped in a single `<Suspense>` boundary.
+
+`e2e/performance.spec.js` verifies all three against real network requests in a real browser rather than trusting the config: asserts the main bundle actually arrives `Content-Encoding: gzip` or `br`, that hashed assets get the immutable cache header while the HTML shell gets `no-cache`, and - the concrete proof lazy loading is real, not just configured - that visiting `/orders` never triggers a request for `ChatPage`'s chunk until `/chat` is actually navigated to.
+
 ### HTTPS enforcement
 
 When `NODE_ENV=production`, `src/middleware/httpsEnforce.js` redirects any plain-HTTP request to HTTPS (301). `app.set('trust proxy', 1)` is also enabled in production so Express derives `req.secure` (and the real client IP used by rate limiting) from Render's `X-Forwarded-Proto`/`X-Forwarded-For` headers, since Render terminates TLS at its edge and forwards plain HTTP to the container over one hop. This is inactive outside `NODE_ENV=production`, so local dev and tests are unaffected.
@@ -218,6 +228,7 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 - **`orders.spec.js`** - the order list shows only the logged-in customer's own orders; clicking into one shows the right fields; the browser back button returns via real history, not just component state; a hard-refresh on `/orders/:id` still works (proves the SPA-fallback catch-all in `src/app.js`); navigating directly to a *different* customer's order number by URL shows a not-found error rather than their data
 - **`chat.spec.js`** - the chat page is reachable, and sending a message without a configured AI provider surfaces a visible error bubble rather than hanging - this project intentionally doesn't pay to test real Claude replies end-to-end (see [Secrets management](#secrets-management)), so the graceful-failure path is what's asserted on instead
 - **`accessibility.spec.js`** - runs `@axe-core/playwright` against every key page and asserts zero violations - see [Accessibility](#accessibility)
+- **`performance.spec.js`** - compression, cache headers, and lazy-loaded route chunks, verified against real network requests - see [Performance](#performance)
 
 Needs a real Postgres to run against - locally that's whatever `DATABASE_URL` is already set to (a `.env` or Doppler works exactly like it does for `npm start`, since `server.js` is what `webServer` runs); in CI it's an ephemeral `postgres:16` service container, schema'd and seeded fresh on every run by the same migrations the app already applies on startup - see [Database migrations](#database-migrations). `src/config/db.js` only forces SSL when the target isn't `localhost`, since Neon requires it but a plain CI Postgres container doesn't support it at all.
 
@@ -322,7 +333,8 @@ e2e/              # Playwright suite - real browser, real server, real Postgres
 ├── auth.spec.js
 ├── orders.spec.js
 ├── chat.spec.js
-└── accessibility.spec.js  # axe-core scan of every key page
+├── accessibility.spec.js  # axe-core scan of every key page
+└── performance.spec.js    # compression, cache headers, lazy-loaded chunks
 playwright.config.js   # webServer boots node server.js on :3010 for e2e/
 Dockerfile, docker-compose.yml, .dockerignore   # containerization; Dockerfile builds frontend/ in a separate stage
 render.yaml       # Render Blueprint for deployment

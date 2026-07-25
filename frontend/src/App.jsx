@@ -1,33 +1,44 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
-import { VerifyPage } from './pages/VerifyPage.jsx';
-import { OrdersPage } from './pages/OrdersPage.jsx';
-import { OrderDetailPage } from './pages/OrderDetailPage.jsx';
-import { ChatPage } from './pages/ChatPage.jsx';
+
+// Route-level code splitting - each page (and whatever it alone depends on)
+// ships as its own chunk, fetched only when that route is actually visited,
+// instead of one bundle containing every page whether it's needed yet or
+// not. The .then() adapters exist because these pages use named exports;
+// React.lazy() requires a module with a default export.
+const VerifyPage = lazy(() => import('./pages/VerifyPage.jsx').then((m) => ({ default: m.VerifyPage })));
+const OrdersPage = lazy(() => import('./pages/OrdersPage.jsx').then((m) => ({ default: m.OrdersPage })));
+const OrderDetailPage = lazy(() =>
+  import('./pages/OrderDetailPage.jsx').then((m) => ({ default: m.OrderDetailPage }))
+);
+const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route element={<PublicOnlyRoute />}>
-            <Route path="/verify" element={<VerifyPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/orders/:orderNumber" element={<OrderDetailPage />} />
-              <Route path="/chat" element={<ChatPage />} />
+        <Suspense fallback={<p className="subtitle">Loading...</p>}>
+          <Routes>
+            <Route element={<PublicOnlyRoute />}>
+              <Route path="/verify" element={<VerifyPage />} />
             </Route>
-          </Route>
 
-          <Route path="/" element={<Navigate to="/orders" replace />} />
-          <Route path="*" element={<Navigate to="/orders" replace />} />
-        </Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/orders/:orderNumber" element={<OrderDetailPage />} />
+                <Route path="/chat" element={<ChatPage />} />
+              </Route>
+            </Route>
+
+            <Route path="/" element={<Navigate to="/orders" replace />} />
+            <Route path="*" element={<Navigate to="/orders" replace />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );
