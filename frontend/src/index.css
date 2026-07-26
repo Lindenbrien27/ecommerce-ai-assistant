@@ -379,18 +379,18 @@ p.subtitle {
 }
 .chat-clear-button:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
-/* Centered within #chat (a flex column) rather than pinned to the top -
-   an empty conversation reads as a deliberate starting point this way,
-   not as "content that hasn't loaded yet". */
+/* Pinned to the top-left, not centered in the middle of #chat - every other
+   element on this page (heading, subtitle, the message bubbles once a
+   conversation starts) reads from the left edge, and centering just this
+   one piece of content made it look unanchored from everything around it,
+   with a large dead gap between the buttons and the input row below
+   wherever #chat had more height than the content needed. */
 .chat-empty-state {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
   gap: var(--space-2);
-  text-align: center;
-  padding: var(--space-4);
+  padding: var(--space-2) 0;
 }
 .chat-empty-state-label {
   margin: 0;
@@ -548,7 +548,14 @@ h1:focus-visible {
    duplicating the whole rule - the highest-specificity/latest-in-source
    value for this property wins regardless of which override applied it. */
 .app-sidebar {
-  --sidebar-width: 208px;
+  /* 248px, not 208px - measured live that a real 23-character email
+     ("john.smith@example.com") needed 153px for its text and only had
+     126px available at the old width, truncating even a fairly ordinary
+     address. Still short of fitting every possible email (arbitrarily
+     long ones exist), which is what the title attribute on
+     .app-sidebar-email is for - this just raises how much fits by
+     default before that fallback is needed at all. */
+  --sidebar-width: 248px;
   width: var(--sidebar-width);
   flex-shrink: 0;
   display: flex;
