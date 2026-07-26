@@ -215,6 +215,16 @@ Measured, not assumed, given this project's own standing "measure before optimiz
 
 `AuthContext` (`frontend/src/context/AuthContext.jsx`) holds the token and is read by `ProtectedRoute`/`PublicOnlyRoute` to decide whether to render the route or `<Navigate>` elsewhere. Since `express.static` alone 404s on a hard refresh of a client-side route like `/orders/ORD-1001` (no such file exists), `src/app.js` has a catch-all `app.get('*', ...)` after every real route that serves `frontend/dist/index.html` and lets React Router take over - verified working for both in-app navigation and direct/hard-loaded URLs.
 
+### Navigation
+
+`Layout.jsx`'s left sidebar replaces the earlier top tab bar - collapsible between a full labeled view (~208px) and an icon-only rail (64px) via a toggle at its top. A few things this needed to actually work smoothly:
+
+- **The active-link indicator** is one shared absolutely-positioned bar, not a border on each link - `Layout.jsx` measures the active `NavLink`'s real `offsetTop`/`offsetHeight` and animates `transform: translateY()` (compositor-only, not layout-triggering) so it glides between Orders and Chat instead of snapping. Same technique the old horizontal tab indicator used, rotated onto the vertical axis.
+- **Collapsed-state labels fade via `opacity`, not `display: none`** - the text stays in the DOM and keeps being announced to screen readers even while visually hidden, since the icon alone isn't an accessible name.
+- **Collapsed-state tooltips are pure CSS** (`content: attr(data-tooltip)` on `::after`), no JS positioning library. Getting them to actually render took removing `overflow: hidden` from three different ancestors that each existed for an unrelated reason (clipping label text during the width transition, capping the card's fixed height) - `overflow: hidden` clips *any* descendant's painted content that extends past that ancestor's own box, not just content positioned relative to that specific ancestor. The third wasn't even an explicit `overflow: hidden` - `.app-sidebar-nav`'s `overflow-y: auto` (added defensively, "just in case nav items ever overflow") made the browser silently compute `overflow-x` as `auto` too, per the CSS Overflow Module's rule that a non-visible value on one axis forces the other off `visible` as well. Removed outright, since two nav items will never need vertical scrolling.
+- **"Sticky" without `position: sticky`** - the sidebar and `main` are just flex siblings in one `height: min(720px, 82vh)` row; only `main` scrolls internally (`overflow-y: auto`), so the sidebar never has anything to scroll away from and stays in place for free.
+- **Mobile forces the icon-only width unconditionally** - a CSS override, not a JS viewport check. Not enough room for a 208px sidebar next to real content on a phone screen, so `@media (max-width: 480px)` pins `--sidebar-width` to 56px regardless of whatever the desktop collapse toggle last set.
+
 ### State management
 
 - **Global state** (the auth token) lives in one place, `AuthContext`, backed by `sessionStorage`. Nothing else reads or writes that storage key directly.

@@ -2,19 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Brand } from './Brand.jsx';
+import { ChatIcon, ChevronIcon, LogoutIcon, OrdersIcon } from './icons.jsx';
 
 const NAV_LINKS = [
-  { to: '/orders', label: 'Orders' },
-  { to: '/chat', label: 'Chat' },
+  { to: '/orders', label: 'Orders', icon: OrdersIcon },
+  { to: '/chat', label: 'Chat', icon: ChatIcon },
 ];
 
 export function Layout() {
-  const { logout } = useAuth();
+  const { email, logout } = useAuth();
   const location = useLocation();
   const linkRefs = useRef({});
-  // null until the first measurement lands, so the indicator doesn't
-  // flash at a wrong (0,0) position for one frame before it knows where
-  // the active tab actually is.
+  const [collapsed, setCollapsed] = useState(false);
+  // null until the first measurement lands, so the indicator doesn't flash
+  // at a wrong (0,0) position for one frame before it knows where the
+  // active link actually is.
   const [indicator, setIndicator] = useState(null);
 
   useEffect(() => {
@@ -22,47 +24,76 @@ export function Layout() {
       const active = NAV_LINKS.find((link) => location.pathname.startsWith(link.to));
       const el = active && linkRefs.current[active.to];
       if (el) {
-        setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+        setIndicator({ top: el.offsetTop, height: el.offsetHeight });
       }
     }
 
     measure();
-    // Tab label width is fixed text, but the window resizing (or a
-    // zoom/font change) can still shift offsetLeft/offsetWidth - re-measure
-    // rather than let the indicator drift out of alignment.
+    // Collapsing/expanding changes each link's height slightly (icon-only
+    // rows are shorter than icon+label rows) - re-measure so the indicator
+    // doesn't end up pinned to a stale offset once the collapse transition
+    // settles. Same reasoning as the resize listener: offsetTop/offsetHeight
+    // can shift for reasons other than route changes.
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [location.pathname]);
+  }, [location.pathname, collapsed]);
+
+  const initial = email ? email[0].toUpperCase() : '?';
 
   return (
     <div className="app-shell app-shell--fixed-height">
-      <nav className="app-nav">
-        <Brand size="sm" />
-        <div className="app-nav-links">
+      <aside className={`app-sidebar${collapsed ? ' app-sidebar--collapsed' : ''}`}>
+        <div className="app-sidebar-header">
+          <Brand size="sm" showLabel={!collapsed} />
+          <button
+            type="button"
+            className="app-sidebar-toggle"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+          >
+            <ChevronIcon />
+          </button>
+        </div>
+
+        <nav className="app-sidebar-nav">
           {indicator && (
             <span
-              className="app-nav-indicator"
-              style={{ transform: `translateX(${indicator.left}px)`, width: `${indicator.width}px` }}
+              className="app-sidebar-indicator"
+              style={{ transform: `translateY(${indicator.top}px)`, height: `${indicator.height}px` }}
               aria-hidden="true"
             />
           )}
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.map(({ to, label, icon: Icon }) => (
             <NavLink
-              key={link.to}
-              to={link.to}
+              key={to}
+              to={to}
               ref={(el) => {
-                linkRefs.current[link.to] = el;
+                linkRefs.current[to] = el;
               }}
               className={({ isActive }) => (isActive ? 'active' : '')}
+              data-tooltip={label}
             >
-              {link.label}
+              <Icon className="app-sidebar-link-icon" aria-hidden="true" />
+              <span className="app-sidebar-link-label">{label}</span>
             </NavLink>
           ))}
+        </nav>
+
+        <div className="app-sidebar-footer">
+          <div className="app-sidebar-profile" data-tooltip={email || 'Account'}>
+            <span className="app-sidebar-avatar" aria-hidden="true">
+              {initial}
+            </span>
+            <span className="app-sidebar-email">{email}</span>
+          </div>
+          <button type="button" className="logout-button" onClick={logout} data-tooltip="Log out">
+            <LogoutIcon className="app-sidebar-link-icon" aria-hidden="true" />
+            <span className="app-sidebar-link-label">Log out</span>
+          </button>
         </div>
-        <button type="button" className="logout-button" onClick={logout}>
-          Log out
-        </button>
-      </nav>
+      </aside>
+
       <main>
         <Outlet />
       </main>

@@ -8,7 +8,7 @@ test.describe('chat', () => {
   });
 
   test('is reachable from the nav bar', async ({ page }) => {
-    await page.click('.app-nav a[href="/chat"]');
+    await page.click('.app-sidebar a[href="/chat"]');
     await expect(page).toHaveURL(/\/chat$/);
     await expect(page.locator('#chat-input')).toBeVisible();
   });

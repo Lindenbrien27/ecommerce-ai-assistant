@@ -2,7 +2,7 @@
 // Layout's nav (top-left, alongside the page tabs) and VerifyPage (centered,
 // standalone auth-screen convention) so both places stay in sync if the
 // mark ever changes.
-export function Brand({ size = 'md' }) {
+export function Brand({ size = 'md', showLabel = true }) {
   return (
     <div className={`brand brand-${size}`}>
       <span className="brand-mark" aria-hidden="true">
@@ -12,7 +12,7 @@ export function Brand({ size = 'md' }) {
           <line x1="12" y1="22.08" x2="12" y2="12" />
         </svg>
       </span>
-      <span className="brand-name">My Order</span>
+      {showLabel && <span className="brand-name">My Order</span>}
     </div>
   );
 }
