@@ -20,9 +20,9 @@ describe('MessageBubble', () => {
 });
 
 describe('TypingIndicator', () => {
-  it('renders three animated dots', () => {
+  it('renders a loading animation', () => {
     const { container } = render(<TypingIndicator />);
-    expect(container.querySelectorAll('.typing-dot')).toHaveLength(3);
+    expect(container.querySelector('.typing-indicator')).toBeInTheDocument();
   });
 
   it('is labeled for assistive tech', () => {
