@@ -15,7 +15,7 @@ export function VerifyPage() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell app-shell--centered">
       <div className="brand-standalone">
         <Brand size="lg" />
       </div>

@@ -82,8 +82,9 @@
 
 * { box-sizing: border-box; }
 
-/* Visually hidden but still announced by screen readers - for labels this
-   design keeps visually implicit via placeholder text alone. */
+/* Visually hidden but still announced by screen readers - for a label kept
+   visually implicit via placeholder text alone (still true for the chat
+   input; the verify form's labels are visible instead, see VerifyForm.jsx). */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -111,21 +112,31 @@ body {
   background-attachment: fixed;
   min-height: 100vh;
   margin: 0;
+}
+
+/* The actual flex container has to be #root, not body: React mounts into
+   #root, so .app-shell is body's *grandchild*, not its direct flex item -
+   display:flex/align-self on body/.app-shell were silently no-ops (caught
+   by measuring getBoundingClientRect live, not by inspection - the
+   computed align-self value reported "center" correctly, it just had no
+   layout effect on an element that was never actually a flex item). */
+#root {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
   padding: clamp(1.5rem, 8vh, 4.5rem) var(--space-3) var(--space-5);
 }
 
 /* The actual "page" - a contained panel instead of unstyled text floating
-   directly on the page background. align-self: flex-start (rather than
-   letting body's default stretch/center apply) keeps it anchored near the
-   top consistently regardless of how tall the viewport or the content is,
-   instead of visually jumping around as pages of different lengths get
-   vertically centered. */
+   directly on the page background. #root's default justify-content
+   (flex-start, the initial value - never overridden below) keeps this
+   anchored near the top consistently regardless of how tall the viewport
+   or the content is, instead of visually jumping around as pages of
+   different lengths get vertically centered. */
 .app-shell {
   width: 100%;
   max-width: 720px;
-  align-self: flex-start;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -146,6 +157,20 @@ body {
       0 20px 48px rgba(0, 0, 0, 0.45),
       0 0 0 1px rgba(59, 130, 246, 0.06);
   }
+}
+
+/* Verify specifically reads as a distinct "landing" moment - fixed, short,
+   predictable content - so vertically centering it is the common, expected
+   pattern for this kind of screen (see components/Brand.jsx's own comment:
+   "login-page convention"). Scoped to this one page rather than changing
+   #root's shared justify-content (which would center every page - a long
+   Orders list re-centering as its real height resolves would visibly
+   jump): margin-top/bottom: auto is the per-item override for a flex
+   container's main axis - justify-content has no equivalent per-child
+   override the way align-self does for the cross axis. */
+.app-shell--centered {
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 h1 {
@@ -225,6 +250,12 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
   color: var(--color-error-text);
   border: 1px solid var(--color-error-border);
   font-size: 0.9rem;
+}
+
+label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 input[type="text"],
@@ -377,7 +408,7 @@ h1:focus-visible {
   /* The card chrome (border/shadow/radius/side margins) is a nice-to-have
      on a screen with room to spare, not on a phone - there it just eats
      into already-scarce width, so this goes edge-to-edge instead. */
-  body { padding: var(--space-3) 0 0; }
+  #root { padding: var(--space-3) 0 0; }
   .app-shell {
     max-width: 100%;
     border: none;

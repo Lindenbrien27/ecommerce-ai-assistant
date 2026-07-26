@@ -8,8 +8,11 @@ beforeEach(() => {
 });
 
 async function fillAndSubmit(user, { orderNumber = 'ORD-1001', email = 'jane.doe@example.com' } = {}) {
-  await user.type(screen.getByPlaceholderText(/order number/i), orderNumber);
-  await user.type(screen.getByPlaceholderText(/email address/i), email);
+  // By label, not placeholder - the form's labels are real and visible
+  // (not sr-only), so this is the query a real user/screen-reader would
+  // also resolve the field by.
+  await user.type(screen.getByLabelText(/order number/i), orderNumber);
+  await user.type(screen.getByLabelText(/email address/i), email);
   await user.click(screen.getByRole('button', { name: /verify/i }));
 }
 
