@@ -22,7 +22,7 @@ test.describe('orders', () => {
 
     await expect(page).toHaveURL(/\/orders\/ORD-1001$/);
     await expect(page.locator('h1')).toHaveText('ORD-1001');
-    await expect(page.locator('.order-detail')).toContainText('Wireless Noise-Cancelling Headphones');
+    await expect(page.locator('.order-product-name')).toHaveText('Wireless Noise-Cancelling Headphones');
     await expect(page.locator('.order-detail')).toContainText('1Z999AA10123456784');
   });
 
@@ -42,7 +42,7 @@ test.describe('orders', () => {
   }) => {
     await page.goto('/orders/ORD-1002');
     await expect(page.locator('h1')).toHaveText('ORD-1002');
-    await expect(page.locator('.order-detail')).toContainText('USB-C Charging Cable');
+    await expect(page.locator('.order-product-name')).toContainText('USB-C Charging Cable');
   });
 
   test('navigating directly to a different customer\'s order number does not leak their data', async ({

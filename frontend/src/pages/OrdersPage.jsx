@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { ProductImage } from '../components/ProductImage.jsx';
 
 export function OrdersPage() {
   useDocumentTitle('Your Orders');
@@ -84,6 +85,7 @@ export function OrdersPage() {
             {orders.map((order) => (
               <li key={order.order_number}>
                 <Link to={`/orders/${order.order_number}`} className="order-list-item">
+                  <ProductImage icon={order.product_icon} size="sm" />
                   <span className="order-number">{order.order_number}</span>
                   <span className="order-product">{order.product_name}</span>
                   <span className={`order-status status-${order.status}`}>

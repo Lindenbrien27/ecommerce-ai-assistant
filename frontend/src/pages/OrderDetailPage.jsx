@@ -3,8 +3,50 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { ProductImage } from '../components/ProductImage.jsx';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const formatCents = (cents) => currencyFormatter.format(cents / 100);
+
+// unit_price_cents is the one field of the four that's never optional once
+// present at all (see migrations/1785095226496_add-order-pricing-and-
+// product-icon.sql) - treating it as "pricing data exists for this order"
+// and falling back to nothing rather than a summary with holes in it for
+// any order seeded before that migration.
+function OrderSummary({ order }) {
+  if (order.unit_price_cents == null) return null;
+
+  const total =
+    order.unit_price_cents + (order.delivery_cost_cents || 0) + (order.vat_cents || 0) - (order.voucher_cents || 0);
+
+  return (
+    <div className="order-summary">
+      <div className="order-summary-row">
+        <span>Original price</span>
+        <span>{formatCents(order.unit_price_cents)}</span>
+      </div>
+      <div className="order-summary-row">
+        <span>Delivery</span>
+        <span>{order.delivery_cost_cents ? formatCents(order.delivery_cost_cents) : 'Free'}</span>
+      </div>
+      <div className="order-summary-row">
+        <span>VAT</span>
+        <span>{formatCents(order.vat_cents || 0)}</span>
+      </div>
+      {order.voucher_cents > 0 && (
+        <div className="order-summary-row order-summary-voucher">
+          <span>Voucher{order.voucher_code ? ` (${order.voucher_code})` : ''}</span>
+          <span>-{formatCents(order.voucher_cents)}</span>
+        </div>
+      )}
+      <div className="order-summary-row order-summary-total">
+        <span>Total</span>
+        <span>{formatCents(total)}</span>
+      </div>
+    </div>
+  );
+}
 
 // Best-effort - estimated_delivery is a free TEXT column (see
 // migrations/1784973065584_initial-schema.sql), not a guaranteed-parseable
@@ -133,16 +175,17 @@ export function OrderDetailPage() {
 
       {order && (
         <>
-          {/* Grouped in pairs that actually relate to each other (what +
-              its state, then the two dates, then the two shipping
-              specifics) instead of one flat list - also what lets this
-              use a real 2-column grid instead of a single narrow column
-              leaving the wider card's right half empty. */}
+          <div className="order-product-row">
+            <ProductImage icon={order.product_icon} size="lg" />
+            <p className="order-product-name">{order.product_name}</p>
+          </div>
+
+          {/* Grouped in pairs that actually relate to each other (its
+              state, then the two dates, then the two shipping specifics)
+              instead of one flat list - also what lets this use a real
+              2-column grid instead of a single narrow column leaving the
+              wider card's right half empty. */}
           <dl className="order-detail">
-            <div className="order-detail-field">
-              <dt>Product</dt>
-              <dd>{order.product_name}</dd>
-            </div>
             <div className="order-detail-field">
               <dt>Status</dt>
               <dd>
@@ -183,7 +226,10 @@ export function OrderDetailPage() {
             )}
           </dl>
 
-          <h2 className="status-timeline-heading">Order progress</h2>
+          <h2 className="section-heading">Order summary</h2>
+          <OrderSummary order={order} />
+
+          <h2 className="section-heading">Order progress</h2>
           <StatusTimeline status={order.status} />
         </>
       )}
