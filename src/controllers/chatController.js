@@ -50,7 +50,9 @@ async function postChat(req, res) {
     res.json({ reply });
   } catch (err) {
     logError('Chat error', err);
-    res.status(500).json({ error: 'Something went wrong processing your request.' });
+    res.status(500).json({
+      error: 'Unable to process your request right now. Please try again in a moment, or contact support if this continues.',
+    });
   }
 }
 

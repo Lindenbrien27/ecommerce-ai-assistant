@@ -5,8 +5,8 @@ import { Brand } from './Brand.jsx';
 import { ChatIcon, ChevronIcon, LogoutIcon, OrdersIcon } from './icons.jsx';
 
 const NAV_LINKS = [
-  { to: '/orders', label: 'Orders', icon: OrdersIcon },
-  { to: '/chat', label: 'Chat', icon: ChatIcon },
+  { to: '/orders', label: 'My Orders', icon: OrdersIcon },
+  { to: '/chat', label: 'Support Chat', icon: ChatIcon },
 ];
 
 export function Layout() {

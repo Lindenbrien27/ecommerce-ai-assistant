@@ -260,14 +260,20 @@ p.subtitle {
 }
 
 .msg {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 16px;
+  max-width: 65%;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 .msg.user { align-self: flex-end; background: var(--color-solid-bg); color: var(--color-primary-text); }
 .msg.assistant { align-self: flex-start; background: var(--color-surface); color: var(--color-surface-text); }
+/* Red is already this app's one dedicated "something is wrong" signal
+   (error-surface/-text/-border, used nowhere else) - a red accent on every
+   ordinary assistant reply would fight that instead of reinforcing it. The
+   background-color difference between .user/.assistant/.assistant.error
+   below already gives each of the three states its own distinct, at-a
+   -glance appearance without overloading red's meaning. */
 .msg.assistant.error {
   background: var(--color-error-surface);
   color: var(--color-error-text);
@@ -296,6 +302,69 @@ p.subtitle {
   .app-sidebar,
   .app-sidebar-indicator,
   .app-sidebar-toggle svg { transition: none; }
+}
+
+.chat-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 0.35rem;
+}
+.chat-header h1 { margin-bottom: 0; }
+.chat-clear-button {
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+.chat-clear-button:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
+
+/* Centered within #chat (a flex column) rather than pinned to the top -
+   an empty conversation reads as a deliberate starting point this way,
+   not as "content that hasn't loaded yet". */
+.chat-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+  padding: var(--space-4);
+}
+.chat-empty-state-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  max-width: 320px;
+}
+.chat-suggestion {
+  background: var(--color-surface);
+  color: var(--color-surface-text);
+  border: 1px solid var(--color-border);
+  padding: 0.6rem var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.chat-suggestion:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-bg); }
+
+.chat-input-hint {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
 }
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
