@@ -126,7 +126,23 @@ export function ChatPage() {
       </div>
       <p className="subtitle">Ask about your order status or tracking - try "Where's my order?"</p>
 
-      <div id="chat" ref={chatRef} role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation">
+      {/* tabIndex so a keyboard-only user can actually reach and scroll this
+          region once its content overflows - a scrollable container with no
+          focusable content inside it and no way to focus the container
+          itself is a keyboard trap (WCAG 2.1.1/2.1.3, axe's
+          scrollable-region-focusable rule). Only ever actually overflows on
+          narrower viewports/longer transcripts - caught by the e2e a11y
+          suite on Mobile Safari specifically, not locally on a wider
+          desktop viewport where the same transcript fit without scrolling. */}
+      <div
+        id="chat"
+        ref={chatRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Conversation"
+        tabIndex="0"
+      >
         {bubbles.length === 0 && (
           <div className="chat-empty-state">
             <p className="chat-empty-state-label">Try asking:</p>
