@@ -4,6 +4,55 @@ import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
+const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+// Best-effort - estimated_delivery is a free TEXT column (see
+// migrations/1784973065584_initial-schema.sql), not a guaranteed-parseable
+// date type. Seed data happens to store ISO dates, but nothing enforces
+// that server-side, so an unparseable value falls back to the raw string
+// rather than rendering "Invalid Date".
+function formatDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
+}
+
+// The four forward-progression statuses this app actually has (see the
+// `status` CHECK constraint in the same migration) - cancelled is handled
+// separately below since it's a branch-off, not a further step in this
+// sequence, and the order data model has no history of *which* step a
+// cancelled order reached before it was cancelled to honestly place it here.
+const STATUS_STEPS = [
+  { key: 'processing', label: 'Processing' },
+  { key: 'shipped', label: 'Shipped' },
+  { key: 'out_for_delivery', label: 'Out for delivery' },
+  { key: 'delivered', label: 'Delivered' },
+];
+
+function StatusTimeline({ status }) {
+  if (status === 'cancelled') {
+    return <p className="status-timeline-cancelled">This order was cancelled.</p>;
+  }
+
+  const currentIndex = STATUS_STEPS.findIndex((step) => step.key === status);
+
+  return (
+    <ol className="status-timeline">
+      {STATUS_STEPS.map((step, i) => (
+        <li
+          key={step.key}
+          className={`status-timeline-step${i <= currentIndex ? ' completed' : ''}${
+            i === currentIndex ? ' current' : ''
+          }`}
+        >
+          <span className="status-timeline-marker" aria-hidden="true" />
+          <span className="status-timeline-label">{step.label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
   useDocumentTitle(orderNumber);
@@ -51,9 +100,9 @@ export function OrderDetailPage() {
   return (
     <>
       <Link to="/orders" className="back-link">
-        &larr; Back to orders
+        &larr; All Orders
       </Link>
-      <h1 ref={headingRef} tabIndex={-1}>
+      <h1 ref={headingRef} tabIndex={-1} className="order-id-heading">
         {orderNumber}
       </h1>
 
@@ -67,34 +116,44 @@ export function OrderDetailPage() {
       </div>
 
       {order && (
-        <dl className="order-detail">
-          <dt>Product</dt>
-          <dd>{order.product_name}</dd>
+        <>
+          <dl className="order-detail">
+            <dt>Product</dt>
+            <dd>{order.product_name}</dd>
 
-          <dt>Status</dt>
-          <dd>{order.status.replace(/_/g, ' ')}</dd>
+            <dt>Status</dt>
+            <dd>
+              <span className={`order-status status-${order.status}`}>{order.status.replace(/_/g, ' ')}</span>
+            </dd>
 
-          {order.carrier && (
-            <>
-              <dt>Carrier</dt>
-              <dd>{order.carrier}</dd>
-            </>
-          )}
+            <dt>Ordered on</dt>
+            <dd>{formatDate(order.created_at)}</dd>
 
-          {order.tracking_number && (
-            <>
-              <dt>Tracking number</dt>
-              <dd>{order.tracking_number}</dd>
-            </>
-          )}
+            {order.carrier && (
+              <>
+                <dt>Carrier</dt>
+                <dd>{order.carrier}</dd>
+              </>
+            )}
 
-          {order.estimated_delivery && (
-            <>
-              <dt>Estimated delivery</dt>
-              <dd>{order.estimated_delivery}</dd>
-            </>
-          )}
-        </dl>
+            {order.tracking_number && (
+              <>
+                <dt>Tracking number</dt>
+                <dd>{order.tracking_number}</dd>
+              </>
+            )}
+
+            {order.estimated_delivery && (
+              <>
+                <dt>Estimated delivery</dt>
+                <dd>{formatDate(order.estimated_delivery)}</dd>
+              </>
+            )}
+          </dl>
+
+          <h2 className="status-timeline-heading">Order progress</h2>
+          <StatusTimeline status={order.status} />
+        </>
       )}
     </>
   );

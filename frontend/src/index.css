@@ -136,7 +136,7 @@ body {
    different lengths get vertically centered. */
 .app-shell {
   width: 100%;
-  max-width: 720px;
+  max-width: 800px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -751,14 +751,82 @@ h1:focus-visible {
 .order-status.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
 .order-status.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
 
+/* Label-above-value, not side-by-side - dt/dd alternate as flat children of
+   one <dl> (no per-pair wrapper element), so the "gap between pairs" vs
+   "gap within a pair" distinction comes from dt's own margin-top rather
+   than a grid/flex gap, which would apply uniformly between every child
+   regardless of which pair it belongs to. */
 .order-detail {
   margin: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-3);
+  display: flex;
+  flex-direction: column;
 }
-.order-detail dt { color: var(--color-text-muted); font-size: 0.9rem; }
-.order-detail dd { margin: 0; font-weight: 500; }
+.order-detail dt {
+  margin-top: var(--space-4);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.order-detail dt:first-child { margin-top: 0; }
+.order-detail dd { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 500; }
+
+.order-id-heading { font-size: 2.625rem; letter-spacing: -0.03em; }
+
+.status-timeline-heading {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.status-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.status-timeline-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.4rem 0 0.4rem var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+.status-timeline-marker {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+/* The connecting line is a pseudo-element on each non-last step, not a
+   separate element - anchored to the marker's own horizontal center
+   (var(--space-1) inset + half the marker's 10px width) so it stays
+   aligned with the dots regardless of label text length/wrapping. */
+.status-timeline-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-1) + 4px);
+  top: calc(50% + 9px);
+  bottom: -0.4rem;
+  width: 2px;
+  background: var(--color-border);
+}
+.status-timeline-step.completed { color: var(--color-text); }
+.status-timeline-step.completed .status-timeline-marker { background: var(--color-primary); }
+.status-timeline-step.completed:not(:last-child)::before { background: var(--color-primary); }
+.status-timeline-step.current .status-timeline-label { font-weight: 700; }
+
+.status-timeline-cancelled {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
 
 @media (max-width: 480px) {
   /* The card chrome (border/shadow/radius/side margins) is a nice-to-have
