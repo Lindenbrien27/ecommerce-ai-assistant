@@ -173,7 +173,7 @@ export function ChatPage() {
           Send
         </button>
       </form>
-      <p className="chat-input-hint">Press Enter to send</p>
+      <p className="field-hint">Press Enter to send</p>
     </>
   );
 }

@@ -361,7 +361,7 @@ p.subtitle {
 }
 .chat-suggestion:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-bg); }
 
-.chat-input-hint {
+.field-hint {
   margin: 0.35rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.75rem;

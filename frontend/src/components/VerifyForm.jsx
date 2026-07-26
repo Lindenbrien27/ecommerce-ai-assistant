@@ -45,7 +45,7 @@ export function VerifyForm({ onVerified }) {
       <h1 ref={headingRef} tabIndex={-1}>
         Order Support Assistant
       </h1>
-      <p className="subtitle">Enter your order number and the email used to place it to get started.</p>
+      <p className="subtitle">Verify your identity with the email used to place an order and its order number.</p>
 
       <form id="verify-form" onSubmit={handleSubmit}>
         <div className="input-group">
@@ -57,9 +57,12 @@ export function VerifyForm({ onVerified }) {
             value={orderNumber}
             onChange={(e) => setOrderNumber(e.target.value)}
             disabled={pending}
-            aria-describedby={error ? 'verify-error' : undefined}
+            aria-describedby={error ? 'verify-error' : 'order-number-hint'}
             required
           />
+          <p id="order-number-hint" className="field-hint">
+            You'll find this in your order confirmation email.
+          </p>
         </div>
         <div className="input-group">
           <label htmlFor="verify-email">Email Address</label>
