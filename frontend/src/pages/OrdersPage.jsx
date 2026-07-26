@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
+import { useOrders } from '../context/OrdersContext.jsx';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { ProductImage } from '../components/ProductImage.jsx';
@@ -73,62 +73,8 @@ function OrderProgress({ status }) {
 export function OrdersPage() {
   useDocumentTitle('Your Orders');
   const headingRef = useFocusOnMount();
-  const authorizedFetch = useAuthorizedFetch();
-  const [orders, setOrders] = useState(null);
-  const [nextCursor, setNextCursor] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState(null);
+  const { orders, nextCursor, loadingMore, error, loadMore } = useOrders();
   const [activeFilter, setActiveFilter] = useState('all');
-
-  async function loadPage(cursor) {
-    const url = cursor ? `/api/orders?cursor=${encodeURIComponent(cursor)}` : '/api/orders';
-    const res = await authorizedFetch(url);
-
-    if (res.status === 401) {
-      return null;
-    }
-
-    if (!res.ok) {
-      setError('Something went wrong loading your orders.');
-      return null;
-    }
-
-    return res.json();
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const data = await loadPage();
-        if (!data || cancelled) return;
-        setOrders(data.orders);
-        setNextCursor(data.nextCursor);
-      } catch {
-        if (!cancelled) setError("Couldn't reach the server. Please check your connection and try again.");
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [authorizedFetch]);
-
-  async function handleLoadMore() {
-    setLoadingMore(true);
-    try {
-      const data = await loadPage(nextCursor);
-      if (!data) return;
-      setOrders((prev) => [...prev, ...data.orders]);
-      setNextCursor(data.nextCursor);
-    } catch {
-      setError("Couldn't reach the server. Please check your connection and try again.");
-    } finally {
-      setLoadingMore(false);
-    }
-  }
 
   const counts = {};
   for (const filter of STATUS_FILTERS) {
@@ -228,7 +174,7 @@ export function OrdersPage() {
         )}
 
         {nextCursor && (
-          <button type="button" onClick={handleLoadMore} disabled={loadingMore}>
+          <button type="button" onClick={loadMore} disabled={loadingMore}>
             {loadingMore ? 'Loading...' : 'Load more'}
           </button>
         )}

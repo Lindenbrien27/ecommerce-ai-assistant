@@ -622,24 +622,47 @@ h1:focus-visible {
      order list) should push it taller too, not clip/scroll independently. */
   min-height: calc(100vh - 65px);
 }
-.storefront-greeting-label {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
+.storefront-shop-now {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 0.65rem var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
 }
-.storefront-greeting-email {
-  margin: 0.15rem 0 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
 
+/* flex: 1, not just a plain column - lets .storefront-sidenav-section--bottom
+   below push itself (and the sidebar's own Logout button right after it)
+   down toward the bottom of .storefront-sidebar's own min-height, the same
+   spacing trick the old .storefront-help-card used before this redesign
+   replaced it. Without growing to fill the sidebar's available height
+   first, margin-top: auto on a child has no free space to consume. */
 .storefront-sidenav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.storefront-sidenav-section {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+}
+.storefront-sidenav-section--bottom { margin-top: auto; }
+.storefront-sidenav-heading {
+  margin: 0 0 0.15rem;
+  padding: 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .storefront-sidenav a,
 .storefront-sidenav span {
@@ -675,41 +698,48 @@ h1:focus-visible {
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
 }
-.storefront-sidenav-chevron { margin-left: auto; }
 
-.storefront-help-card {
-  margin-top: auto;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
+/* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
+   treatment either way, so the UI doesn't visually distinguish "count I
+   bothered to compute" from "count that happens to be small" - nothing
+   here implies Coupons/Wishlist are bigger features than they are. */
+.storefront-sidenav-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
   background: var(--color-surface);
-}
-.storefront-help-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--color-primary);
-}
-.storefront-help-card-header p { margin: 0; font-weight: 700; }
-.storefront-help-card-text {
-  margin: 0.3rem 0 var(--space-2);
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
 }
-.storefront-help-card-button {
+.storefront-sidenav a.active .storefront-sidenav-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--color-primary-text);
+}
+
+.storefront-tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.storefront-tag {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--radius-sm);
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
-  text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 600;
+  gap: var(--space-2);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
 }
-.storefront-help-card-button:hover { background: var(--color-solid-bg-hover); }
-.storefront-chat-now-arrow { transform: rotate(-90deg); }
+.storefront-tag-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
 
 .storefront-logout {
   display: flex;
@@ -729,6 +759,77 @@ h1:focus-visible {
   padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
+/* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third
+   sidebar-width column, same min-height-to-the-viewport pattern as
+   .storefront-sidebar so its own border reaches the bottom on short pages
+   without locking to a fixed height on long ones. */
+.ai-panel {
+  flex-shrink: 0;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 65px);
+  padding: var(--space-3);
+  border-left: 1px solid var(--color-border);
+}
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.ai-panel-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+}
+.ai-panel-title { margin: 0; font-weight: 700; font-size: 0.95rem; }
+.ai-panel-subtitle { margin: 0.1rem 0 0; color: var(--color-text-muted); font-size: 0.78rem; }
+
+/* Bounded height + its own scrollbar, not flex: 1 inside an unbounded
+   column - the panel's own min-height is a floor (see above), not a
+   ceiling, so an intrinsically-sized flex child would just keep growing
+   the whole column (and page) taller as a conversation gets longer instead
+   of staying docked. Mirrors #chat's own min(…, …vh) approach on ChatPage. */
+.ai-panel-log {
+  max-height: min(560px, 65vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.ai-panel-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ai-panel-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-left: 30px;
+}
+.ai-panel-form {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+.ai-panel-form input { flex: 1; min-width: 0; }
+.ai-panel-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
+
+@media (max-width: 1200px) {
+  .ai-panel { display: none; }
+}
 @media (max-width: 900px) {
   .storefront-search { display: none; }
 }
@@ -745,8 +846,16 @@ h1:focus-visible {
     gap: var(--space-2);
     padding: var(--space-3);
   }
-  .storefront-greeting,
-  .storefront-help-card { display: none; }
+  /* The section wrapper divs (Dashboard/Category/bottom) exist to group
+     items under a heading in the vertical desktop layout - display: contents
+     dissolves them here so their children (the actual nav items) become
+     direct flex items of .storefront-sidenav below and wrap into one
+     compact icon row, instead of three separate row-wrapped blocks. The
+     headings and the Category tag list are dropped entirely rather than
+     wrapped in too - decorative extras a cramped icon row has no room for. */
+  .storefront-sidenav-section { display: contents; }
+  .storefront-sidenav-heading,
+  .storefront-tag-list { display: none; }
   .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
   /* Same .sr-only technique as the rule of that name near the top of this
      file, not display: none - a real <a> (My Orders, Support Chat) with

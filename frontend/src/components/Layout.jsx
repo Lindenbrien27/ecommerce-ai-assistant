@@ -1,42 +1,70 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
 import { Brand } from './Brand.jsx';
+import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import {
   BellIcon,
   CartIcon,
   ChatIcon,
   ChevronDownIcon,
-  GridIcon,
   HamburgerIcon,
-  HeadsetIcon,
   HeartIcon,
-  HomeIcon,
-  LockIcon,
-  LogoutIcon,
   OrdersIcon,
+  LogoutIcon,
   PersonIcon,
-  PinIcon,
+  PlusIcon,
+  QuestionIcon,
   SearchIcon,
-  ShopIcon,
+  SettingsIcon,
+  TicketIcon,
 } from './icons.jsx';
 
-function timeOfDayGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 18) return 'Good Afternoon';
-  return 'Good Evening';
-}
+// Purely decorative labels, matching this app's own 5 real products (see
+// PRODUCT_ICONS in icons.jsx) rather than the clothing categories ("tshirt,
+// pants") in the reference screenshot this section is modeled on - this
+// store doesn't sell clothes, and labeling a filter with categories that
+// don't match anything in the real catalog would be a worse copy of the
+// reference than adapting it to what's actually here.
+const CATEGORY_TAGS = [
+  { label: 'Audio', color: '#8b5cf6' },
+  { label: 'Cables', color: '#2563eb' },
+  { label: 'Peripherals', color: '#16a34a' },
+  { label: 'Furniture', color: '#f59e0b' },
+  { label: 'Displays', color: '#ef4444' },
+];
 
 // Most of this sidebar/top bar is intentionally inert - plain <span>s, not
 // <button>s, copying a reference design's structure. This app has no
-// catalog/wishlist/address-book/account-settings/dashboard backend for
-// Home, Shop, Categories, Wishlist, My Account, Saved Address, or Change
-// Password to actually do something - a non-interactive element styled to
-// look clickable is more honest than a real control with no real behavior.
-// My Orders, Support Chat, and Logout are the three that stay functional.
+// coupon/wishlist/FAQ/settings/profile-editing backend for those items to
+// actually do something - a non-interactive element styled to look
+// clickable is more honest than a real control with no real behavior. My
+// Orders, Support Chat, Logout, and the AI Assistant panel are the ones
+// that stay functional. My Orders' and Coupons' counts are real numbers
+// derived from the signed-in customer's own orders, not placeholders -
+// Wishlist has no backing data at all, so it gets no number rather than a
+// fabricated one.
+// OrdersProvider wraps LayoutInner (not the other way around) so this outer
+// component can stay the default export React Router renders for every
+// authenticated route, while still giving LayoutInner - and, via Outlet,
+// OrdersPage below it - access to the one shared order-list fetch.
 export function Layout() {
+  return (
+    <OrdersProvider>
+      <LayoutInner />
+    </OrdersProvider>
+  );
+}
+
+function LayoutInner() {
   const { email, logout } = useAuth();
+  const { orders } = useOrders();
+  const location = useLocation();
   const initial = email ? email[0].toUpperCase() : '?';
+  const orderCount = orders ? orders.length : null;
+  const voucherCount = orders ? orders.filter((o) => o.voucher_cents > 0).length : null;
+
+  const showAiPanel = location.pathname !== '/chat';
 
   return (
     <div className="storefront-shell">
@@ -71,55 +99,53 @@ export function Layout() {
 
       <div className="storefront-body">
         <aside className="storefront-sidebar">
-          <div className="storefront-greeting">
-            <p className="storefront-greeting-label">{timeOfDayGreeting()},</p>
-            <p className="storefront-greeting-email">{email}</p>
-          </div>
+          <span className="storefront-shop-now" aria-hidden="true">
+            <PlusIcon /> Shop Now
+          </span>
 
           <nav className="storefront-sidenav">
-            {/* Not a real destination distinct from My Orders below - this
-                app has no separate dashboard/home page, and pointing both
-                at /orders just meant both lit up "active" at once, which
-                reads as a bug, not a feature. */}
-            <span aria-hidden="true">
-              <HomeIcon /> <span>Home</span>
-            </span>
-            <span aria-hidden="true">
-              <ShopIcon /> <span>Shop</span> <ChevronDownIcon className="storefront-sidenav-chevron" />
-            </span>
-            <span aria-hidden="true">
-              <GridIcon /> <span>Categories</span>
-            </span>
-            <span aria-hidden="true">
-              <HeartIcon /> <span>Wishlist</span>
-            </span>
-            <span aria-hidden="true">
-              <PersonIcon /> <span>My Account</span> <ChevronDownIcon className="storefront-sidenav-chevron" />
-            </span>
-            <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
-              <OrdersIcon /> <span>My Orders</span>
-            </NavLink>
-            <span aria-hidden="true">
-              <PinIcon /> <span>Saved Address</span>
-            </span>
-            <span aria-hidden="true">
-              <LockIcon /> <span>Change Password</span>
-            </span>
-            <NavLink to="/chat" className={({ isActive }) => (isActive ? 'active' : '')}>
-              <ChatIcon /> <span>Support Chat</span>
-            </NavLink>
-          </nav>
-
-          <div className="storefront-help-card">
-            <div className="storefront-help-card-header">
-              <p>Need Help?</p>
-              <HeadsetIcon />
+            <div className="storefront-sidenav-section">
+              <p className="storefront-sidenav-heading">Dashboard</p>
+              <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <OrdersIcon /> <span>My Orders</span>
+                {orderCount !== null && <span className="storefront-sidenav-count">{orderCount}</span>}
+              </NavLink>
+              <span aria-hidden="true">
+                <TicketIcon /> <span>Coupons</span>
+                {voucherCount !== null && <span className="storefront-sidenav-count">{voucherCount}</span>}
+              </span>
+              <span aria-hidden="true">
+                <HeartIcon /> <span>Wishlist</span>
+              </span>
             </div>
-            <p className="storefront-help-card-text">Our support team is here for you.</p>
-            <NavLink to="/chat" className="storefront-help-card-button">
-              Chat Now <ChevronDownIcon className="storefront-chat-now-arrow" />
-            </NavLink>
-          </div>
+
+            <div className="storefront-sidenav-section">
+              <p className="storefront-sidenav-heading">Category</p>
+              <div className="storefront-tag-list" aria-hidden="true">
+                {CATEGORY_TAGS.map((tag) => (
+                  <span key={tag.label} className="storefront-tag">
+                    <span className="storefront-tag-dot" style={{ background: tag.color }} />
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="storefront-sidenav-section storefront-sidenav-section--bottom">
+              <NavLink to="/chat" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <ChatIcon /> <span>Support Chat</span>
+              </NavLink>
+              <span aria-hidden="true">
+                <QuestionIcon /> <span>FAQ's</span>
+              </span>
+              <span aria-hidden="true">
+                <SettingsIcon /> <span>Settings</span>
+              </span>
+              <span aria-hidden="true">
+                <PersonIcon /> <span>Profile</span>
+              </span>
+            </div>
+          </nav>
 
           {/* Kept working, unlike the rest of this sidebar - with no other
               way to sign out, a decorative Logout would strand anyone
@@ -132,6 +158,11 @@ export function Layout() {
         <main className="storefront-content">
           <Outlet />
         </main>
+
+        {/* Real, working chat, not a copy of the reference's panel with no
+            backend - only rendered off the /chat route itself, so there's
+            never a second chat surface open next to the full ChatPage. */}
+        {showAiPanel && <AiAssistantPanel />}
       </div>
     </div>
   );
