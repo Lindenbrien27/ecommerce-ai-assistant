@@ -48,28 +48,32 @@ export function VerifyForm({ onVerified }) {
       <p className="subtitle">Enter your order number and the email used to place it to get started.</p>
 
       <form id="verify-form" onSubmit={handleSubmit}>
-        <label htmlFor="order-number">Order Number</label>
-        <input
-          id="order-number"
-          type="text"
-          placeholder="e.g. ORD-1001"
-          value={orderNumber}
-          onChange={(e) => setOrderNumber(e.target.value)}
-          disabled={pending}
-          aria-describedby={error ? 'verify-error' : undefined}
-          required
-        />
-        <label htmlFor="verify-email">Email Address</label>
-        <input
-          id="verify-email"
-          type="email"
-          placeholder="name@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={pending}
-          aria-describedby={error ? 'verify-error' : undefined}
-          required
-        />
+        <div className="input-group">
+          <label htmlFor="order-number">Order Number</label>
+          <input
+            id="order-number"
+            type="text"
+            placeholder="e.g. ORD-1001"
+            value={orderNumber}
+            onChange={(e) => setOrderNumber(e.target.value)}
+            disabled={pending}
+            aria-describedby={error ? 'verify-error' : undefined}
+            required
+          />
+        </div>
+        <div className="input-group">
+          <label htmlFor="verify-email">Email Address</label>
+          <input
+            id="verify-email"
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={pending}
+            aria-describedby={error ? 'verify-error' : undefined}
+            required
+          />
+        </div>
         <button type="submit" disabled={pending}>
           {pending ? 'Verifying...' : 'Verify Order'}
         </button>

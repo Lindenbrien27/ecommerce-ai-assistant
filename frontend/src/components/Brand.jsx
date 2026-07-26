@@ -5,25 +5,14 @@
 export function Brand({ size = 'md' }) {
   return (
     <div className={`brand brand-${size}`}>
-      <svg
-        className="brand-mark"
-        width="28"
-        height="28"
-        viewBox="0 0 28 28"
-        fill="none"
-        aria-hidden="true"
-      >
-        <rect width="28" height="28" rx="8" fill="var(--color-solid-bg)" />
-        <path
-          d="M8.5 10.5 14 7.5l5.5 3v7l-5.5 3-5.5-3z"
-          stroke="var(--color-primary-text)"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
-        <path d="M8.5 10.5 14 13.5l5.5-3" stroke="var(--color-primary-text)" strokeWidth="1.4" strokeLinejoin="round" />
-        <path d="M14 13.5v7" stroke="var(--color-primary-text)" strokeWidth="1.4" strokeLinejoin="round" />
-      </svg>
-      <span className="brand-name">Order Support</span>
+      <span className="brand-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+      </span>
+      <span className="brand-name">Limos Support</span>
     </div>
   );
 }
