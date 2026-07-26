@@ -511,9 +511,9 @@ h1:focus-visible {
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
-  flex-wrap: wrap;
 }
 .storefront-icon-btn {
+  position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -525,23 +525,22 @@ h1:focus-visible {
   cursor: pointer;
 }
 .storefront-icon-btn:hover { background: var(--color-surface); }
-.storefront-topbar-icons { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
-
-.storefront-categories { display: flex; align-items: center; gap: var(--space-2); }
-.storefront-category {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.4rem 0.75rem;
-  border: 1px solid var(--color-border);
+.storefront-topbar-icons { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.storefront-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
   border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--color-text);
-  white-space: nowrap;
-  cursor: pointer;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
-.storefront-category:hover { background: var(--color-surface); }
 
 /* A styled span, not a real <input> - a text field that visibly invites
    typing but silently does nothing on keystroke is a worse trap than a
@@ -550,105 +549,241 @@ h1:focus-visible {
 .storefront-search {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   flex: 1;
-  min-width: 120px;
-  max-width: 280px;
-  padding: 0.4rem 0.75rem;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0.5rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   color: var(--color-text-muted);
   font-size: 0.85rem;
+  cursor: pointer;
 }
-.storefront-search svg { flex-shrink: 0; margin-left: auto; }
+.storefront-search svg { flex-shrink: 0; }
+.storefront-search span:first-of-type { flex: 1; }
+.storefront-search-kbd {
+  flex-shrink: 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+}
 
-.storefront-quicklinks {
+.storefront-profile-chip {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.storefront-profile-chip:hover { background: var(--color-surface); }
+.storefront-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
   font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  white-space: nowrap;
+  font-weight: 700;
 }
-.storefront-quicklinks span { cursor: pointer; }
-.storefront-quicklinks span:hover { color: var(--color-text); }
+.storefront-profile-email {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
 
-.storefront-accountbar {
+.storefront-body {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  align-items: flex-start;
+}
+
+.storefront-sidebar {
+  flex-shrink: 0;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--color-border);
+  /* min-height, not height - the sidebar should be at least as tall as the
+     viewport-minus-topbar so its own border-right reaches the bottom even
+     when the routed page content is short, but a taller page (e.g. a long
+     order list) should push it taller too, not clip/scroll independently. */
+  min-height: calc(100vh - 65px);
 }
 .storefront-greeting-label {
   margin: 0;
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
-.storefront-greeting-name {
-  margin: 0.1rem 0 0;
-  font-size: 1.1rem;
+.storefront-greeting-email {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.storefront-pills {
+.storefront-sidenav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.storefront-sidenav a,
+.storefront-sidenav span {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
-}
-/* Shared by real links/buttons (My Order, Support Chat, Logout) and
-   decorative <span>s alike - visually one consistent pill regardless of
-   which of those three elements is actually rendering it. */
-.storefront-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text);
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  white-space: nowrap;
   cursor: pointer;
 }
-.storefront-pill:hover { background: var(--color-surface); }
-.storefront-pill.active {
+.storefront-sidenav a svg,
+.storefront-sidenav span svg { flex-shrink: 0; }
+/* The label text sits in its own nested <span> (see Layout.jsx - needed so
+   the mobile breakpoint can hide just the label, not the icon), which the
+   base ".storefront-sidenav span" rule above also matches directly, even
+   when that span is nested inside a real, active <a>. An inherited color
+   always loses to any rule that matches the element itself regardless of
+   specificity, so the parent <a>'s own active/:hover color was never
+   actually reaching the visible text - it stayed pinned to the base muted
+   color. Found by axe: 1.11:1 contrast, white-intended text still
+   computing as --color-text-muted against the solid blue active
+   background. Both states now target the label span explicitly too. */
+.storefront-sidenav a:hover,
+.storefront-sidenav span:hover,
+.storefront-sidenav a:hover span,
+.storefront-sidenav span:hover span { color: var(--color-text); background: var(--color-surface); }
+.storefront-sidenav a.active,
+.storefront-sidenav a.active span {
   background: var(--color-solid-bg);
-  border-color: var(--color-solid-bg);
   color: var(--color-primary-text);
 }
-.storefront-pill.active:hover { background: var(--color-solid-bg-hover); }
+.storefront-sidenav-chevron { margin-left: auto; }
+
+.storefront-help-card {
+  margin-top: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.storefront-help-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-primary);
+}
+.storefront-help-card-header p { margin: 0; font-weight: 700; }
+.storefront-help-card-text {
+  margin: 0.3rem 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+.storefront-help-card-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.storefront-help-card-button:hover { background: var(--color-solid-bg-hover); }
+.storefront-chat-now-arrow { transform: rotate(-90deg); }
+
+.storefront-logout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
 .storefront-content {
   flex: 1;
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-5);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
 @media (max-width: 900px) {
-  .storefront-categories,
-  .storefront-quicklinks,
-  .storefront-search {
-    display: none;
+  .storefront-search { display: none; }
+}
+@media (max-width: 700px) {
+  .storefront-body { flex-direction: column; }
+  .storefront-sidebar {
+    width: 100%;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .storefront-greeting,
+  .storefront-help-card { display: none; }
+  .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
+  /* Same .sr-only technique as the rule of that name near the top of this
+     file, not display: none - a real <a> (My Orders, Support Chat) with
+     display: none on its only text content has no accessible name at all,
+     which axe's link-name rule correctly flags as a serious violation
+     (this app already learned this exact lesson once, for the old
+     collapsible sidebar's icon-only rail - regressed it here by not
+     reusing that pattern). Visually hidden, zero layout footprint (unlike
+     opacity: 0, which would leave a space-consuming gap in an already
+     -cramped icon row), but still in the accessibility tree. */
+  .storefront-sidenav a span,
+  .storefront-sidenav span span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 @media (max-width: 480px) {
-  .storefront-topbar,
-  .storefront-accountbar {
-    padding: var(--space-2) var(--space-3);
-  }
-  .storefront-content {
-    padding: var(--space-3);
-  }
+  .storefront-topbar { padding: var(--space-2) var(--space-3); }
+  .storefront-content { padding: var(--space-3); }
+  /* Real horizontal overflow, not just cosmetic - measured
+     document.documentElement.scrollWidth at 521px in a 390px viewport
+     before this. .storefront-topbar has no flex-wrap (by design - a
+     wrapped-to-two-lines top bar looks worse than a one-line bar that
+     drops its least-essential text), so hamburger + brand + bell/cart/
+     the full email in the profile chip together just don't fit at phone
+     widths. Hiding the email (the avatar + chevron alone still identify
+     "this is your account menu") is what actually gets it back under the
+     viewport width, verified live after this change. */
+  .storefront-profile-email { display: none; }
+  .storefront-profile-chip { padding: 0.3rem; }
 }
 
 .back-link {
@@ -660,34 +795,37 @@ h1:focus-visible {
 }
 .back-link:hover { color: var(--color-primary); }
 
-.orders-layout {
+.orders-header {
   display: flex;
-  gap: var(--space-4);
   align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
-.order-filter-sidebar {
-  flex-shrink: 0;
-  width: 180px;
+.orders-header-art { display: none; flex-shrink: 0; width: 96px; height: 96px; }
+@media (min-width: 700px) {
+  .orders-header-art { display: block; }
+}
+
+.order-filter-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-4);
 }
-.order-filter-item {
+.order-filter-tab {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
-  padding: 0.6rem 0.9rem;
+  padding: 0.6rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 500;
-  text-align: left;
 }
-.order-filter-item:hover:not(.active) { background: var(--color-surface); }
-.order-filter-item.active {
+.order-filter-tab:hover:not(.active) { background: var(--color-surface); }
+.order-filter-tab.active {
   background: var(--color-solid-bg);
   border-color: var(--color-solid-bg);
   color: var(--color-primary-text);
@@ -702,16 +840,159 @@ h1:focus-visible {
   font-weight: 700;
   text-align: center;
 }
-.order-filter-item.active .order-filter-count {
+.order-filter-tab.active .order-filter-count {
   background: rgba(255, 255, 255, 0.25);
   color: var(--color-primary-text);
 }
-.orders-list-panel { flex: 1; min-width: 0; }
 
-@media (max-width: 700px) {
-  .orders-layout { flex-direction: column; }
-  .order-filter-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
-  .order-filter-item { flex: 1; justify-content: center; }
+.order-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.order-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.order-card-top { display: flex; align-items: flex-start; gap: var(--space-3); }
+.order-card-info { flex: 1; min-width: 0; }
+.order-card-id { margin: 0; font-weight: 700; }
+.order-card-date { margin: 0.15rem 0; color: var(--color-text-muted); font-size: 0.8rem; }
+.order-card-product { margin: 0.3rem 0 0.4rem; }
+.order-card-qty {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-surface-text);
+  font-size: 0.78rem;
+}
+.order-card-actions { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.order-card-details-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.order-card-details-link:hover { background: var(--color-surface); }
+
+.order-card-headline { margin: var(--space-3) 0 0.15rem; font-weight: 700; }
+.order-card-subtext { margin: 0 0 var(--space-2); color: var(--color-text-muted); font-size: 0.9rem; }
+
+/* Horizontal icon stepper - a different visual language from
+   OrderDetailPage's vertical dot timeline (.status-timeline), but the same
+   underlying rule about not implying progress that hasn't happened: a
+   step's connecting line is only colored once that step is both completed
+   AND not the current one, same as .status-timeline-step's own fix. */
+.order-progress {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+}
+.order-progress-step {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.order-progress-icon {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+.order-progress-label { font-size: 0.75rem; font-weight: 500; }
+.order-progress-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--color-border);
+}
+.order-progress-step.completed .order-progress-icon {
+  border-color: var(--color-solid-bg);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-solid-bg); }
+.order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
+
+.order-progress-cancelled {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.orders-support-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.orders-support-banner-title { margin: 0; font-weight: 700; }
+.orders-support-banner-text { margin: 0.15rem 0 0; color: var(--color-text-muted); font-size: 0.9rem; }
+.orders-support-banner-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.orders-support-banner-help {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.orders-support-banner-chat {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.orders-support-banner-chat:hover { background: var(--color-solid-bg-hover); }
+
+@media (max-width: 600px) {
+  .order-card-top { flex-wrap: wrap; }
+  .order-card-actions { flex-direction: row; margin-left: auto; }
+  .order-progress-label { display: none; }
 }
 
 .order-list {
@@ -784,20 +1065,25 @@ h1:focus-visible {
 
 .order-id-heading { font-size: 2.625rem; letter-spacing: -0.03em; }
 
-/* Same gradient-tile recipe as .brand-mark/.msg-avatar (reusing
-   --color-solid-bg/-hover keeps it theme-aware for free) - an
-   illustration, not a claim to be a real product photo. See icons.jsx's
-   PRODUCT_ICONS comment for why this app doesn't fetch real ones. */
+/* Real photo when ProductImage.jsx has one mapped (overflow: hidden clips
+   it to this tile's own rounded corners, object-fit: cover fills the tile
+   without distorting the source photo's own aspect ratio) - the gradient
+   background (same recipe as .brand-mark/.msg-avatar, reusing
+   --color-solid-bg/-hover for theme-awareness) stays as what actually
+   shows during image load and behind the icon fallback for a product with
+   no photo mapped. */
 .product-image {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
+.product-image img { width: 100%; height: 100%; object-fit: cover; }
 .product-image-sm { width: 40px; height: 40px; }
 .product-image-sm svg { width: 20px; height: 20px; }
 .product-image-lg { width: 88px; height: 88px; border-radius: 16px; }

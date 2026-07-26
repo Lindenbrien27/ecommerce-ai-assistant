@@ -6,27 +6,19 @@ import {
   CartIcon,
   ChatIcon,
   ChevronDownIcon,
+  GridIcon,
   HamburgerIcon,
+  HeadsetIcon,
   HeartIcon,
+  HomeIcon,
   LockIcon,
   LogoutIcon,
   OrdersIcon,
   PersonIcon,
   PinIcon,
   SearchIcon,
+  ShopIcon,
 } from './icons.jsx';
-
-// Decorative-only chrome copying a reference storefront design's top bar -
-// this app has no catalog/blog/wishlist/address-book backend for any of
-// these to actually link to. Plain <span>s, not <button>s: they're not
-// real controls (nothing happens on activation), so giving them native
-// button semantics would mean either a broken keyboard/AT experience
-// (focusable, announced as a button, does nothing) or fighting that with
-// tabIndex/aria-hidden on every one - a non-interactive element styled to
-// look clickable for mouse users is simpler and more honest about what it
-// actually is.
-const CATEGORIES = ['New Arrivals', 'Sale'];
-const QUICK_LINKS = ['Men', 'Women', 'Children', 'Brand'];
 
 function timeOfDayGreeting() {
   const hour = new Date().getHours();
@@ -35,8 +27,16 @@ function timeOfDayGreeting() {
   return 'Good Evening';
 }
 
+// Most of this sidebar/top bar is intentionally inert - plain <span>s, not
+// <button>s, copying a reference design's structure. This app has no
+// catalog/wishlist/address-book/account-settings/dashboard backend for
+// Home, Shop, Categories, Wishlist, My Account, Saved Address, or Change
+// Password to actually do something - a non-interactive element styled to
+// look clickable is more honest than a real control with no real behavior.
+// My Orders, Support Chat, and Logout are the three that stay functional.
 export function Layout() {
   const { email, logout } = useAuth();
+  const initial = email ? email[0].toUpperCase() : '?';
 
   return (
     <div className="storefront-shell">
@@ -45,78 +45,94 @@ export function Layout() {
           <HamburgerIcon />
         </span>
         <Brand size="sm" />
-        <div className="storefront-categories">
-          <span className="storefront-category" aria-hidden="true">
-            Clothing <ChevronDownIcon />
-          </span>
-          {CATEGORIES.map((label) => (
-            <span className="storefront-category" aria-hidden="true" key={label}>
-              {label}
-            </span>
-          ))}
-        </div>
         <div className="storefront-search" aria-hidden="true">
-          <span>Search...</span>
           <SearchIcon />
-        </div>
-        <div className="storefront-quicklinks" aria-hidden="true">
-          {QUICK_LINKS.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
+          <span>Search for products, orders...</span>
+          <span className="storefront-search-kbd">⌘K</span>
         </div>
         <div className="storefront-topbar-icons" aria-hidden="true">
-          <span className="storefront-icon-btn">
+          <span className="storefront-icon-btn storefront-badge-wrap">
             <BellIcon />
+            <span className="storefront-badge">2</span>
           </span>
-          <span className="storefront-icon-btn">
+          <span className="storefront-icon-btn storefront-badge-wrap">
             <CartIcon />
+            <span className="storefront-badge">1</span>
           </span>
-          <span className="storefront-icon-btn">
-            <PersonIcon />
+          <span className="storefront-profile-chip">
+            <span className="storefront-avatar">{initial}</span>
+            <span className="storefront-profile-text">
+              <span className="storefront-profile-email">{email}</span>
+            </span>
+            <ChevronDownIcon />
           </span>
         </div>
       </header>
 
-      <div className="storefront-accountbar">
-        <div className="storefront-greeting">
-          <p className="storefront-greeting-label">{timeOfDayGreeting()},</p>
-          <p className="storefront-greeting-name">{email}</p>
-        </div>
-        <nav className="storefront-pills">
-          <span className="storefront-pill" aria-hidden="true">
-            <PersonIcon width="14" height="14" /> Profile
-          </span>
-          <span className="storefront-pill" aria-hidden="true">
-            <HeartIcon /> Wishlist
-          </span>
-          <NavLink to="/orders" className={({ isActive }) => `storefront-pill${isActive ? ' active' : ''}`}>
-            <OrdersIcon width="14" height="14" /> My Order
-          </NavLink>
-          <span className="storefront-pill" aria-hidden="true">
-            <PinIcon /> Saved Address
-          </span>
-          <span className="storefront-pill" aria-hidden="true">
-            <LockIcon /> Change Password
-          </span>
-          {/* Not part of the reference design - this app's own Chat
-              assistant still needs to be reachable from somewhere, and
-              dropping it entirely would be a real functional regression,
-              not just a trimmed decorative link. */}
-          <NavLink to="/chat" className={({ isActive }) => `storefront-pill${isActive ? ' active' : ''}`}>
-            <ChatIcon width="14" height="14" /> Support Chat
-          </NavLink>
-          {/* Also kept working, unlike the rest of this row - with no other
-              way to sign out, a purely decorative Logout pill would strand
-              anyone who verified with the "wrong" test account. */}
-          <button type="button" className="storefront-pill" onClick={logout}>
-            <LogoutIcon width="14" height="14" /> Logout
-          </button>
-        </nav>
-      </div>
+      <div className="storefront-body">
+        <aside className="storefront-sidebar">
+          <div className="storefront-greeting">
+            <p className="storefront-greeting-label">{timeOfDayGreeting()},</p>
+            <p className="storefront-greeting-email">{email}</p>
+          </div>
 
-      <main className="storefront-content">
-        <Outlet />
-      </main>
+          <nav className="storefront-sidenav">
+            {/* Not a real destination distinct from My Orders below - this
+                app has no separate dashboard/home page, and pointing both
+                at /orders just meant both lit up "active" at once, which
+                reads as a bug, not a feature. */}
+            <span aria-hidden="true">
+              <HomeIcon /> <span>Home</span>
+            </span>
+            <span aria-hidden="true">
+              <ShopIcon /> <span>Shop</span> <ChevronDownIcon className="storefront-sidenav-chevron" />
+            </span>
+            <span aria-hidden="true">
+              <GridIcon /> <span>Categories</span>
+            </span>
+            <span aria-hidden="true">
+              <HeartIcon /> <span>Wishlist</span>
+            </span>
+            <span aria-hidden="true">
+              <PersonIcon /> <span>My Account</span> <ChevronDownIcon className="storefront-sidenav-chevron" />
+            </span>
+            <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
+              <OrdersIcon /> <span>My Orders</span>
+            </NavLink>
+            <span aria-hidden="true">
+              <PinIcon /> <span>Saved Address</span>
+            </span>
+            <span aria-hidden="true">
+              <LockIcon /> <span>Change Password</span>
+            </span>
+            <NavLink to="/chat" className={({ isActive }) => (isActive ? 'active' : '')}>
+              <ChatIcon /> <span>Support Chat</span>
+            </NavLink>
+          </nav>
+
+          <div className="storefront-help-card">
+            <div className="storefront-help-card-header">
+              <p>Need Help?</p>
+              <HeadsetIcon />
+            </div>
+            <p className="storefront-help-card-text">Our support team is here for you.</p>
+            <NavLink to="/chat" className="storefront-help-card-button">
+              Chat Now <ChevronDownIcon className="storefront-chat-now-arrow" />
+            </NavLink>
+          </div>
+
+          {/* Kept working, unlike the rest of this sidebar - with no other
+              way to sign out, a decorative Logout would strand anyone
+              verified with the "wrong" test account. */}
+          <button type="button" className="storefront-logout" onClick={logout}>
+            <LogoutIcon /> Logout
+          </button>
+        </aside>
+
+        <main className="storefront-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

@@ -52,12 +52,12 @@ test.describe('performance', () => {
     expect(loadedSoFar.some((p) => p.includes('/ChatPage-'))).toBe(false);
     expect(loadedSoFar.some((p) => p.includes('/OrderDetailPage-'))).toBe(false);
 
-    await page.click('.order-list-item >> nth=0');
+    await page.click('.order-card-details-link >> nth=0');
     await expect(page.locator('.order-detail')).toBeVisible();
     expect([...jsChunksLoaded].some((p) => p.includes('/OrderDetailPage-'))).toBe(true);
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(false);
 
-    await page.click('.storefront-pills a[href="/chat"]');
+    await page.click('.storefront-sidenav a[href="/chat"]');
     await expect(page.locator('#chat-input')).toBeVisible();
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(true);
   });
