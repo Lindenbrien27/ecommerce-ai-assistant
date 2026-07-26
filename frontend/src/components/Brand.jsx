@@ -12,7 +12,7 @@ export function Brand({ size = 'md' }) {
           <line x1="12" y1="22.08" x2="12" y2="12" />
         </svg>
       </span>
-      <span className="brand-name">Limos Support</span>
+      <span className="brand-name">My Order</span>
     </div>
   );
 }
