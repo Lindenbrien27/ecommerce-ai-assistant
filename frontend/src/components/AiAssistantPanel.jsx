@@ -11,6 +11,7 @@ import { BrandMarkIcon } from './icons.jsx';
 export function AiAssistantPanel() {
   const { bubbles, pending, sendMessage } = useChatConversation();
   const [input, setInput] = useState('');
+  const [minimized, setMinimized] = useState(false);
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -27,82 +28,94 @@ export function AiAssistantPanel() {
   }
 
   return (
-    <aside className="ai-panel" aria-label="AI assistant">
-      <div className="ai-panel-header">
+    <aside className={`ai-panel${minimized ? ' ai-panel--minimized' : ''}`} aria-label="AI assistant">
+      {/* The icon+name header itself is the toggle - a real <button>, not a
+          separate close/expand control, since clicking it is the only way
+          to minimize or reopen the panel. */}
+      <button
+        type="button"
+        className="ai-panel-header"
+        onClick={() => setMinimized((m) => !m)}
+        aria-expanded={!minimized}
+      >
         <span className="ai-panel-avatar" aria-hidden="true">
           <BrandMarkIcon width="16" height="16" />
         </span>
-        <div>
-          <p className="ai-panel-title">AI Assistant</p>
-          <p className="ai-panel-subtitle">Ask about your orders</p>
-        </div>
-      </div>
+        <span className="ai-panel-header-text">
+          <span className="ai-panel-title">AI Assistant</span>
+          {!minimized && <span className="ai-panel-subtitle">Ask about your orders</span>}
+        </span>
+      </button>
 
-      {/* Same scrollable-region-focusable reasoning as ChatPage's #chat -
-          tabIndex so this is reachable and scrollable by keyboard once a
-          longer conversation overflows the panel's fixed height. */}
-      <div
-        id="ai-panel-log"
-        ref={logRef}
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions"
-        aria-label="Conversation with the AI assistant"
-        tabIndex="0"
-        className="ai-panel-log"
-      >
-        {bubbles.length === 0 && (
-          <div className="ai-panel-greeting">
-            <div className="msg-row">
-              <span className="msg-avatar" aria-hidden="true">
-                <BrandMarkIcon width="14" height="14" />
-              </span>
-              <div className="msg assistant">
-                Hi! I can look up your orders, shipping status, and tracking. What do you need?
+      {!minimized && (
+        <>
+          {/* Same scrollable-region-focusable reasoning as ChatPage's #chat -
+              tabIndex so this is reachable and scrollable by keyboard once a
+              longer conversation overflows the panel's fixed height. */}
+          <div
+            id="ai-panel-log"
+            ref={logRef}
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            aria-label="Conversation with the AI assistant"
+            tabIndex="0"
+            className="ai-panel-log"
+          >
+            {bubbles.length === 0 && (
+              <div className="ai-panel-greeting">
+                <div className="msg-row">
+                  <span className="msg-avatar" aria-hidden="true">
+                    <BrandMarkIcon width="14" height="14" />
+                  </span>
+                  <div className="msg assistant">
+                    Hi! I can look up your orders, shipping status, and tracking. What do you need?
+                  </div>
+                </div>
+                <div className="ai-panel-suggestions">
+                  {SUGGESTED_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="chat-suggestion"
+                      onClick={() => sendMessage(prompt)}
+                      disabled={pending}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="ai-panel-suggestions">
-              {SUGGESTED_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="chat-suggestion"
-                  onClick={() => sendMessage(prompt)}
-                  disabled={pending}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+            )}
+            {bubbles.map((b) =>
+              b.variant === 'pending' ? (
+                <TypingIndicator key={b.id} />
+              ) : (
+                <MessageBubble key={b.id} role={b.role} content={b.content} variant={b.variant} />
+              )
+            )}
           </div>
-        )}
-        {bubbles.map((b) =>
-          b.variant === 'pending' ? (
-            <TypingIndicator key={b.id} />
-          ) : (
-            <MessageBubble key={b.id} role={b.role} content={b.content} variant={b.variant} />
-          )
-        )}
-      </div>
 
-      <form className="ai-panel-form" onSubmit={handleSubmit}>
-        <label htmlFor="ai-panel-input" className="sr-only">
-          Ask the AI assistant about your orders
-        </label>
-        <input
-          id="ai-panel-input"
-          type="text"
-          placeholder="Ask anything about your orders..."
-          autoComplete="off"
-          required
-          value={input}
-          disabled={pending}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <button type="submit" disabled={pending}>
-          Send
-        </button>
-      </form>
+          <form className="ai-panel-form" onSubmit={handleSubmit}>
+            <label htmlFor="ai-panel-input" className="sr-only">
+              Ask the AI assistant about your orders
+            </label>
+            <input
+              id="ai-panel-input"
+              type="text"
+              placeholder="Ask anything about your orders..."
+              autoComplete="off"
+              required
+              value={input}
+              disabled={pending}
+              onChange={(e) => setInput(e.target.value)}
+            />
+            <button type="submit" disabled={pending}>
+              Send
+            </button>
+          </form>
+        </>
+      )}
     </aside>
   );
 }

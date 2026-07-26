@@ -6,19 +6,20 @@
   --color-text: #1a1a1a;
   --color-text-muted: #666666;
   --color-border: #8f8f8f;
-  --color-primary: #2563eb;
-  --color-primary-text: #ffffff;
-  /* Deliberately NOT redefined in the dark-mode block below - this pairs
-     with the fixed white --color-primary-text on solid-fill surfaces
-     (buttons, the user's own chat bubble), so its contrast against that
-     text doesn't depend on which theme is active. --color-primary itself
-     *is* tuned per theme (lighter in dark mode) because it's used as text/
-     an outline color against a variable page background instead - the two
-     roles need different values in dark mode to both clear 4.5:1, which a
-     single shared variable can't do (verified: the dark-mode --color-primary
-     value paired with white text is only 3.68:1, below AA). */
-  --color-solid-bg: #2563eb;
-  --color-solid-bg-hover: #1d4ed8;
+  /* Monochrome brand - no blue anywhere in this file anymore. #0b1215/
+     #f9f7f7 (near-black/near-white, not literal #000/#fff) are the two
+     "active state" tones: whichever one contrasts against the current
+     theme's own near-opposite is what --color-solid-bg uses, so an active
+     nav pill/button/bubble is always the strongest, darkest-or-lightest
+     thing on the page rather than just another gray. --color-primary-text
+     now DOES need a dark-mode override below (it didn't when this was a
+     fixed white-on-blue pair) - --color-solid-bg itself flips from
+     near-black to near-white per theme, so the text sitting on it has to
+     flip too or it'd end up near-white-on-near-white in dark mode. */
+  --color-primary: #0b1215;
+  --color-primary-text: #f9f7f7;
+  --color-solid-bg: #0b1215;
+  --color-solid-bg-hover: #262f34;
   --color-surface: #f1f1f1;
   --color-surface-text: #111111;
   --color-error-surface: #fef2f2;
@@ -28,6 +29,11 @@
   --color-success-text: #166534;
   --color-warning-surface: #fffbeb;
   --color-warning-text: #92400e;
+  /* Shared, theme-agnostic - a drop shadow reads as "darker than its
+     surroundings" in both light and dark mode, unlike the old blue-tinted
+     glow this replaces (see brand-mark/msg-avatar/product-image below), so
+     one value covers both instead of needing a per-theme pair. */
+  --color-shadow: rgba(0, 0, 0, 0.3);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -42,32 +48,27 @@
   --font-size-lg: 1.85rem;
   --font-size-sm: 0.9rem;
 
-  /* Ambient background gradient, tuned per theme below - two soft radial
-     glows anchored off-center so the page reads as designed depth rather
-     than a flat fill, without needing an image asset (keeps img-src 'self'
-     data: in the CSP satisfied trivially, and adds ~0kb to the bundle). */
-  --bg-glow-1: rgba(37, 99, 235, 0.10);
-  --bg-glow-2: rgba(37, 99, 235, 0.05);
+  --color-focus-ring: rgba(11, 18, 21, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1c1f26;
-    --color-page-bg: #0a0b0d;
-    --color-text: #e8e8e8;
+    /* Reuses the same near-black active-state tone as this theme's base
+       surface color - in dark mode that's just what a card/sidebar/panel
+       background naturally wants to be anyway, and the active-state accent
+       (--color-solid-bg below) is the *other* tone, #f9f7f7, giving active
+       elements real pop against it instead of blending in. */
+    --color-bg: #0b1215;
+    --color-page-bg: #050708;
+    --color-text: #f9f7f7;
     --color-text-muted: #9a9a9a;
     --color-border: #6b6f76;
-    /* #4a8bf7, not the more obvious #3b82f6 - lightening --color-bg for the
-       visual design pass (below AA differentiation, see git history)
-       dropped this exact pair to 4.48:1 against the new card background,
-       just under the 4.5:1 text minimum. Caught by actually re-running the
-       axe WCAG AA scan against the built pages after the change, not by
-       inspection - a purely additive-looking edit (lighten one background)
-       silently broke a text-contrast pair defined nowhere near it. */
-    --color-primary: #4a8bf7;
-    --color-primary-text: #ffffff;
-    --color-surface: #22252a;
-    --color-surface-text: #e8e8e8;
+    --color-primary: #f9f7f7;
+    --color-primary-text: #0b1215;
+    --color-solid-bg: #f9f7f7;
+    --color-solid-bg-hover: #e3e0e0;
+    --color-surface: #171d21;
+    --color-surface-text: #f9f7f7;
     --color-error-surface: #3f1d1d;
     --color-error-text: #fca5a5;
     --color-error-border: #7f1d1d;
@@ -75,8 +76,7 @@
     --color-success-text: #86efac;
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
-    --bg-glow-1: rgba(59, 130, 246, 0.16);
-    --bg-glow-2: rgba(99, 102, 241, 0.08);
+    --color-focus-ring: rgba(249, 247, 247, 0.22);
   }
 }
 
@@ -101,15 +101,15 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: var(--font-size-base);
   color: var(--color-text);
-  /* Two soft radial glows over the flat page color, not an image - depth
-     without a network request or a CSP img-src exception. Fixed attachment
-     so the glow reads as ambient lighting on the whole viewport rather than
-     scrolling with (and looking pasted onto) the content. */
-  background:
-    radial-gradient(ellipse 900px 600px at 15% -10%, var(--bg-glow-1), transparent 60%),
-    radial-gradient(ellipse 700px 500px at 100% 100%, var(--bg-glow-2), transparent 55%),
-    var(--color-page-bg);
-  background-attachment: fixed;
+  /* Flat --color-page-bg, not the soft radial glow this used to have - a
+     monochrome black/white page (see the :root palette above) wants a flat
+     background like the reference it's modeled on, not an ambient tinted
+     glow; the old glow's brightest point also sat right at the top of the
+     viewport, which visibly washed out .storefront-topbar once the glow's
+     tint became near-white in dark mode instead of the dim blue it used to
+     be - found live, not by reasoning about the gradient math in the
+     abstract. */
+  background: var(--color-page-bg);
   min-height: 100vh;
   margin: 0;
 }
@@ -141,12 +141,12 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   /* A plain drop shadow all but disappears against an already-dark page -
-     stacking a wider, softer "elevation" shadow with a faint primary-color
-     glow reads as depth in both themes instead of just in light mode. */
+     stacking a wider, softer "elevation" shadow with a faint near-black
+     ring reads as depth in both themes instead of just in light mode. */
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.08),
     0 12px 32px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(37, 99, 235, 0.04);
+    0 0 0 1px rgba(11, 18, 21, 0.05);
   padding: var(--space-4) var(--space-5);
 }
 
@@ -155,7 +155,7 @@ body {
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.3),
       0 20px 48px rgba(0, 0, 0, 0.45),
-      0 0 0 1px rgba(59, 130, 246, 0.06);
+      0 0 0 1px rgba(249, 247, 247, 0.06);
   }
 }
 
@@ -262,7 +262,7 @@ p.subtitle {
   justify-content: center;
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 6px var(--color-shadow);
 }
 
 @keyframes msg-appear {
@@ -388,7 +388,7 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
 #verify-form input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .verify-error {
@@ -471,7 +471,7 @@ h1:focus-visible {
   border-radius: 8px;
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 .brand-name { font-weight: 700; letter-spacing: -0.01em; }
 .brand-sm { margin-right: var(--space-2); }
@@ -487,12 +487,19 @@ h1:focus-visible {
    second "account" bar (greeting + pill nav), then the routed page content
    below. VerifyPage is unaffected - it's a different top-level child of
    #root (.app-shell--centered), not this. */
+/* --color-page-bg, not --color-bg - the sidebar and AI panel below are the
+   things that read as distinct "boxes" (their own --color-bg surface,
+   border, radius, sitting on this ambient background with real gaps around
+   them), matching the reference's floating-panel layout instead of this
+   app's previous edge-to-edge columns separated by a single 1px border.
+   The topbar and routed content sit directly on this same ambient
+   background - their own children (order cards, etc.) are the boxes there. */
 .storefront-shell {
   width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
+  background: var(--color-page-bg);
 }
 
 /* #root's own padding/centering (see its rule near the top of this file) is
@@ -606,6 +613,8 @@ h1:focus-visible {
   flex: 1;
   display: flex;
   align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
 .storefront-sidebar {
@@ -615,12 +624,15 @@ h1:focus-visible {
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-3);
-  border-right: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   /* min-height, not height - the sidebar should be at least as tall as the
-     viewport-minus-topbar so its own border-right reaches the bottom even
-     when the routed page content is short, but a taller page (e.g. a long
-     order list) should push it taller too, not clip/scroll independently. */
-  min-height: calc(100vh - 65px);
+     viewport-minus-topbar-minus-.storefront-body's-own-padding, so it reads
+     as a full-height panel even when the routed page content is short, but
+     a taller page (e.g. a long order list) should push it taller too, not
+     clip/scroll independently. */
+  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
 }
 .storefront-shop-now {
   display: flex;
@@ -734,12 +746,22 @@ h1:focus-visible {
   font-size: 0.88rem;
   font-weight: 500;
 }
+/* Monochrome - var(--color-text) at 5 opacity steps instead of 5 hardcoded
+   hues, so each tag is still visually distinct without reintroducing color.
+   :nth-child on the row (Layout.jsx renders no per-tag color anymore), not
+   a class per tag - one shared rule instead of 5 near-identical ones. */
 .storefront-tag-dot {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background: var(--color-text);
 }
+.storefront-tag:nth-child(1) .storefront-tag-dot { opacity: 1; }
+.storefront-tag:nth-child(2) .storefront-tag-dot { opacity: 0.8; }
+.storefront-tag:nth-child(3) .storefront-tag-dot { opacity: 0.6; }
+.storefront-tag:nth-child(4) .storefront-tag-dot { opacity: 0.45; }
+.storefront-tag:nth-child(5) .storefront-tag-dot { opacity: 0.3; }
 
 .storefront-logout {
   display: flex;
@@ -753,33 +775,55 @@ h1:focus-visible {
 }
 .storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
+/* No left/right padding of its own - .storefront-body's own padding + gap
+   (above) already separate this column from the sidebar/AI panel boxes on
+   either side of it; this content area itself isn't a box (it sits
+   directly on the shared ambient page background, same as the topbar), so
+   its own children - the order cards, the header, the support banner - are
+   what read as boxes here, same as the reference's plain content column. */
 .storefront-content {
   flex: 1;
   min-width: 0;
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  padding-bottom: var(--space-5);
 }
 
-/* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third
-   sidebar-width column, same min-height-to-the-viewport pattern as
-   .storefront-sidebar so its own border reaches the bottom on short pages
-   without locking to a fixed height on long ones. */
+/* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third boxed
+   column matching .storefront-sidebar's own card treatment (background,
+   border, radius), separated from it and from .storefront-content by
+   .storefront-body's gap instead of a shared 1px border between
+   edge-to-edge columns. */
 .ai-panel {
   flex-shrink: 0;
   width: 320px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 65px);
+  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
   padding: var(--space-3);
-  border-left: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
+/* A real <button>, not a styled <div> - clicking it is the only way to
+   minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
+   interactive semantics, not just the look of one. Reset to plain block
+   layout instead of default button styling (border, centered text, etc.). */
 .ai-panel-header {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding-bottom: var(--space-2);
+  padding: 0 0 var(--space-2);
   margin-bottom: var(--space-2);
+  border: none;
   border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+.ai-panel-header:hover .ai-panel-avatar { box-shadow: 0 4px 12px var(--color-shadow); }
 .ai-panel-avatar {
   flex-shrink: 0;
   width: 32px;
@@ -791,8 +835,24 @@ h1:focus-visible {
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
 }
-.ai-panel-title { margin: 0; font-weight: 700; font-size: 0.95rem; }
-.ai-panel-subtitle { margin: 0.1rem 0 0; color: var(--color-text-muted); font-size: 0.78rem; }
+.ai-panel-header-text { display: block; min-width: 0; }
+.ai-panel-title { display: block; font-weight: 700; font-size: 0.95rem; }
+.ai-panel-subtitle { display: block; margin-top: 0.1rem; color: var(--color-text-muted); font-size: 0.78rem; }
+
+/* Collapsed to an icon rail - the header stays the toggle (now centered,
+   border/margin dropped since there's no content below it to separate
+   from), everything else (log, form) simply isn't rendered while
+   minimized rather than hidden via CSS. */
+.ai-panel--minimized {
+  width: auto;
+  padding: var(--space-2);
+}
+.ai-panel--minimized .ai-panel-header {
+  padding: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+.ai-panel--minimized .ai-panel-header-text { display: none; }
 
 /* Bounded height + its own scrollbar, not flex: 1 inside an unbounded
    column - the panel's own min-height is a floor (see above), not a
@@ -838,8 +898,6 @@ h1:focus-visible {
   .storefront-sidebar {
     width: 100%;
     min-height: 0;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -881,16 +939,16 @@ h1:focus-visible {
 }
 @media (max-width: 480px) {
   .storefront-topbar { padding: var(--space-2) var(--space-3); }
-  .storefront-content { padding: var(--space-3); }
+  .storefront-body { padding: var(--space-2); gap: var(--space-2); }
   /* Real horizontal overflow, not just cosmetic - measured
      document.documentElement.scrollWidth at 521px in a 390px viewport
      before this. .storefront-topbar has no flex-wrap (by design - a
      wrapped-to-two-lines top bar looks worse than a one-line bar that
-     drops its least-essential text), so hamburger + brand + bell/cart/
-     the full email in the profile chip together just don't fit at phone
-     widths. Hiding the email (the avatar + chevron alone still identify
-     "this is your account menu") is what actually gets it back under the
-     viewport width, verified live after this change. */
+     drops its least-essential text), so brand + bell/cart/the full email
+     in the profile chip together just don't fit at phone widths. Hiding
+     the email (the avatar + chevron alone still identify "this is your
+     account menu") is what actually gets it back under the viewport
+     width, verified live after this change. */
   .storefront-profile-email { display: none; }
   .storefront-profile-chip { padding: 0.3rem; }
 }
@@ -962,8 +1020,14 @@ h1:focus-visible {
   flex-direction: column;
   gap: var(--space-3);
 }
+/* background: var(--color-bg), not left transparent - .storefront-content
+   (its parent) sits directly on the shell's ambient --color-page-bg now
+   (see storefront-shell above), so each card needs its own explicit
+   surface color to actually read as a raised box against that background
+   instead of just an outline with the page showing through it. */
 .order-card {
   padding: var(--space-3);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
@@ -1190,7 +1254,7 @@ h1:focus-visible {
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 .product-image img { width: 100%; height: 100%; object-fit: cover; }
 .product-image-sm { width: 40px; height: 40px; }

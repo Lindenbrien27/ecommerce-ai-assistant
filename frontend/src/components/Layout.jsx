@@ -8,7 +8,6 @@ import {
   CartIcon,
   ChatIcon,
   ChevronDownIcon,
-  HamburgerIcon,
   HeartIcon,
   OrdersIcon,
   LogoutIcon,
@@ -25,14 +24,10 @@ import {
 // pants") in the reference screenshot this section is modeled on - this
 // store doesn't sell clothes, and labeling a filter with categories that
 // don't match anything in the real catalog would be a worse copy of the
-// reference than adapting it to what's actually here.
-const CATEGORY_TAGS = [
-  { label: 'Audio', color: '#8b5cf6' },
-  { label: 'Cables', color: '#2563eb' },
-  { label: 'Peripherals', color: '#16a34a' },
-  { label: 'Furniture', color: '#f59e0b' },
-  { label: 'Displays', color: '#ef4444' },
-];
+// reference than adapting it to what's actually here. No per-tag color -
+// this app is monochrome now (see index.css), so each dot's shade comes
+// from its position (:nth-child in index.css) instead of a hardcoded hex.
+const CATEGORY_TAGS = ['Audio', 'Cables', 'Peripherals', 'Furniture', 'Displays'];
 
 // Most of this sidebar/top bar is intentionally inert - plain <span>s, not
 // <button>s, copying a reference design's structure. This app has no
@@ -69,9 +64,6 @@ function LayoutInner() {
   return (
     <div className="storefront-shell">
       <header className="storefront-topbar">
-        <span className="storefront-icon-btn" aria-hidden="true">
-          <HamburgerIcon />
-        </span>
         <Brand size="sm" />
         <div className="storefront-search" aria-hidden="true">
           <SearchIcon />
@@ -122,10 +114,10 @@ function LayoutInner() {
             <div className="storefront-sidenav-section">
               <p className="storefront-sidenav-heading">Category</p>
               <div className="storefront-tag-list" aria-hidden="true">
-                {CATEGORY_TAGS.map((tag) => (
-                  <span key={tag.label} className="storefront-tag">
-                    <span className="storefront-tag-dot" style={{ background: tag.color }} />
-                    {tag.label}
+                {CATEGORY_TAGS.map((label) => (
+                  <span key={label} className="storefront-tag">
+                    <span className="storefront-tag-dot" />
+                    {label}
                   </span>
                 ))}
               </div>
