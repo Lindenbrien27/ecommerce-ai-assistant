@@ -17,6 +17,14 @@ describe('MessageBubble', () => {
     render(<MessageBubble role="assistant" content="Something went wrong" variant="error" />);
     expect(screen.getByText('Something went wrong')).toHaveClass('msg', 'assistant', 'error');
   });
+
+  it('shows an avatar for assistant replies but not user messages', () => {
+    const { container: assistantContainer } = render(<MessageBubble role="assistant" content="Hi there" />);
+    expect(assistantContainer.querySelector('.msg-avatar')).toBeInTheDocument();
+
+    const { container: userContainer } = render(<MessageBubble role="user" content="Hi" />);
+    expect(userContainer.querySelector('.msg-avatar')).not.toBeInTheDocument();
+  });
 });
 
 describe('TypingIndicator', () => {

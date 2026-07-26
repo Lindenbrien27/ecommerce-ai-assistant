@@ -294,6 +294,35 @@ p.subtitle {
   border: 1px solid var(--color-error-border);
 }
 
+/* Wraps the avatar + bubble for assistant replies only (see
+   MessageBubble.jsx) - .msg.user has no wrapper and keeps aligning itself
+   directly via align-self on #chat's own flex column, same as before. The
+   row, not the bubble, now owns both the max-width cap and the
+   left-alignment - .msg.assistant's own align-self above is inert once
+   nested here (harmless, not worth a separate no-wrapper variant just to
+   omit it) since alignment happens one level up instead. */
+.msg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  align-self: flex-start;
+  max-width: 65%;
+}
+.msg-row .msg { max-width: 100%; }
+.msg-avatar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 0.15rem;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
 @keyframes msg-appear {
   from { transform: translateY(4px); }
   to { transform: translateY(0); }
