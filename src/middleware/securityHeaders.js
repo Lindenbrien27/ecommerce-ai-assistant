@@ -26,6 +26,17 @@ const securityHeaders = [
         'style-src': ["'self'"],
         'font-src': ["'self'"],
         'frame-ancestors': ["'none'"],
+        // The one deliberate cross-origin exception in this CSP - the
+        // frontend's optional Sentry error/performance monitoring
+        // (frontend/src/config/sentry.js) has to actually reach Sentry's
+        // ingestion API, which is cross-origin by definition; connect-src
+        // otherwise falls back to default-src 'self' like every other
+        // directive not listed here. Scoped to *.sentry.io specifically,
+        // not opened generally - harmless if VITE_SENTRY_DSN is never set
+        // (frontend monitoring stays off, nothing ever calls out to it),
+        // same "optional, degrades to inert" shape as every other
+        // Sentry-related config in this project.
+        'connect-src': ["'self'", 'https://*.sentry.io'],
         // Same "only meaningful once actually served over HTTPS" reasoning
         // as hsts below, but this one isn't just inert over plain HTTP the
         // way an ignored HSTS header is - found while debugging why the
@@ -60,4 +71,25 @@ const securityHeaders = [
   permissionsPolicy,
 ];
 
-module.exports = { securityHeaders };
+// Scoped to /api-docs only - swagger-ui-bundle.js (the interactive API
+// docs at /api-docs, see src/app.js) applies some of its own styling via
+// inline <style>/style attributes at runtime, a characteristic of the
+// library itself, not something this app controls. Confirmed live in a
+// real browser: the strict style-src above blocks it and the affected
+// element loses its styling, even though the page still renders and
+// functions. Runs after the global securityHeaders above and overrides
+// just this one directive for this one route (helmet's CSP middleware
+// uses res.setHeader, which replaces rather than merges, so only the
+// last one to run for a given request wins) - every other route keeps
+// the strict, no-unsafe-inline policy untouched.
+const apiDocsStyleOverride = helmet.contentSecurityPolicy({
+  directives: {
+    ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'font-src': ["'self'"],
+    'frame-ancestors': ["'none'"],
+    'upgrade-insecure-requests': process.env.NODE_ENV === 'production' ? [] : null,
+  },
+});
+
+module.exports = { securityHeaders, apiDocsStyleOverride };

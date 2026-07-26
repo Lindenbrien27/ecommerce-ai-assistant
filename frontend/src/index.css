@@ -82,8 +82,9 @@
 
 * { box-sizing: border-box; }
 
-/* Visually hidden but still announced by screen readers - for labels this
-   design keeps visually implicit via placeholder text alone. */
+/* Visually hidden but still announced by screen readers - for a label kept
+   visually implicit via placeholder text alone (still true for the chat
+   input; the verify form's labels are visible instead, see VerifyForm.jsx). */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -111,21 +112,31 @@ body {
   background-attachment: fixed;
   min-height: 100vh;
   margin: 0;
+}
+
+/* The actual flex container has to be #root, not body: React mounts into
+   #root, so .app-shell is body's *grandchild*, not its direct flex item -
+   display:flex/align-self on body/.app-shell were silently no-ops (caught
+   by measuring getBoundingClientRect live, not by inspection - the
+   computed align-self value reported "center" correctly, it just had no
+   layout effect on an element that was never actually a flex item). */
+#root {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
   padding: clamp(1.5rem, 8vh, 4.5rem) var(--space-3) var(--space-5);
 }
 
 /* The actual "page" - a contained panel instead of unstyled text floating
-   directly on the page background. align-self: flex-start (rather than
-   letting body's default stretch/center apply) keeps it anchored near the
-   top consistently regardless of how tall the viewport or the content is,
-   instead of visually jumping around as pages of different lengths get
-   vertically centered. */
+   directly on the page background. #root's default justify-content
+   (flex-start, the initial value - never overridden below) keeps this
+   anchored near the top consistently regardless of how tall the viewport
+   or the content is, instead of visually jumping around as pages of
+   different lengths get vertically centered. */
 .app-shell {
   width: 100%;
   max-width: 720px;
-  align-self: flex-start;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -146,6 +157,69 @@ body {
       0 20px 48px rgba(0, 0, 0, 0.45),
       0 0 0 1px rgba(59, 130, 246, 0.06);
   }
+}
+
+/* Verify specifically reads as a distinct "landing" moment - fixed, short,
+   predictable content - so vertically centering it is the common, expected
+   pattern for this kind of screen (see components/Brand.jsx's own comment:
+   "login-page convention"). Scoped to this one page rather than changing
+   #root's shared justify-content (which would center every page - a long
+   Orders list re-centering as its real height resolves would visibly
+   jump): margin-top/bottom: auto is the per-item override for a flex
+   container's main axis - justify-content has no equivalent per-child
+   override the way align-self does for the cross axis. */
+.app-shell--centered {
+  margin-top: auto;
+  margin-bottom: auto;
+  max-width: 420px;
+  border-radius: 16px;
+  padding: 2.25rem;
+}
+
+/* Orders/Chat/Detail (Layout) share one card, and their content heights are
+   wildly different - measured live: ~298px for Orders, ~731px for Chat, at
+   a 900px-tall viewport. Without this, switching tabs made the whole card
+   visibly grow/shrink by 400+px on every click, which also made the nav
+   indicator's glide (directly above this) feel broken, since the ground
+   it's gliding across was jumping at the same time. A fixed, viewport
+   -relative height (matching the min(px, vh) pattern #chat already uses)
+   stops that: nav keeps its own height, main absorbs the rest of the
+   available space and scrolls internally if content ever exceeds it,
+   rather than the card resizing around whatever page happens to be active. */
+.app-shell--fixed-height {
+  display: flex;
+  flex-direction: column;
+  height: min(720px, 82vh);
+  overflow: hidden;
+}
+.app-shell--fixed-height .app-nav {
+  flex-shrink: 0;
+}
+.app-shell--fixed-height main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Fallback for a page whose content genuinely exceeds the available
+     space (a very long orders list) - not the mechanism for Chat, which
+     is handled below by #chat flexing/scrolling internally instead, so
+     the heading and the input row are never what gets scrolled out of
+     view. overflow-y: auto on a block container only shows the *top* of
+     its content by default; a chat input living at the bottom of that
+     content would be hidden until someone manually scrolled down to it,
+     found by measuring main's scrollHeight vs clientHeight live rather
+     than assuming this would just work once main had a bounded height. */
+  overflow-y: auto;
+}
+/* Only #chat (the message list) should shrink/scroll within the fixed
+   -height card - the heading, subtitle, and input row stay their natural
+   size and stay pinned, never scrolled away, the way any real chat UI's
+   input bar does. Overrides #chat's own min(480px, 60vh) height, which
+   is sized for contexts without a flex parent to fill instead. */
+.app-shell--fixed-height main #chat {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 
 h1 {
@@ -207,6 +281,7 @@ p.subtitle {
 
 @media (prefers-reduced-motion: reduce) {
   .typing-dot { animation: none; opacity: 0.7; }
+  .app-nav-indicator { transition: none; }
 }
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
@@ -214,7 +289,23 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
 #verify-form {
   flex-direction: column;
   align-items: stretch;
-  max-width: 360px;
+  gap: 1.25rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+/* A softer glow ring instead of the app's default hard outline (see the
+   shared input/button :focus-visible rule below), scoped to this one form
+   rather than changed everywhere - matches the reference design
+   specifically requested for this screen. */
+#verify-form input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 }
 
 .verify-error {
@@ -225,6 +316,12 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
   color: var(--color-error-text);
   border: 1px solid var(--color-error-border);
   font-size: 0.9rem;
+}
+
+label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 input[type="text"],
@@ -277,11 +374,27 @@ h1:focus-visible {
   gap: 0.6rem;
   color: var(--color-text);
 }
+/* The gradient/shadow square lives on this wrapper, not baked into the SVG
+   itself (which is just the plain currentColor icon strokes) - reusing the
+   existing --color-solid-bg/-hover tokens instead of hardcoding new hex
+   values keeps the mark theme-aware automatically in both light and dark. */
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
 .brand-name { font-weight: 700; letter-spacing: -0.01em; }
 .brand-sm { margin-right: var(--space-2); }
 .brand-sm .brand-name { font-size: 0.95rem; }
 .brand-lg { justify-content: center; margin-bottom: var(--space-4); }
-.brand-lg .brand-mark { width: 40px; height: 40px; }
+.brand-lg .brand-mark { width: 40px; height: 40px; border-radius: 10px; }
 .brand-lg .brand-name { font-size: 1.15rem; }
 .brand-standalone { display: flex; justify-content: center; }
 
@@ -294,6 +407,7 @@ h1:focus-visible {
   border-bottom: 1px solid var(--color-border);
 }
 .app-nav-links {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -304,10 +418,30 @@ h1:focus-visible {
   font-size: 0.9rem;
   font-weight: 600;
   padding: 0.25rem 0;
-  border-bottom: 2px solid transparent;
+  /* No per-link border anymore - .app-nav-indicator (one shared element)
+     owns the underline now, so it can glide between tabs on route change
+     instead of each link's own border just snapping between transparent
+     and colored. */
 }
 .app-nav a:hover { color: var(--color-text); }
-.app-nav a.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.app-nav a.active { color: var(--color-primary); }
+
+/* Positioned/sized via inline style (Layout.jsx measures the active
+   NavLink's real offsetLeft/offsetWidth - text-width tabs can't be
+   pre-computed in pure CSS) - transitioning transform+width here is what
+   actually produces the glide between Orders and Chat. translateX over
+   left/right for compositor-only movement, not a layout-triggering
+   property. */
+.app-nav-indicator {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 1px;
+  transition: transform 0.25s ease, width 0.25s ease;
+  pointer-events: none;
+}
 .app-nav .logout-button {
   margin-left: auto;
   background: transparent;
@@ -377,7 +511,7 @@ h1:focus-visible {
   /* The card chrome (border/shadow/radius/side margins) is a nice-to-have
      on a screen with room to spare, not on a phone - there it just eats
      into already-scarce width, so this goes edge-to-edge instead. */
-  body { padding: var(--space-3) 0 0; }
+  #root { padding: var(--space-3) 0 0; }
   .app-shell {
     max-width: 100%;
     border: none;
@@ -387,4 +521,25 @@ h1:focus-visible {
   }
   #chat { height: min(420px, 55vh); padding: var(--space-2); }
   .msg { max-width: 90%; }
+  /* No card boundary left to break out of on mobile (chrome already
+     stripped above), so the fixed-height-plus-internal-scroll container
+     works against the grain of a normal mobile page - let content flow
+     and the whole page scroll naturally instead. */
+  .app-shell--fixed-height {
+    height: auto;
+    overflow: visible;
+  }
+  .app-shell--fixed-height main {
+    display: block;
+    overflow-y: visible;
+  }
+  /* Without this, #chat's desktop-only flex:1 (a from-zero flex-basis)
+     has nothing bounded to grow into once main goes back to intrinsic
+     block sizing above, and collapses to nearly nothing instead - caught
+     live in a screenshot, not from reading the cascade alone. Restores
+     the original fixed mobile height these rules were overriding. */
+  .app-shell--fixed-height main #chat {
+    flex: none;
+    height: min(420px, 55vh);
+  }
 }

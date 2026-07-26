@@ -1,0 +1,252 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "E-Commerce AI Assistant API",
+    "version": "1.0.0",
+    "description": "Order & tracking support assistant API. Customers prove ownership of an order (order number + the email it was placed under) to receive a bearer token scoped to their own email, then use it to list/look up their own orders or chat with an AI assistant that looks up order data on their behalf.\n\nSee the repo README for architecture, auth reasoning, rate limits, and everything else not captured by this spec."
+  },
+  "servers": [{ "url": "/", "description": "Same origin as the app - there is no separate API host" }],
+  "tags": [
+    { "name": "Health", "description": "Liveness/readiness checks - no auth" },
+    { "name": "Auth", "description": "Order-ownership verification and token issuance" },
+    { "name": "Orders", "description": "A customer's own orders - requires a bearer token" },
+    { "name": "Chat", "description": "AI assistant chat - requires a bearer token" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Obtained from POST /api/auth/verify. Carries the verified customer's email; expires after 1 hour."
+      }
+    },
+    "schemas": {
+      "Order": {
+        "type": "object",
+        "properties": {
+          "order_number": { "type": "string", "example": "ORD-1001" },
+          "customer_email": { "type": "string", "format": "email", "example": "jane.doe@example.com" },
+          "product_name": { "type": "string", "example": "Wireless Noise-Cancelling Headphones" },
+          "status": {
+            "type": "string",
+            "enum": ["processing", "shipped", "out_for_delivery", "delivered", "cancelled"]
+          },
+          "carrier": { "type": ["string", "null"], "example": "UPS" },
+          "tracking_number": { "type": ["string", "null"], "example": "1Z999AA10123456784" },
+          "estimated_delivery": { "type": ["string", "null"], "example": "2026-07-28" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" } },
+        "required": ["error"]
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing, malformed, or expired bearer token",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit exceeded - budget is per authenticated customer for Orders/Chat, per source IP for Auth (see README > Rate limiting)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness check",
+        "description": "Process is up, nothing more - safe for a platform's own restart-on-failure health check. See /health/db for a check that also verifies the database.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "const": "ok" } } } } }
+          }
+        }
+      }
+    },
+    "/health/db": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Deep health check",
+        "description": "Runs a real SELECT 1 against the database - meant for an external uptime monitor, not a platform restart trigger (a transient DB blip shouldn't restart this process, since restarting doesn't fix that).",
+        "responses": {
+          "200": {
+            "description": "Database reachable",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "const": "ok" } } } } }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "const": "error" } } } } }
+          }
+        }
+      }
+    },
+    "/api/auth/verify": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Verify order ownership, receive a bearer token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["orderNumber", "email"],
+                "properties": {
+                  "orderNumber": { "type": "string", "example": "ORD-1001" },
+                  "email": { "type": "string", "format": "email", "example": "jane.doe@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order number + email matched a real order",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "token": { "type": "string", "description": "JWT, 1 hour expiry" } } }
+              }
+            }
+          },
+          "400": {
+            "description": "orderNumber or email missing from the request body",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No order matches that order number + email pair. Deliberately the same response whether the order number doesn't exist or the email doesn't match it - see README > Authorization.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
+    "/api/orders": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "List the authenticated customer's own orders (paginated)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20, "maximum": 100 },
+            "description": "Page size. Clamped to [1, 100]; non-integer values are rejected with 400."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Opaque keyset-pagination cursor from a previous response's nextCursor. Omit for the first page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Cache-Control": { "schema": { "type": "string", "example": "private, max-age=30" } }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orders": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } },
+                    "nextCursor": { "type": ["string", "null"], "description": "Pass as ?cursor= to fetch the next page; null on the last page." }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "limit is not an integer, or cursor doesn't decode to a valid keyset position",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
+    "/api/orders/{orderNumber}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Fetch a single order by order number",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "orderNumber", "in": "path", "required": true, "schema": { "type": "string" }, "example": "ORD-1001" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK - the order belongs to the authenticated customer",
+            "headers": {
+              "Cache-Control": { "schema": { "type": "string", "example": "private, max-age=30" } }
+            },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "No such order, or it belongs to a different customer - deliberately the same response either way so this can't be used to enumerate real order numbers (see README > Authorization).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "tags": ["Chat"],
+        "summary": "Send a conversation turn to the AI assistant",
+        "description": "The assistant looks up the authenticated customer's own order data via tool calls scoped server-side to their email - the model can never be asked to reveal a different customer's data.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["messages"],
+                "properties": {
+                  "messages": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 40,
+                    "items": {
+                      "type": "object",
+                      "required": ["role", "content"],
+                      "properties": {
+                        "role": { "type": "string", "enum": ["user", "assistant"] },
+                        "content": { "type": "string", "maxLength": 8000 }
+                      }
+                    },
+                    "description": "The full conversation so far, including this turn's new user message. content must be a plain string - see README > Penetration testing for why."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "reply": { "type": "string" } } } } }
+          },
+          "400": {
+            "description": "messages is missing/empty, exceeds 40 entries, or contains an entry with the wrong shape",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" },
+          "500": {
+            "description": "The AI provider call failed (e.g. no ANTHROPIC_API_KEY configured) - a generic message, no internal detail",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    }
+  }
+}

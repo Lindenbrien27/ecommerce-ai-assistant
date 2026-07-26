@@ -1,6 +1,16 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      # Optional, empty by default - export VITE_SENTRY_DSN in the shell
+      # running `docker compose up` to bake frontend error/performance
+      # monitoring into this build (see README > Distributed tracing /
+      # frontend). A build arg, not a runtime env var, because Vite reads
+      # this at `vite build` time inside the frontend-build stage, which
+      # never sees DOPPLER_TOKEN or anything else this container gets at
+      # actual startup.
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     ports:
       - "3000:3000"
     # The container's CMD (doppler run -- node server.js) fetches secrets

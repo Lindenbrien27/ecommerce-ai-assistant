@@ -24,6 +24,15 @@ test('sets a Content-Security-Policy tightened for this app (no unsafe-inline, n
   });
 });
 
+test('CSP allows connect-src to Sentry only - the one deliberate cross-origin exception, for the optional frontend monitoring reaching its ingestion API', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/health`);
+    const csp = res.headers.get('content-security-policy');
+
+    assert.match(csp, /connect-src 'self' https:\/\/\*\.sentry\.io/);
+  });
+});
+
 test('sets the standard defense-in-depth headers', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/health`);

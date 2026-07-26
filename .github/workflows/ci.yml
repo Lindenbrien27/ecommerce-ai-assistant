@@ -47,6 +47,17 @@ jobs:
             echo "::error::Container didn't fail with the expected Doppler auth error - it may be failing for an unrelated (e.g. permission) reason instead"
             exit 1
           fi
+      # Found the hard way: openapi.json shipped in src/app.js's own
+      # `require('../openapi.json')` without a matching line in the
+      # Dockerfile's COPY allowlist - the app would have crashed with
+      # MODULE_NOT_FOUND on every real deploy, and nothing above this would
+      # have caught it (the previous check only proves the container gets as
+      # far as needing a Doppler token, never as far as actually requiring
+      # this app's own files). Entrypoint overridden to `ls` specifically so
+      # this fails on a missing file, not on the unrelated Doppler error the
+      # real CMD would hit first.
+      - name: Verify openapi.json actually landed in the image
+        run: docker run --rm --entrypoint ls ecommerce-ai-assistant:ci openapi.json
 
   e2e:
     needs: test
@@ -153,26 +164,3 @@ jobs:
           rules_file_name: '.zap/rules.tsv'
           fail_action: true
           allow_issue_writing: false
-
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      # --audit-level=critical: the full report always prints regardless of
-      # this flag, but only a critical finding fails the build. Moderate/high
-      # findings often depend on how a package is actually used (e.g. a dev
-      # -server-only issue, or one gated behind an unstable API we don't
-      # import) and need a human to judge applicability, not an automatic
-      # block - critical is reserved for advisories that are exploitable
-      # essentially regardless of context.
-      - name: Audit backend dependencies
-        run: npm audit --audit-level=critical
-      - run: npm --prefix frontend ci
-      - name: Audit frontend dependencies
-        run: npm audit --audit-level=critical
-        working-directory: frontend

@@ -1,8 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
+const { orderCache } = require('../src/config/cache');
 const { issueToken } = require('../src/services/authService');
 const app = require('../src/app');
+
+// orderService caches order lookups (src/config/cache.js) - doesn't change
+// what these tests assert on (HTTP status codes, not pool.query call
+// counts), but keeps this file consistent with the others that mock
+// pool.query directly, in case a later test here relies on a fresh lookup.
+test.beforeEach(() => orderCache.clear());
 
 // Isolated in its own file so node:test's per-file process isolation gives
 // this a fresh chatLimiter/ordersLimiter/authLimiter counter, unaffected by

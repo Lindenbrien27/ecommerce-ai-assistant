@@ -1,13 +1,27 @@
 const { pool } = require('../config/db');
+const { orderCache } = require('../config/cache');
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 class InvalidCursorError extends Error {}
 
+// Orders are effectively read-only (see config/cache.js), and getOrderByNumber
+// specifically sits on three separate hot paths - auth verification
+// (authService.verifyCustomer), GET /api/orders/:id, and the chat tool
+// get_order_by_number - so caching here benefits all three from one place
+// instead of each call site needing its own. `.has()` before `.get()`
+// because a cached "not found" is a real, valid, deliberately-cached
+// result (a `null`) - `cache.get(key) ?? fallback` would be wrong here,
+// since `null` is falsy and indistinguishable from "never cached."
 async function getOrderByNumber(orderNumber) {
+  const cacheKey = `order:${orderNumber}`;
+  if (orderCache.has(cacheKey)) return orderCache.get(cacheKey);
+
   const { rows } = await pool.query('SELECT * FROM orders WHERE order_number = $1', [orderNumber]);
-  return rows[0] ?? null;
+  const order = rows[0] ?? null;
+  orderCache.set(cacheKey, order);
+  return order;
 }
 
 // Keyset (a.k.a. cursor) pagination on (created_at, id) rather than OFFSET -
@@ -51,6 +65,15 @@ function decodeCursor(cursor) {
 
 async function getOrdersByEmail(email, { limit = DEFAULT_PAGE_SIZE, cursor = null } = {}) {
   const pageSize = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
+
+  // Keyed on the clamped pageSize and the cursor's own opaque string, not
+  // the decoded value - equivalent requests (e.g. limit=999 and limit=100,
+  // both clamped the same way) share one cache entry instead of one each,
+  // and the cursor doesn't need decoding (which can throw) just to check
+  // the cache.
+  const cacheKey = `list:${email}:${pageSize}:${cursor ?? ''}`;
+  if (orderCache.has(cacheKey)) return orderCache.get(cacheKey);
+
   const after = cursor ? decodeCursor(cursor) : null;
 
   const { rows } = await pool.query(
@@ -66,15 +89,22 @@ async function getOrdersByEmail(email, { limit = DEFAULT_PAGE_SIZE, cursor = nul
   const orders = hasMore ? rows.slice(0, pageSize) : rows;
   const nextCursor = hasMore ? encodeCursor(orders[orders.length - 1]) : null;
 
-  return { orders, nextCursor };
+  const result = { orders, nextCursor };
+  orderCache.set(cacheKey, result);
+  return result;
 }
 
 async function getOrderByTrackingNumber(trackingNumber) {
+  const cacheKey = `tracking:${trackingNumber}`;
+  if (orderCache.has(cacheKey)) return orderCache.get(cacheKey);
+
   const { rows } = await pool.query(
     'SELECT * FROM orders WHERE tracking_number = $1',
     [trackingNumber]
   );
-  return rows[0] ?? null;
+  const order = rows[0] ?? null;
+  orderCache.set(cacheKey, order);
+  return order;
 }
 
 module.exports = {

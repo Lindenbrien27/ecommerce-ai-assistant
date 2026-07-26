@@ -1,8 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
+const { orderCache } = require('../src/config/cache');
 const { issueToken } = require('../src/services/authService');
 const app = require('../src/app');
+
+// orderService now caches order lookups (src/config/cache.js) - without
+// this, a later test in this file reusing the same order number/email
+// would see the previous test's mocked pool.query result served from
+// cache instead of its own newly-mocked one.
+test.beforeEach(() => orderCache.clear());
 
 async function withServer(t, run) {
   const server = app.listen(0);
@@ -67,6 +74,12 @@ test('POST /api/auth/verify issues a token when order number + email match', asy
       body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' }),
     });
     assert.equal(res.status, 200);
+    // Never a Set-Cookie - session fixation targets a server-side session
+    // identifier the server accepts/continues across the auth boundary,
+    // typically a cookie. This app has no session store at all; a guard
+    // against ever accidentally growing one here (see README > Penetration
+    // testing).
+    assert.equal(res.headers.get('set-cookie'), null);
     const body = await res.json();
     assert.ok(typeof body.token === 'string' && body.token.length > 0);
   });
@@ -126,6 +139,7 @@ test('GET /api/orders lists only the authenticated customer\'s orders', async (t
       headers: { Authorization: `Bearer ${token}` },
     });
     assert.equal(res.status, 200);
+    assert.equal(res.headers.get('cache-control'), 'private, max-age=30');
     const body = await res.json();
     assert.equal(body.orders.length, 2);
     assert.equal(body.nextCursor, null);
@@ -203,8 +217,23 @@ test('GET /api/orders/:id returns order data when the token owner matches', asyn
       headers: { Authorization: `Bearer ${token}` },
     });
     assert.equal(res.status, 200);
+    assert.equal(res.headers.get('cache-control'), 'private, max-age=30');
     const body = await res.json();
     assert.equal(body.order_number, 'ORD-1001');
+  });
+});
+
+test('GET /api/orders/:id does not set a cacheable Cache-Control on a 404', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders/NOPE`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 404);
+    assert.notEqual(res.headers.get('cache-control'), 'private, max-age=30');
   });
 });
 

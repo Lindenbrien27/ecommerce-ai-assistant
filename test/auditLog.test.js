@@ -1,9 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
+const { orderCache } = require('../src/config/cache');
 const { issueToken } = require('../src/services/authService');
 const { auditLog, auditLogger } = require('../src/config/auditLog');
 const app = require('../src/app');
+
+// orderService caches order lookups (src/config/cache.js) - without this,
+// a later test reusing the same order number would see an earlier test's
+// mocked pool.query result served from cache instead of its own.
+test.beforeEach(() => orderCache.clear());
 
 async function withServer(t, run) {
   const server = app.listen(0);
