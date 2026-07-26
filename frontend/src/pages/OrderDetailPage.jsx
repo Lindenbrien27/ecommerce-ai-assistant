@@ -17,6 +17,22 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
 }
 
+// Real tracking-page URLs for the three carriers this app's seed data
+// actually uses (see migrations/1784973065584_initial-schema.sql) - not
+// guessing at a generic format, since each carrier's own URL scheme is
+// different. Falls back to plain, non-linked text for any other/unknown
+// carrier rather than building a link that would 404.
+const CARRIER_TRACKING_URL = {
+  UPS: (n) => `https://www.ups.com/track?tracknum=${encodeURIComponent(n)}`,
+  USPS: (n) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(n)}`,
+  FedEx: (n) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`,
+};
+
+function trackingUrl(carrier, trackingNumber) {
+  const build = carrier && CARRIER_TRACKING_URL[carrier];
+  return build ? build(trackingNumber) : null;
+}
+
 // The four forward-progression statuses this app actually has (see the
 // `status` CHECK constraint in the same migration) - cancelled is handled
 // separately below since it's a branch-off, not a further step in this
@@ -117,37 +133,53 @@ export function OrderDetailPage() {
 
       {order && (
         <>
+          {/* Grouped in pairs that actually relate to each other (what +
+              its state, then the two dates, then the two shipping
+              specifics) instead of one flat list - also what lets this
+              use a real 2-column grid instead of a single narrow column
+              leaving the wider card's right half empty. */}
           <dl className="order-detail">
-            <dt>Product</dt>
-            <dd>{order.product_name}</dd>
+            <div className="order-detail-field">
+              <dt>Product</dt>
+              <dd>{order.product_name}</dd>
+            </div>
+            <div className="order-detail-field">
+              <dt>Status</dt>
+              <dd>
+                <span className={`order-status status-${order.status}`}>{order.status.replace(/_/g, ' ')}</span>
+              </dd>
+            </div>
 
-            <dt>Status</dt>
-            <dd>
-              <span className={`order-status status-${order.status}`}>{order.status.replace(/_/g, ' ')}</span>
-            </dd>
-
-            <dt>Ordered on</dt>
-            <dd>{formatDate(order.created_at)}</dd>
-
-            {order.carrier && (
-              <>
-                <dt>Carrier</dt>
-                <dd>{order.carrier}</dd>
-              </>
-            )}
-
-            {order.tracking_number && (
-              <>
-                <dt>Tracking number</dt>
-                <dd>{order.tracking_number}</dd>
-              </>
-            )}
-
+            <div className="order-detail-field">
+              <dt>Ordered on</dt>
+              <dd>{formatDate(order.created_at)}</dd>
+            </div>
             {order.estimated_delivery && (
-              <>
+              <div className="order-detail-field">
                 <dt>Estimated delivery</dt>
                 <dd>{formatDate(order.estimated_delivery)}</dd>
-              </>
+              </div>
+            )}
+
+            {order.carrier && (
+              <div className="order-detail-field">
+                <dt>Carrier</dt>
+                <dd>{order.carrier}</dd>
+              </div>
+            )}
+            {order.tracking_number && (
+              <div className="order-detail-field">
+                <dt>Tracking number</dt>
+                <dd>
+                  {trackingUrl(order.carrier, order.tracking_number) ? (
+                    <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">
+                      {order.tracking_number}
+                    </a>
+                  ) : (
+                    order.tracking_number
+                  )}
+                </dd>
+              </div>
             )}
           </dl>
 

@@ -10,26 +10,27 @@ test.describe('orders', () => {
   test('lists only the logged-in customer\'s own orders', async ({ page }) => {
     const items = page.locator('.order-list-item');
     await expect(items).toHaveCount(2);
-    // Both seed rows share the same created_at (one INSERT, one now()) - the
-    // keyset order breaks the tie on id DESC, so the higher (more recently
-    // inserted) order number sorts first.
-    await expect(page.locator('.order-number')).toContainText(['ORD-1002', 'ORD-1001']);
+    // Keyset order is created_at DESC - ORD-1001 (shipped, still in transit)
+    // has a later created_at than ORD-1002 (delivered, a completed order
+    // from further back) per the seed dates in
+    // migrations/1785068947495_fix-seed-order-dates.sql, so it sorts first.
+    await expect(page.locator('.order-number')).toContainText(['ORD-1001', 'ORD-1002']);
   });
 
   test('clicking an order opens its detail page with the right fields', async ({ page }) => {
     await page.click('.order-list-item >> nth=0');
 
-    await expect(page).toHaveURL(/\/orders\/ORD-1002$/);
-    await expect(page.locator('h1')).toHaveText('ORD-1002');
-    await expect(page.locator('.order-detail')).toContainText('USB-C Charging Cable (3-pack)');
-    await expect(page.locator('.order-detail')).toContainText('9400111899223197428490');
+    await expect(page).toHaveURL(/\/orders\/ORD-1001$/);
+    await expect(page.locator('h1')).toHaveText('ORD-1001');
+    await expect(page.locator('.order-detail')).toContainText('Wireless Noise-Cancelling Headphones');
+    await expect(page.locator('.order-detail')).toContainText('1Z999AA10123456784');
   });
 
   test('the browser back button returns to the order list (real history, not just state)', async ({
     page,
   }) => {
     await page.click('.order-list-item >> nth=0');
-    await expect(page).toHaveURL(/\/orders\/ORD-1002$/);
+    await expect(page).toHaveURL(/\/orders\/ORD-1001$/);
 
     await page.goBack();
     await expect(page).toHaveURL(/\/orders$/);

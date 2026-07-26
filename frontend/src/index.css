@@ -712,6 +712,20 @@ h1:focus-visible {
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
+/* Fixed at the same 26px as .app-sidebar-avatar directly above it, not the
+   icon's own intrinsic 16px - without this, the avatar and the logout
+   icon shared the same left edge but different widths, so "jane.doe@..."
+   and "Log out" started at two different x-offsets even though both rows
+   look like they should line up. Verified live via getBoundingClientRect:
+   a real 10px gap between the two labels' left edges, not a rounding
+   artifact. */
+.app-sidebar-icon-slot {
+  flex-shrink: 0;
+  width: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 /* No overflow: hidden here either - it's this button's own data-tooltip
    anchor when collapsed. .app-sidebar-link-label (shared with the nav
    links above) already clips the "Log out" text itself. */
@@ -804,26 +818,35 @@ h1:focus-visible {
 .order-status.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
 .order-status.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
 
-/* Label-above-value, not side-by-side - dt/dd alternate as flat children of
-   one <dl> (no per-pair wrapper element), so the "gap between pairs" vs
-   "gap within a pair" distinction comes from dt's own margin-top rather
-   than a grid/flex gap, which would apply uniformly between every child
-   regardless of which pair it belongs to. */
+/* A real 2-column grid, not one narrow stacked column - the card is 800px
+   wide specifically so there's room for this; a single column left the
+   entire right half of the card empty regardless of how many real fields
+   there were to show. Each field is its own grid item (a <div> wrapping
+   one dt/dd pair - valid inside a <dl> since HTML5.1, still parsed
+   correctly by assistive tech) so dt/dd can be label-above-value *within*
+   a cell without that pairing needing to be flat siblings across the
+   whole list. */
 .order-detail {
   margin: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4) var(--space-5);
 }
-.order-detail dt {
-  margin-top: var(--space-4);
+.order-detail-field { display: flex; flex-direction: column; }
+.order-detail-field dt {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
-.order-detail dt:first-child { margin-top: 0; }
-.order-detail dd { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 500; }
+.order-detail-field dd { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 500; }
+.order-detail-field dd a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.order-detail-field dd a:hover { text-decoration-thickness: 2px; }
 
 .order-id-heading { font-size: 2.625rem; letter-spacing: -0.03em; }
 
@@ -868,7 +891,14 @@ h1:focus-visible {
 }
 .status-timeline-step.completed { color: var(--color-text); }
 .status-timeline-step.completed .status-timeline-marker { background: var(--color-primary); }
-.status-timeline-step.completed:not(:last-child)::before { background: var(--color-primary); }
+/* :not(.current), not just .completed - a step's trailing line represents
+   progress *into the next step*, which for the current step hasn't
+   happened yet regardless of the current step's own dot being filled in.
+   Coloring it blue implied delivery was already in progress toward
+   "Delivered" the moment an order went "out for delivery," before that
+   was actually true - caught by literally looking at the rendered line,
+   not from the class logic alone reading correctly at a glance. */
+.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-primary); }
 .status-timeline-step.current .status-timeline-label { font-weight: 700; }
 
 .status-timeline-cancelled {
@@ -918,4 +948,8 @@ h1:focus-visible {
   .app-sidebar-email {
     opacity: 0;
   }
+  /* Two columns need real width to read as columns rather than cramped
+     half-lines - not available once the sidebar (still 56px even here)
+     and padding eat into an already-narrow phone viewport. */
+  .order-detail { grid-template-columns: 1fr; }
 }

@@ -85,10 +85,19 @@ export function Layout() {
             <span className="app-sidebar-avatar" aria-hidden="true">
               {initial}
             </span>
-            <span className="app-sidebar-email">{email}</span>
+            {/* title, not just the truncating ellipsis - the collapsed
+                -only data-tooltip above covers the icon-only rail, but a
+                long email still gets clipped in the expanded view too, and
+                a native title tooltip works there without needing a
+                second custom mechanism. */}
+            <span className="app-sidebar-email" title={email}>
+              {email}
+            </span>
           </div>
           <button type="button" className="logout-button" onClick={logout} data-tooltip="Log out">
-            <LogoutIcon className="app-sidebar-link-icon" aria-hidden="true" />
+            <span className="app-sidebar-icon-slot" aria-hidden="true">
+              <LogoutIcon width="16" height="16" />
+            </span>
             <span className="app-sidebar-link-label">Log out</span>
           </button>
         </div>
