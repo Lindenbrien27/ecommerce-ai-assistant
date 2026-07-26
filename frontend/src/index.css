@@ -242,8 +242,12 @@ h1 {
   margin-bottom: 0.35rem;
 }
 p.subtitle {
+  /* var(--color-text-muted), not opacity - that token is a per-theme value
+     already checked against its background by the axe contrast scan (see
+     README > Accessibility), and opacity on the base text color would
+     silently produce a different, unchecked effective color instead. */
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: 1.125rem;
   margin-top: 0;
   margin-bottom: var(--space-4);
 }
@@ -368,6 +372,10 @@ p.subtitle {
 }
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
+/* Scoped to just Send, not the global button rule - the sidebar toggle,
+   logout, and suggestion-chip buttons already have their own tuned weight/
+   spacing, and this shouldn't quietly change those too. */
+#chat-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
 
 #verify-form {
   flex-direction: column;
