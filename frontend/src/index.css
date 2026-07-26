@@ -176,6 +176,52 @@ body {
   padding: 2.25rem;
 }
 
+/* Orders/Chat/Detail (Layout) share one card, and their content heights are
+   wildly different - measured live: ~298px for Orders, ~731px for Chat, at
+   a 900px-tall viewport. Without this, switching tabs made the whole card
+   visibly grow/shrink by 400+px on every click, which also made the nav
+   indicator's glide (directly above this) feel broken, since the ground
+   it's gliding across was jumping at the same time. A fixed, viewport
+   -relative height (matching the min(px, vh) pattern #chat already uses)
+   stops that: nav keeps its own height, main absorbs the rest of the
+   available space and scrolls internally if content ever exceeds it,
+   rather than the card resizing around whatever page happens to be active. */
+.app-shell--fixed-height {
+  display: flex;
+  flex-direction: column;
+  height: min(720px, 82vh);
+  overflow: hidden;
+}
+.app-shell--fixed-height .app-nav {
+  flex-shrink: 0;
+}
+.app-shell--fixed-height main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Fallback for a page whose content genuinely exceeds the available
+     space (a very long orders list) - not the mechanism for Chat, which
+     is handled below by #chat flexing/scrolling internally instead, so
+     the heading and the input row are never what gets scrolled out of
+     view. overflow-y: auto on a block container only shows the *top* of
+     its content by default; a chat input living at the bottom of that
+     content would be hidden until someone manually scrolled down to it,
+     found by measuring main's scrollHeight vs clientHeight live rather
+     than assuming this would just work once main had a bounded height. */
+  overflow-y: auto;
+}
+/* Only #chat (the message list) should shrink/scroll within the fixed
+   -height card - the heading, subtitle, and input row stay their natural
+   size and stay pinned, never scrolled away, the way any real chat UI's
+   input bar does. Overrides #chat's own min(480px, 60vh) height, which
+   is sized for contexts without a flex parent to fill instead. */
+.app-shell--fixed-height main #chat {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
 h1 {
   font-size: var(--font-size-lg);
   font-weight: 700;
@@ -475,4 +521,25 @@ h1:focus-visible {
   }
   #chat { height: min(420px, 55vh); padding: var(--space-2); }
   .msg { max-width: 90%; }
+  /* No card boundary left to break out of on mobile (chrome already
+     stripped above), so the fixed-height-plus-internal-scroll container
+     works against the grain of a normal mobile page - let content flow
+     and the whole page scroll naturally instead. */
+  .app-shell--fixed-height {
+    height: auto;
+    overflow: visible;
+  }
+  .app-shell--fixed-height main {
+    display: block;
+    overflow-y: visible;
+  }
+  /* Without this, #chat's desktop-only flex:1 (a from-zero flex-basis)
+     has nothing bounded to grow into once main goes back to intrinsic
+     block sizing above, and collapses to nearly nothing instead - caught
+     live in a screenshot, not from reading the cascade alone. Restores
+     the original fixed mobile height these rules were overriding. */
+  .app-shell--fixed-height main #chat {
+    flex: none;
+    height: min(420px, 55vh);
+  }
 }

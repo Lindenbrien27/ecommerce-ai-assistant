@@ -35,7 +35,7 @@ export function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell app-shell--fixed-height">
       <nav className="app-nav">
         <Brand size="sm" />
         <div className="app-nav-links">
