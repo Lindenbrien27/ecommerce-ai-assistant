@@ -57,7 +57,7 @@ test.describe('performance', () => {
     expect([...jsChunksLoaded].some((p) => p.includes('/OrderDetailPage-'))).toBe(true);
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(false);
 
-    await page.click('.app-sidebar a[href="/chat"]');
+    await page.click('.storefront-pills a[href="/chat"]');
     await expect(page.locator('#chat-input')).toBeVisible();
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(true);
   });

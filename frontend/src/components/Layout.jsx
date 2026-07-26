@@ -1,109 +1,120 @@
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Brand } from './Brand.jsx';
-import { ChatIcon, ChevronIcon, LogoutIcon, OrdersIcon } from './icons.jsx';
+import {
+  BellIcon,
+  CartIcon,
+  ChatIcon,
+  ChevronDownIcon,
+  HamburgerIcon,
+  HeartIcon,
+  LockIcon,
+  LogoutIcon,
+  OrdersIcon,
+  PersonIcon,
+  PinIcon,
+  SearchIcon,
+} from './icons.jsx';
 
-const NAV_LINKS = [
-  { to: '/orders', label: 'My Orders', icon: OrdersIcon },
-  { to: '/chat', label: 'Support Chat', icon: ChatIcon },
-];
+// Decorative-only chrome copying a reference storefront design's top bar -
+// this app has no catalog/blog/wishlist/address-book backend for any of
+// these to actually link to. Plain <span>s, not <button>s: they're not
+// real controls (nothing happens on activation), so giving them native
+// button semantics would mean either a broken keyboard/AT experience
+// (focusable, announced as a button, does nothing) or fighting that with
+// tabIndex/aria-hidden on every one - a non-interactive element styled to
+// look clickable for mouse users is simpler and more honest about what it
+// actually is.
+const CATEGORIES = ['New Arrivals', 'Sale'];
+const QUICK_LINKS = ['Men', 'Women', 'Children', 'Brand'];
+
+function timeOfDayGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 18) return 'Good Afternoon';
+  return 'Good Evening';
+}
 
 export function Layout() {
   const { email, logout } = useAuth();
-  const location = useLocation();
-  const linkRefs = useRef({});
-  const [collapsed, setCollapsed] = useState(false);
-  // null until the first measurement lands, so the indicator doesn't flash
-  // at a wrong (0,0) position for one frame before it knows where the
-  // active link actually is.
-  const [indicator, setIndicator] = useState(null);
-
-  useEffect(() => {
-    function measure() {
-      const active = NAV_LINKS.find((link) => location.pathname.startsWith(link.to));
-      const el = active && linkRefs.current[active.to];
-      if (el) {
-        setIndicator({ top: el.offsetTop, height: el.offsetHeight });
-      }
-    }
-
-    measure();
-    // Collapsing/expanding changes each link's height slightly (icon-only
-    // rows are shorter than icon+label rows) - re-measure so the indicator
-    // doesn't end up pinned to a stale offset once the collapse transition
-    // settles. Same reasoning as the resize listener: offsetTop/offsetHeight
-    // can shift for reasons other than route changes.
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [location.pathname, collapsed]);
-
-  const initial = email ? email[0].toUpperCase() : '?';
 
   return (
-    <div className="app-shell app-shell--fixed-height">
-      <aside className={`app-sidebar${collapsed ? ' app-sidebar--collapsed' : ''}`}>
-        <div className="app-sidebar-header">
-          <Brand size="sm" showLabel={!collapsed} />
-          <button
-            type="button"
-            className="app-sidebar-toggle"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-expanded={!collapsed}
-          >
-            <ChevronIcon />
-          </button>
-        </div>
-
-        <nav className="app-sidebar-nav">
-          {indicator && (
-            <span
-              className="app-sidebar-indicator"
-              style={{ transform: `translateY(${indicator.top}px)`, height: `${indicator.height}px` }}
-              aria-hidden="true"
-            />
-          )}
-          {NAV_LINKS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              ref={(el) => {
-                linkRefs.current[to] = el;
-              }}
-              className={({ isActive }) => (isActive ? 'active' : '')}
-              data-tooltip={label}
-            >
-              <Icon className="app-sidebar-link-icon" aria-hidden="true" />
-              <span className="app-sidebar-link-label">{label}</span>
-            </NavLink>
+    <div className="storefront-shell">
+      <header className="storefront-topbar">
+        <span className="storefront-icon-btn" aria-hidden="true">
+          <HamburgerIcon />
+        </span>
+        <Brand size="sm" />
+        <div className="storefront-categories">
+          <span className="storefront-category" aria-hidden="true">
+            Clothing <ChevronDownIcon />
+          </span>
+          {CATEGORIES.map((label) => (
+            <span className="storefront-category" aria-hidden="true" key={label}>
+              {label}
+            </span>
           ))}
-        </nav>
-
-        <div className="app-sidebar-footer">
-          <div className="app-sidebar-profile" data-tooltip={email || 'Account'}>
-            <span className="app-sidebar-avatar" aria-hidden="true">
-              {initial}
-            </span>
-            {/* title, not just the truncating ellipsis - the collapsed
-                -only data-tooltip above covers the icon-only rail, but a
-                long email still gets clipped in the expanded view too, and
-                a native title tooltip works there without needing a
-                second custom mechanism. */}
-            <span className="app-sidebar-email" title={email}>
-              {email}
-            </span>
-          </div>
-          <button type="button" className="logout-button" onClick={logout} data-tooltip="Log out">
-            <span className="app-sidebar-icon-slot" aria-hidden="true">
-              <LogoutIcon width="16" height="16" />
-            </span>
-            <span className="app-sidebar-link-label">Log out</span>
-          </button>
         </div>
-      </aside>
+        <div className="storefront-search" aria-hidden="true">
+          <span>Search...</span>
+          <SearchIcon />
+        </div>
+        <div className="storefront-quicklinks" aria-hidden="true">
+          {QUICK_LINKS.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
+        <div className="storefront-topbar-icons" aria-hidden="true">
+          <span className="storefront-icon-btn">
+            <BellIcon />
+          </span>
+          <span className="storefront-icon-btn">
+            <CartIcon />
+          </span>
+          <span className="storefront-icon-btn">
+            <PersonIcon />
+          </span>
+        </div>
+      </header>
 
-      <main>
+      <div className="storefront-accountbar">
+        <div className="storefront-greeting">
+          <p className="storefront-greeting-label">{timeOfDayGreeting()},</p>
+          <p className="storefront-greeting-name">{email}</p>
+        </div>
+        <nav className="storefront-pills">
+          <span className="storefront-pill" aria-hidden="true">
+            <PersonIcon width="14" height="14" /> Profile
+          </span>
+          <span className="storefront-pill" aria-hidden="true">
+            <HeartIcon /> Wishlist
+          </span>
+          <NavLink to="/orders" className={({ isActive }) => `storefront-pill${isActive ? ' active' : ''}`}>
+            <OrdersIcon width="14" height="14" /> My Order
+          </NavLink>
+          <span className="storefront-pill" aria-hidden="true">
+            <PinIcon /> Saved Address
+          </span>
+          <span className="storefront-pill" aria-hidden="true">
+            <LockIcon /> Change Password
+          </span>
+          {/* Not part of the reference design - this app's own Chat
+              assistant still needs to be reachable from somewhere, and
+              dropping it entirely would be a real functional regression,
+              not just a trimmed decorative link. */}
+          <NavLink to="/chat" className={({ isActive }) => `storefront-pill${isActive ? ' active' : ''}`}>
+            <ChatIcon width="14" height="14" /> Support Chat
+          </NavLink>
+          {/* Also kept working, unlike the rest of this row - with no other
+              way to sign out, a purely decorative Logout pill would strand
+              anyone who verified with the "wrong" test account. */}
+          <button type="button" className="storefront-pill" onClick={logout}>
+            <LogoutIcon width="14" height="14" /> Logout
+          </button>
+        </nav>
+      </div>
+
+      <main className="storefront-content">
         <Outlet />
       </main>
     </div>

@@ -176,64 +176,6 @@ body {
   padding: 2.25rem;
 }
 
-/* Orders/Chat/Detail (Layout) share one card, and their content heights are
-   wildly different - measured live: ~298px for Orders, ~731px for Chat, at
-   a 900px-tall viewport. Without this, switching tabs made the whole card
-   visibly grow/shrink by 400+px on every click. A fixed, viewport-relative
-   height (matching the min(px, vh) pattern #chat already uses) stops that:
-   the sidebar (row, not column, now that nav lives on the left rather than
-   across the top) keeps its own full-height column via flex's default
-   align-items: stretch, and main absorbs the rest of the available width
-   and scrolls internally if content ever exceeds it - which is also what
-   makes the sidebar read as "sticky" without any position: sticky/fixed at
-   all, it simply never has anything to scroll. */
-.app-shell--fixed-height {
-  display: flex;
-  flex-direction: row;
-  height: min(720px, 82vh);
-  /* Not overflow: hidden - the collapsed sidebar's tooltips (see
-     .app-sidebar-nav a below) are absolutely positioned to escape past the
-     sidebar's own edge, and overflow: hidden on any ancestor clips a
-     descendant's painted content regardless of that descendant's own
-     containing block, not just content that overflows the *ancestor's*
-     bounds - found live (computed opacity read 1, attr(data-tooltip)
-     content was correct, it still never painted) after already removing
-     overflow: hidden from .app-sidebar itself wasn't enough on its own.
-     Safe to drop here: the explicit height above already caps the card
-     regardless, main still scrolls internally via its own overflow-y:
-     auto, and neither sidebar nor main paints an edge-to-edge background
-     that would otherwise need corner-radius clipping at this box's own
-     rounded corners. */
-}
-.app-shell--fixed-height main {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding-left: var(--space-4);
-  /* Fallback for a page whose content genuinely exceeds the available
-     space (a very long orders list) - not the mechanism for Chat, which
-     is handled below by #chat flexing/scrolling internally instead, so
-     the heading and the input row are never what gets scrolled out of
-     view. overflow-y: auto on a block container only shows the *top* of
-     its content by default; a chat input living at the bottom of that
-     content would be hidden until someone manually scrolled down to it,
-     found by measuring main's scrollHeight vs clientHeight live rather
-     than assuming this would just work once main had a bounded height. */
-  overflow-y: auto;
-}
-/* Only #chat (the message list) should shrink/scroll within the fixed
-   -height card - the heading, subtitle, and input row stay their natural
-   size and stay pinned, never scrolled away, the way any real chat UI's
-   input bar does. Overrides #chat's own min(480px, 60vh) height, which
-   is sized for contexts without a flex parent to fill instead. */
-.app-shell--fixed-height main #chat {
-  flex: 1;
-  min-height: 0;
-  height: auto;
-}
-
 h1 {
   font-size: var(--font-size-lg);
   font-weight: 700;
@@ -356,9 +298,6 @@ p.subtitle {
      -state on the cube elements read "running" despite this rule
      matching. The only !important in this file, for that reason. */
   .typing-indicator, .typing-indicator * { animation-play-state: paused !important; }
-  .app-sidebar,
-  .app-sidebar-indicator,
-  .app-sidebar-toggle svg { transition: none; }
 }
 
 .chat-header {
@@ -542,240 +481,174 @@ h1:focus-visible {
 .brand-lg .brand-name { font-size: 1.15rem; }
 .brand-standalone { display: flex; justify-content: center; }
 
-/* Left sidebar (replaces the old top tab bar). --sidebar-width is a custom
-   property, not a plain width, so the collapsed modifier and the mobile
-   media query below can each override just that one value instead of
-   duplicating the whole rule - the highest-specificity/latest-in-source
-   value for this property wins regardless of which override applied it. */
-.app-sidebar {
-  /* 248px, not 208px - measured live that a real 23-character email
-     ("john.smith@example.com") needed 153px for its text and only had
-     126px available at the old width, truncating even a fairly ordinary
-     address. Still short of fitting every possible email (arbitrarily
-     long ones exist), which is what the title attribute on
-     .app-sidebar-email is for - this just raises how much fits by
-     default before that fallback is needed at all. */
-  --sidebar-width: 248px;
-  width: var(--sidebar-width);
-  flex-shrink: 0;
+/* Full-width storefront shell (replaces the old collapsible left sidebar +
+   centered-card model for every authenticated page) - copies a reference
+   e-commerce account page's structure: a top identity/category bar, a
+   second "account" bar (greeting + pill nav), then the routed page content
+   below. VerifyPage is unaffected - it's a different top-level child of
+   #root (.app-shell--centered), not this. */
+.storefront-shell {
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--color-border);
-  padding: var(--space-1) var(--space-2) var(--space-2);
-  transition: width 0.22s ease;
-  /* Deliberately NOT overflow: hidden here - the collapsed-state tooltips
-     (below) are positioned to escape past this element's own right edge on
-     purpose, and clipping at this level would silently clip those too
-     (found the same way as the toggle-button bug above: computed opacity
-     read 1, the tooltip just never painted). Each label span that actually
-     needs to be clipped as its own row shrinks gets overflow: hidden
-     individually instead - see .app-sidebar-link-label/-email below. */
-}
-.app-sidebar--collapsed {
-  --sidebar-width: 64px;
+  background: var(--color-bg);
 }
 
-.app-sidebar-header {
+/* #root's own padding/centering (see its rule near the top of this file) is
+   tuned for the narrow centered .app-shell card VerifyPage still uses - a
+   storefront shell wants true edge-to-edge width instead. :has() scopes
+   this to exactly that case rather than changing #root's shared rule,
+   which would also strip Verify's intentional padding. */
+#root:has(> .storefront-shell) {
+  padding: 0;
+  align-items: stretch;
+}
+
+.storefront-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+.storefront-icon-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.storefront-icon-btn:hover { background: var(--color-surface); }
+.storefront-topbar-icons { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+
+.storefront-categories { display: flex; align-items: center; gap: var(--space-2); }
+.storefront-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.storefront-category:hover { background: var(--color-surface); }
+
+/* A styled span, not a real <input> - a text field that visibly invites
+   typing but silently does nothing on keystroke is a worse trap than a
+   button that does nothing on click; this can't be mistaken for something
+   that accepts input. */
+.storefront-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 120px;
+  max-width: 280px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+.storefront-search svg { flex-shrink: 0; margin-left: auto; }
+
+.storefront-quicklinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.storefront-quicklinks span { cursor: pointer; }
+.storefront-quicklinks span:hover { color: var(--color-text); }
+
+.storefront-accountbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-1);
-  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
-/* Side-by-side (brand-mark + toggle, space-between) only works with room
-   to spare - at the collapsed 64px width there isn't enough space for both
-   full-size icons on one row (28px + 27px > the ~40px content width left
-   after padding), so the toggle button doesn't shrink to fit (flex items
-   don't shrink below their own min-content size by default) and instead
-   silently overflows the sidebar's own overflow: hidden, rendering
-   completely invisible - caught by comparing the toggle's and sidebar's
-   live getBoundingClientRect() after collapsing, not by looking at the
-   screenshot alone (it "looked" fine at a glance; the button was just
-   gone). Stacking them instead keeps both fully visible and clickable. */
-.app-sidebar--collapsed .app-sidebar-header {
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: var(--space-2);
-}
-.app-sidebar-toggle {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  color: var(--color-text-muted);
-  padding: 0.35rem;
-  border-radius: var(--radius-sm);
-}
-.app-sidebar-toggle:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
-.app-sidebar-toggle svg { transition: transform 0.22s ease; }
-.app-sidebar--collapsed .app-sidebar-toggle svg { transform: rotate(180deg); }
-
-/* position: relative so .app-sidebar-indicator's offsetTop-based translateY
-   (Layout.jsx measures the active NavLink's real offsetTop/offsetHeight,
-   same technique the old horizontal indicator used for offsetLeft/Width) is
-   positioned against this container specifically, not the page. */
-/* No overflow-y: auto - with only two nav items this will never need to
-   scroll, and setting only one overflow axis to a non-visible value forces
-   browsers to silently compute the *other* axis as non-visible too (CSS
-   Overflow Module's "visible on one axis, non-visible on the other" rule),
-   which was clipping the collapsed-state tooltips (positioned to escape
-   past this element's right edge) even after removing overflow: hidden
-   from every other ancestor - found by checking getComputedStyle(...)
-   .overflowX here specifically and seeing "auto" despite never having set
-   it, not by reasoning about the cascade alone. */
-.app-sidebar-nav {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-.app-sidebar-nav a {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.55rem 0.6rem;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-.app-sidebar-nav a:hover { color: var(--color-text); background: var(--color-surface); }
-.app-sidebar-nav a.active { color: var(--color-primary); }
-.app-sidebar-link-icon { flex-shrink: 0; }
-/* flex: 1 + min-width: 0 + its own overflow: hidden - not overflow: hidden
-   on the row (.app-sidebar-nav a) or the sidebar itself - so this label is
-   what clips its own text as the row shrinks, without also clipping that
-   row's ::after tooltip (positioned to escape past the row's right edge on
-   purpose - see the collapsed-tooltip rules below). Opacity fade, not
-   display: none, so the text stays in the DOM (still announced to screen
-   readers) and fades rather than abruptly popping in/out mid-transition. */
-.app-sidebar-link-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  opacity: 1;
-  transition: opacity 0.15s ease;
-}
-.app-sidebar--collapsed .app-sidebar-link-label,
-.app-sidebar--collapsed .app-sidebar-email { opacity: 0; }
-
-/* Same technique as the old .app-nav-indicator, rotated onto the vertical
-   axis: translateY over top/height for compositor-only movement. */
-.app-sidebar-indicator {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--color-primary);
-  transition: transform 0.25s ease, height 0.25s ease;
-  pointer-events: none;
-}
-
-.app-sidebar-footer {
-  flex-shrink: 0;
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-/* No overflow: hidden here (same reasoning as .app-sidebar itself) - this
-   is also the collapsed-state tooltip's anchor (data-tooltip lives on this
-   element), which needs to escape past its own right edge. .app-sidebar-email
-   below clips its own text instead. */
-.app-sidebar-profile {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.25rem 0.6rem;
-}
-.app-sidebar-avatar {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-surface-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.storefront-greeting-label {
+  margin: 0;
   font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.storefront-greeting-name {
+  margin: 0.1rem 0 0;
+  font-size: 1.1rem;
   font-weight: 700;
 }
-.app-sidebar-email {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-}
-/* Fixed at the same 26px as .app-sidebar-avatar directly above it, not the
-   icon's own intrinsic 16px - without this, the avatar and the logout
-   icon shared the same left edge but different widths, so "jane.doe@..."
-   and "Log out" started at two different x-offsets even though both rows
-   look like they should line up. Verified live via getBoundingClientRect:
-   a real 10px gap between the two labels' left edges, not a rounding
-   artifact. */
-.app-sidebar-icon-slot {
-  flex-shrink: 0;
-  width: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* No overflow: hidden here either - it's this button's own data-tooltip
-   anchor when collapsed. .app-sidebar-link-label (shared with the nav
-   links above) already clips the "Log out" text itself. */
-.app-sidebar-footer .logout-button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--space-2);
-  width: 100%;
-  background: transparent;
-  color: var(--color-text-muted);
-  padding: 0.5rem 0.6rem;
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-.app-sidebar-footer .logout-button:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
-/* Collapsed-only, CSS-only tooltip (no JS positioning) - var(--color-text)/
-   var(--color-bg) as an inverted-contrast bubble reads correctly in both
-   themes automatically, the same trick the rest of this file uses instead
-   of hardcoding a second set of colors. */
-.app-sidebar--collapsed [data-tooltip] { position: relative; }
-.app-sidebar--collapsed [data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--color-text);
-  color: var(--color-bg);
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.3rem 0.6rem;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-  z-index: 5;
+.storefront-pills {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
-.app-sidebar--collapsed [data-tooltip]:hover::after,
-.app-sidebar--collapsed [data-tooltip]:focus-visible::after {
-  opacity: 1;
+/* Shared by real links/buttons (My Order, Support Chat, Logout) and
+   decorative <span>s alike - visually one consistent pill regardless of
+   which of those three elements is actually rendering it. */
+.storefront-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.storefront-pill:hover { background: var(--color-surface); }
+.storefront-pill.active {
+  background: var(--color-solid-bg);
+  border-color: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.storefront-pill.active:hover { background: var(--color-solid-bg-hover); }
+
+.storefront-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-5);
+}
+
+@media (max-width: 900px) {
+  .storefront-categories,
+  .storefront-quicklinks,
+  .storefront-search {
+    display: none;
+  }
+}
+@media (max-width: 480px) {
+  .storefront-topbar,
+  .storefront-accountbar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .storefront-content {
+    padding: var(--space-3);
+  }
 }
 
 .back-link {
@@ -786,6 +659,60 @@ h1:focus-visible {
   margin-bottom: var(--space-2);
 }
 .back-link:hover { color: var(--color-primary); }
+
+.orders-layout {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+.order-filter-sidebar {
+  flex-shrink: 0;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.order-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+}
+.order-filter-item:hover:not(.active) { background: var(--color-surface); }
+.order-filter-item.active {
+  background: var(--color-solid-bg);
+  border-color: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.order-filter-count {
+  min-width: 22px;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-surface-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+.order-filter-item.active .order-filter-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--color-primary-text);
+}
+.orders-list-panel { flex: 1; min-width: 0; }
+
+@media (max-width: 700px) {
+  .orders-layout { flex-direction: column; }
+  .order-filter-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .order-filter-item { flex: 1; justify-content: center; }
+}
 
 .order-list {
   list-style: none;
@@ -981,31 +908,7 @@ h1:focus-visible {
   }
   #chat { height: min(420px, 55vh); padding: var(--space-2); }
   .msg { max-width: 90%; }
-  .app-shell--fixed-height main { padding-left: var(--space-2); }
-  /* Not enough width for a 208px sidebar next to actual content on a phone
-     screen - force the icon-only rail width regardless of the collapsed
-     React state, and hide the labels/toggle that state would otherwise
-     restore. This rule's later source position (plus equal specificity to
-     .app-sidebar--collapsed) is what makes "mobile" always win over
-     whatever the desktop collapse toggle last set, not !important. */
-  .app-sidebar { --sidebar-width: 56px; }
-  /* The toggle has nothing to do once width is forced above - safe to
-     fully remove. The nav/profile labels use opacity, not display: none,
-     even though they're visually gone either way: display: none also pulls
-     an element out of the accessibility tree, and these labels are each
-     link's/button's accessible name for screen-reader users, who don't
-     benefit from the space savings that's the whole point of this
-     override in the first place. */
-  .app-sidebar-toggle,
-  .app-sidebar .brand-name {
-    display: none;
-  }
-  .app-sidebar-link-label,
-  .app-sidebar-email {
-    opacity: 0;
-  }
   /* Two columns need real width to read as columns rather than cramped
-     half-lines - not available once the sidebar (still 56px even here)
-     and padding eat into an already-narrow phone viewport. */
+     half-lines - not available on an already-narrow phone viewport. */
   .order-detail { grid-template-columns: 1fr; }
 }

@@ -29,7 +29,7 @@ test.describe('authentication', () => {
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
 
-    await page.click('.logout-button');
+    await page.click('.storefront-pills button');
     await expect(page).toHaveURL(/\/verify$/);
 
     await page.goto('/orders');
