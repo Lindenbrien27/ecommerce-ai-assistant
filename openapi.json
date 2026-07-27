@@ -35,7 +35,13 @@
           "carrier": { "type": ["string", "null"], "example": "UPS" },
           "tracking_number": { "type": ["string", "null"], "example": "1Z999AA10123456784" },
           "estimated_delivery": { "type": ["string", "null"], "example": "2026-07-28" },
-          "created_at": { "type": "string", "format": "date-time" }
+          "created_at": { "type": "string", "format": "date-time" },
+          "unit_price_cents": { "type": ["integer", "null"], "example": 14999, "description": "Product price in cents, before delivery/VAT/voucher." },
+          "delivery_cost_cents": { "type": ["integer", "null"], "example": 599 },
+          "vat_cents": { "type": ["integer", "null"], "example": 1200 },
+          "voucher_cents": { "type": "integer", "example": 0, "description": "Discount amount in cents, stored positive and subtracted at display time. 0 when no voucher was applied." },
+          "voucher_code": { "type": ["string", "null"], "example": "WELCOME10" },
+          "product_icon": { "type": ["string", "null"], "example": "headphones", "description": "Identifies which product illustration to render - not derived from product_name." }
         }
       },
       "Error": {

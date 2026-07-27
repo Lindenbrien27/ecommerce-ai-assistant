@@ -12,7 +12,7 @@ test.describe('authentication', () => {
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
 
     await expect(page).toHaveURL(/\/orders$/);
-    await expect(page.locator('.order-list-item')).toHaveCount(2);
+    await expect(page.locator('.order-card')).toHaveCount(2);
   });
 
   test('verifying with the wrong email for a real order shows an error and stays on /verify', async ({
@@ -22,14 +22,14 @@ test.describe('authentication', () => {
 
     await expect(page).toHaveURL(/\/verify$/);
     await expect(page.locator('.verify-error')).toBeVisible();
-    await expect(page.locator('.order-list-item')).toHaveCount(0);
+    await expect(page.locator('.order-card')).toHaveCount(0);
   });
 
   test('logging out clears the session and blocks protected routes again', async ({ page }) => {
     await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
 
-    await page.click('.logout-button');
+    await page.click('.storefront-logout');
     await expect(page).toHaveURL(/\/verify$/);
 
     await page.goto('/orders');

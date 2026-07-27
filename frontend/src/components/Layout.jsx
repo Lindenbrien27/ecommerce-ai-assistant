@@ -1,71 +1,178 @@
-import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
+import { useTheme } from '../hooks/useTheme.js';
 import { Brand } from './Brand.jsx';
+import { AiAssistantPanel } from './AiAssistantPanel.jsx';
+import {
+  BellIcon,
+  CartIcon,
+  ChatIcon,
+  ChevronDownIcon,
+  HeartIcon,
+  MoonIcon,
+  OrdersIcon,
+  LogoutIcon,
+  PersonIcon,
+  PlusIcon,
+  QuestionIcon,
+  SearchIcon,
+  SettingsIcon,
+  SunIcon,
+  TicketIcon,
+} from './icons.jsx';
 
-const NAV_LINKS = [
-  { to: '/orders', label: 'Orders' },
-  { to: '/chat', label: 'Chat' },
-];
+// Purely decorative labels, matching this app's own 5 real products (see
+// PRODUCT_ICONS in icons.jsx) rather than the clothing categories ("tshirt,
+// pants") in the reference screenshot this section is modeled on - this
+// store doesn't sell clothes, and labeling a filter with categories that
+// don't match anything in the real catalog would be a worse copy of the
+// reference than adapting it to what's actually here. No per-tag color -
+// this app is monochrome now (see index.css), so each dot's shade comes
+// from its position (:nth-child in index.css) instead of a hardcoded hex.
+const CATEGORY_TAGS = ['Audio', 'Cables', 'Peripherals', 'Furniture', 'Displays'];
 
+// Most of this sidebar/top bar is intentionally inert - plain <span>s, not
+// <button>s, copying a reference design's structure. This app has no
+// coupon/wishlist/FAQ/settings/profile-editing backend for those items to
+// actually do something - a non-interactive element styled to look
+// clickable is more honest than a real control with no real behavior. My
+// Orders, Support Chat, Logout, and the AI Assistant panel are the ones
+// that stay functional. My Orders' and Coupons' counts are real numbers
+// derived from the signed-in customer's own orders, not placeholders -
+// Wishlist has no backing data at all, so it gets no number rather than a
+// fabricated one.
+// OrdersProvider wraps LayoutInner (not the other way around) so this outer
+// component can stay the default export React Router renders for every
+// authenticated route, while still giving LayoutInner - and, via Outlet,
+// OrdersPage below it - access to the one shared order-list fetch.
 export function Layout() {
-  const { logout } = useAuth();
+  return (
+    <OrdersProvider>
+      <LayoutInner />
+    </OrdersProvider>
+  );
+}
+
+function LayoutInner() {
+  const { email, logout } = useAuth();
+  const { orders } = useOrders();
+  const { theme, toggle } = useTheme();
   const location = useLocation();
-  const linkRefs = useRef({});
-  // null until the first measurement lands, so the indicator doesn't
-  // flash at a wrong (0,0) position for one frame before it knows where
-  // the active tab actually is.
-  const [indicator, setIndicator] = useState(null);
+  const initial = email ? email[0].toUpperCase() : '?';
+  const orderCount = orders ? orders.length : null;
+  const voucherCount = orders ? orders.filter((o) => o.voucher_cents > 0).length : null;
 
-  useEffect(() => {
-    function measure() {
-      const active = NAV_LINKS.find((link) => location.pathname.startsWith(link.to));
-      const el = active && linkRefs.current[active.to];
-      if (el) {
-        setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
-      }
-    }
-
-    measure();
-    // Tab label width is fixed text, but the window resizing (or a
-    // zoom/font change) can still shift offsetLeft/offsetWidth - re-measure
-    // rather than let the indicator drift out of alignment.
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [location.pathname]);
+  const showAiPanel = location.pathname !== '/chat';
 
   return (
-    <div className="app-shell app-shell--fixed-height">
-      <nav className="app-nav">
+    <div className="storefront-shell">
+      <header className="storefront-topbar">
         <Brand size="sm" />
-        <div className="app-nav-links">
-          {indicator && (
-            <span
-              className="app-nav-indicator"
-              style={{ transform: `translateX(${indicator.left}px)`, width: `${indicator.width}px` }}
-              aria-hidden="true"
-            />
-          )}
-          {NAV_LINKS.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              ref={(el) => {
-                linkRefs.current[link.to] = el;
-              }}
-              className={({ isActive }) => (isActive ? 'active' : '')}
-            >
-              {link.label}
-            </NavLink>
-          ))}
+        <div className="storefront-search" aria-hidden="true">
+          <SearchIcon />
+          <span>Search for products, orders...</span>
+          <span className="storefront-search-kbd">⌘K</span>
         </div>
-        <button type="button" className="logout-button" onClick={logout}>
-          Log out
-        </button>
-      </nav>
-      <main>
-        <Outlet />
-      </main>
+        {/* Only real control in this cluster - the bell/cart/profile chip
+            next to it are decorative (no notifications/cart/account-menu
+            backend), so aria-hidden lives on each of those individually
+            now instead of on this whole wrapper, which would have taken
+            the toggle down with it. */}
+        <div className="storefront-topbar-icons">
+          <button
+            type="button"
+            className="storefront-icon-btn"
+            onClick={toggle}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+          </button>
+          <span className="storefront-icon-btn storefront-badge-wrap" aria-hidden="true">
+            <BellIcon />
+            <span className="storefront-badge">2</span>
+          </span>
+          <span className="storefront-icon-btn storefront-badge-wrap" aria-hidden="true">
+            <CartIcon />
+            <span className="storefront-badge">1</span>
+          </span>
+          <span className="storefront-profile-chip" aria-hidden="true">
+            <span className="storefront-avatar">{initial}</span>
+            <span className="storefront-profile-text">
+              <span className="storefront-profile-email">{email}</span>
+            </span>
+            <ChevronDownIcon />
+          </span>
+        </div>
+      </header>
+
+      <div className="storefront-body">
+        <aside className="storefront-sidebar">
+          <span className="storefront-shop-now" aria-hidden="true">
+            <PlusIcon /> Shop Now
+          </span>
+
+          <nav className="storefront-sidenav">
+            <div className="storefront-sidenav-section">
+              <p className="storefront-sidenav-heading">Dashboard</p>
+              <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <OrdersIcon /> <span>My Orders</span>
+                {orderCount !== null && <span className="storefront-sidenav-count">{orderCount}</span>}
+              </NavLink>
+              <span aria-hidden="true">
+                <TicketIcon /> <span>Coupons</span>
+                {voucherCount !== null && <span className="storefront-sidenav-count">{voucherCount}</span>}
+              </span>
+              <span aria-hidden="true">
+                <HeartIcon /> <span>Wishlist</span>
+              </span>
+            </div>
+
+            <div className="storefront-sidenav-section">
+              <p className="storefront-sidenav-heading">Category</p>
+              <div className="storefront-tag-list" aria-hidden="true">
+                {CATEGORY_TAGS.map((label) => (
+                  <span key={label} className="storefront-tag">
+                    <span className="storefront-tag-dot" />
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="storefront-sidenav-section storefront-sidenav-section--bottom">
+              <NavLink to="/chat" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <ChatIcon /> <span>Support Chat</span>
+              </NavLink>
+              <span aria-hidden="true">
+                <QuestionIcon /> <span>FAQ's</span>
+              </span>
+              <span aria-hidden="true">
+                <SettingsIcon /> <span>Settings</span>
+              </span>
+              <span aria-hidden="true">
+                <PersonIcon /> <span>Profile</span>
+              </span>
+            </div>
+          </nav>
+
+          {/* Kept working, unlike the rest of this sidebar - with no other
+              way to sign out, a decorative Logout would strand anyone
+              verified with the "wrong" test account. */}
+          <button type="button" className="storefront-logout" onClick={logout}>
+            <LogoutIcon /> Logout
+          </button>
+        </aside>
+
+        <main className="storefront-content">
+          <Outlet />
+        </main>
+
+        {/* Real, working chat, not a copy of the reference's panel with no
+            backend - only rendered off the /chat route itself, so there's
+            never a second chat surface open next to the full ChatPage. */}
+        {showAiPanel && <AiAssistantPanel />}
+      </div>
     </div>
   );
 }

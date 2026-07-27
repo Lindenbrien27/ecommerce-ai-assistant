@@ -26,6 +26,17 @@ const securityHeaders = [
         'style-src': ["'self'"],
         'font-src': ["'self'"],
         'frame-ancestors': ["'none'"],
+        // Product images (frontend/src/components/ProductImage.jsx) are
+        // real photos hotlinked from Wikimedia Commons - this app has no
+        // real photography of its own fictional demo products, and a
+        // decorative icon was traded for actual photos deliberately.
+        // Scoped to that one host specifically, not opened generally;
+        // every image URL used is a real, verified, appropriately
+        // -licensed file (see README > Image credits) rather than a
+        // guessed path. Overrides helmet's default img-src ('self' data:),
+        // which stays implicitly in effect for the rest - it's a full
+        // directive value, not additive, so 'self'/data: are repeated here.
+        'img-src': ["'self'", 'data:', 'https://upload.wikimedia.org'],
         // The one deliberate cross-origin exception in this CSP - the
         // frontend's optional Sentry error/performance monitoring
         // (frontend/src/config/sentry.js) has to actually reach Sentry's

@@ -1,24 +1,32 @@
-:root {
+/* :root, not just :root - the explicit override (see useTheme.js) needs the
+   exact same light values as the default, just at higher specificity than
+   the prefers-color-scheme block below so it wins even when the OS prefers
+   dark. Merging both selectors onto one declaration block keeps the two
+   from silently drifting apart instead of needing to hand-copy every light
+   value into a second rule. */
+:root,
+:root[data-theme="light"] {
   color-scheme: light dark;
 
-  --color-bg: #ffffff;
+  --color-bg: #fbfbfb;
   --color-page-bg: #f2f3f5;
-  --color-text: #1a1a1a;
+  --color-text: #171717;
   --color-text-muted: #666666;
   --color-border: #8f8f8f;
-  --color-primary: #2563eb;
-  --color-primary-text: #ffffff;
-  /* Deliberately NOT redefined in the dark-mode block below - this pairs
-     with the fixed white --color-primary-text on solid-fill surfaces
-     (buttons, the user's own chat bubble), so its contrast against that
-     text doesn't depend on which theme is active. --color-primary itself
-     *is* tuned per theme (lighter in dark mode) because it's used as text/
-     an outline color against a variable page background instead - the two
-     roles need different values in dark mode to both clear 4.5:1, which a
-     single shared variable can't do (verified: the dark-mode --color-primary
-     value paired with white text is only 3.68:1, below AA). */
-  --color-solid-bg: #2563eb;
-  --color-solid-bg-hover: #1d4ed8;
+  /* Monochrome brand - no blue anywhere in this file anymore. #171717/
+     #fbfbfb (near-black/near-white, not literal #000/#fff) are the two
+     "active state" tones: whichever one contrasts against the current
+     theme's own near-opposite is what --color-solid-bg uses, so an active
+     nav pill/button/bubble is always the strongest, darkest-or-lightest
+     thing on the page rather than just another gray. --color-primary-text
+     now DOES need a dark-mode override below (it didn't when this was a
+     fixed white-on-blue pair) - --color-solid-bg itself flips from
+     near-black to near-white per theme, so the text sitting on it has to
+     flip too or it'd end up near-white-on-near-white in dark mode. */
+  --color-primary: #171717;
+  --color-primary-text: #fbfbfb;
+  --color-solid-bg: #171717;
+  --color-solid-bg-hover: #2e2e2e;
   --color-surface: #f1f1f1;
   --color-surface-text: #111111;
   --color-error-surface: #fef2f2;
@@ -28,6 +36,11 @@
   --color-success-text: #166534;
   --color-warning-surface: #fffbeb;
   --color-warning-text: #92400e;
+  /* Shared, theme-agnostic - a drop shadow reads as "darker than its
+     surroundings" in both light and dark mode, unlike the old blue-tinted
+     glow this replaces (see brand-mark/msg-avatar/product-image below), so
+     one value covers both instead of needing a per-theme pair. */
+  --color-shadow: rgba(0, 0, 0, 0.3);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -42,32 +55,33 @@
   --font-size-lg: 1.85rem;
   --font-size-sm: 0.9rem;
 
-  /* Ambient background gradient, tuned per theme below - two soft radial
-     glows anchored off-center so the page reads as designed depth rather
-     than a flat fill, without needing an image asset (keeps img-src 'self'
-     data: in the CSP satisfied trivially, and adds ~0kb to the bundle). */
-  --bg-glow-1: rgba(37, 99, 235, 0.10);
-  --bg-glow-2: rgba(37, 99, 235, 0.05);
+  --color-focus-ring: rgba(23, 23, 23, 0.18);
 }
 
+/* :not([data-theme="light"]), not plain :root - an explicit light override
+   (see useTheme.js/the merged light rule above) needs to suppress this,
+   since an attribute-selector rule outside this media query has the same
+   specificity as a plain :root inside it, and ties go to source order, not
+   to "which one feels more specific." Without this, toggling to light on a
+   system already set to dark would visibly do nothing. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #1c1f26;
-    --color-page-bg: #0a0b0d;
-    --color-text: #e8e8e8;
+  :root:not([data-theme="light"]) {
+    /* Reuses the same near-black active-state tone as this theme's base
+       surface color - in dark mode that's just what a card/sidebar/panel
+       background naturally wants to be anyway, and the active-state accent
+       (--color-solid-bg below) is the *other* tone, #fbfbfb, giving active
+       elements real pop against it instead of blending in. */
+    --color-bg: #171717;
+    --color-page-bg: #0a0a0a;
+    --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
     --color-border: #6b6f76;
-    /* #4a8bf7, not the more obvious #3b82f6 - lightening --color-bg for the
-       visual design pass (below AA differentiation, see git history)
-       dropped this exact pair to 4.48:1 against the new card background,
-       just under the 4.5:1 text minimum. Caught by actually re-running the
-       axe WCAG AA scan against the built pages after the change, not by
-       inspection - a purely additive-looking edit (lighten one background)
-       silently broke a text-contrast pair defined nowhere near it. */
-    --color-primary: #4a8bf7;
-    --color-primary-text: #ffffff;
-    --color-surface: #22252a;
-    --color-surface-text: #e8e8e8;
+    --color-primary: #fbfbfb;
+    --color-primary-text: #171717;
+    --color-solid-bg: #fbfbfb;
+    --color-solid-bg-hover: #e6e6e6;
+    --color-surface: #1f1f1f;
+    --color-surface-text: #fbfbfb;
     --color-error-surface: #3f1d1d;
     --color-error-text: #fca5a5;
     --color-error-border: #7f1d1d;
@@ -75,9 +89,37 @@
     --color-success-text: #86efac;
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
-    --bg-glow-1: rgba(59, 130, 246, 0.16);
-    --bg-glow-2: rgba(99, 102, 241, 0.08);
+    --color-focus-ring: rgba(251, 251, 251, 0.22);
   }
+}
+
+/* Same dark values again, unconditional on OS preference this time - an
+   attribute selector (see useTheme.js), not wrapped in the media query
+   above, so toggling to dark wins regardless of what the system prefers.
+   Duplicated rather than shared with the block above because a plain CSS
+   rule can't extend into a @media-wrapped selector list - this is the
+   standard "respects system preference, but a manual toggle overrides it"
+   pattern for exactly that reason. */
+:root[data-theme="dark"] {
+  --color-bg: #171717;
+  --color-page-bg: #0a0a0a;
+  --color-text: #fbfbfb;
+  --color-text-muted: #9a9a9a;
+  --color-border: #6b6f76;
+  --color-primary: #fbfbfb;
+  --color-primary-text: #171717;
+  --color-solid-bg: #fbfbfb;
+  --color-solid-bg-hover: #e6e6e6;
+  --color-surface: #1f1f1f;
+  --color-surface-text: #fbfbfb;
+  --color-error-surface: #3f1d1d;
+  --color-error-text: #fca5a5;
+  --color-error-border: #7f1d1d;
+  --color-success-surface: #112319;
+  --color-success-text: #86efac;
+  --color-warning-surface: #2a2110;
+  --color-warning-text: #fcd34d;
+  --color-focus-ring: rgba(251, 251, 251, 0.22);
 }
 
 * { box-sizing: border-box; }
@@ -101,15 +143,15 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: var(--font-size-base);
   color: var(--color-text);
-  /* Two soft radial glows over the flat page color, not an image - depth
-     without a network request or a CSP img-src exception. Fixed attachment
-     so the glow reads as ambient lighting on the whole viewport rather than
-     scrolling with (and looking pasted onto) the content. */
-  background:
-    radial-gradient(ellipse 900px 600px at 15% -10%, var(--bg-glow-1), transparent 60%),
-    radial-gradient(ellipse 700px 500px at 100% 100%, var(--bg-glow-2), transparent 55%),
-    var(--color-page-bg);
-  background-attachment: fixed;
+  /* Flat --color-page-bg, not the soft radial glow this used to have - a
+     monochrome black/white page (see the :root palette above) wants a flat
+     background like the reference it's modeled on, not an ambient tinted
+     glow; the old glow's brightest point also sat right at the top of the
+     viewport, which visibly washed out .storefront-topbar once the glow's
+     tint became near-white in dark mode instead of the dim blue it used to
+     be - found live, not by reasoning about the gradient math in the
+     abstract. */
+  background: var(--color-page-bg);
   min-height: 100vh;
   margin: 0;
 }
@@ -136,17 +178,17 @@ body {
    different lengths get vertically centered. */
 .app-shell {
   width: 100%;
-  max-width: 720px;
+  max-width: 800px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   /* A plain drop shadow all but disappears against an already-dark page -
-     stacking a wider, softer "elevation" shadow with a faint primary-color
-     glow reads as depth in both themes instead of just in light mode. */
+     stacking a wider, softer "elevation" shadow with a faint near-black
+     ring reads as depth in both themes instead of just in light mode. */
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.08),
     0 12px 32px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(37, 99, 235, 0.04);
+    0 0 0 1px rgba(23, 23, 23, 0.05);
   padding: var(--space-4) var(--space-5);
 }
 
@@ -155,7 +197,7 @@ body {
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.3),
       0 20px 48px rgba(0, 0, 0, 0.45),
-      0 0 0 1px rgba(59, 130, 246, 0.06);
+      0 0 0 1px rgba(251, 251, 251, 0.06);
   }
 }
 
@@ -176,52 +218,6 @@ body {
   padding: 2.25rem;
 }
 
-/* Orders/Chat/Detail (Layout) share one card, and their content heights are
-   wildly different - measured live: ~298px for Orders, ~731px for Chat, at
-   a 900px-tall viewport. Without this, switching tabs made the whole card
-   visibly grow/shrink by 400+px on every click, which also made the nav
-   indicator's glide (directly above this) feel broken, since the ground
-   it's gliding across was jumping at the same time. A fixed, viewport
-   -relative height (matching the min(px, vh) pattern #chat already uses)
-   stops that: nav keeps its own height, main absorbs the rest of the
-   available space and scrolls internally if content ever exceeds it,
-   rather than the card resizing around whatever page happens to be active. */
-.app-shell--fixed-height {
-  display: flex;
-  flex-direction: column;
-  height: min(720px, 82vh);
-  overflow: hidden;
-}
-.app-shell--fixed-height .app-nav {
-  flex-shrink: 0;
-}
-.app-shell--fixed-height main {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  /* Fallback for a page whose content genuinely exceeds the available
-     space (a very long orders list) - not the mechanism for Chat, which
-     is handled below by #chat flexing/scrolling internally instead, so
-     the heading and the input row are never what gets scrolled out of
-     view. overflow-y: auto on a block container only shows the *top* of
-     its content by default; a chat input living at the bottom of that
-     content would be hidden until someone manually scrolled down to it,
-     found by measuring main's scrollHeight vs clientHeight live rather
-     than assuming this would just work once main had a bounded height. */
-  overflow-y: auto;
-}
-/* Only #chat (the message list) should shrink/scroll within the fixed
-   -height card - the heading, subtitle, and input row stay their natural
-   size and stay pinned, never scrolled away, the way any real chat UI's
-   input bar does. Overrides #chat's own min(480px, 60vh) height, which
-   is sized for contexts without a flex parent to fill instead. */
-.app-shell--fixed-height main #chat {
-  flex: 1;
-  min-height: 0;
-  height: auto;
-}
-
 h1 {
   font-size: var(--font-size-lg);
   font-weight: 700;
@@ -230,8 +226,12 @@ h1 {
   margin-bottom: 0.35rem;
 }
 p.subtitle {
+  /* var(--color-text-muted), not opacity - that token is a per-theme value
+     already checked against its background by the axe contrast scan (see
+     README > Accessibility), and opacity on the base text color would
+     silently produce a different, unchecked effective color instead. */
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: 1.125rem;
   margin-top: 0;
   margin-bottom: var(--space-4);
 }
@@ -247,44 +247,169 @@ p.subtitle {
   gap: var(--space-2);
 }
 
+/* animation, not transition - a mount-in slide (see msg-appear below) for
+   every new bubble, pending or final, so the moment a reply actually
+   replaces the pending indicator doesn't just hard-cut into existence.
+   transform only, deliberately no opacity: axe's color-contrast check ran
+   against the live page mid-animation (not just the settled end state) and
+   flagged a real, if transient, contrast dip on both .user and
+   .assistant.error while they were still fading in - found by the exact
+   flagged ratios (2.18, 2.31) matching a partially-transparent bubble
+   against the page background, not by reasoning about it in the abstract. */
 .msg {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 16px;
+  max-width: 65%;
   white-space: pre-wrap;
   word-wrap: break-word;
+  animation: msg-appear 0.25s ease;
 }
 .msg.user { align-self: flex-end; background: var(--color-solid-bg); color: var(--color-primary-text); }
 .msg.assistant { align-self: flex-start; background: var(--color-surface); color: var(--color-surface-text); }
+/* Red is already this app's one dedicated "something is wrong" signal
+   (error-surface/-text/-border, used nowhere else) - a red accent on every
+   ordinary assistant reply would fight that instead of reinforcing it. The
+   background-color difference between .user/.assistant/.assistant.error
+   below already gives each of the three states its own distinct, at-a
+   -glance appearance without overloading red's meaning. */
 .msg.assistant.error {
   background: var(--color-error-surface);
   color: var(--color-error-text);
   border: 1px solid var(--color-error-border);
 }
 
-.msg.pending { display: flex; align-items: center; gap: 4px; }
-.typing-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.4;
-  animation: typing-bounce 1.2s infinite ease-in-out;
+/* Wraps the avatar + bubble for assistant replies only (see
+   MessageBubble.jsx) - .msg.user has no wrapper and keeps aligning itself
+   directly via align-self on #chat's own flex column, same as before. The
+   row, not the bubble, now owns both the max-width cap and the
+   left-alignment - .msg.assistant's own align-self above is inert once
+   nested here (harmless, not worth a separate no-wrapper variant just to
+   omit it) since alignment happens one level up instead. */
+.msg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  align-self: flex-start;
+  max-width: 65%;
 }
-.typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+.msg-row .msg { max-width: 100%; }
+.msg-avatar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 0.15rem;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+  box-shadow: 0 2px 6px var(--color-shadow);
+}
 
-@keyframes typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-4px); opacity: 1; }
+@keyframes msg-appear {
+  from { transform: translateY(4px); }
+  to { transform: translateY(0); }
 }
+
+.msg.pending { display: flex; align-items: center; }
+/* ldrs/react's Bouncy renders its own internal markup with hashed class
+   names (not stable across package versions) - this wrapper is the one
+   selector under our own control, both for sizing/alignment here and for
+   the reduced-motion override below, so neither depends on ldrs's
+   internals. */
+.typing-indicator { display: inline-flex; }
 
 @media (prefers-reduced-motion: reduce) {
-  .typing-dot { animation: none; opacity: 0.7; }
-  .app-nav-indicator { transition: none; }
+  .msg { animation: none; }
+  /* animation-play-state via a descendant selector, not a specific class -
+     Bouncy's own internal markup uses hashed class names that aren't
+     stable across ldrs versions, so this targets whatever's actually
+     animating without depending on them. Freezes mid-motion rather than
+     resetting to a start frame, which is what animation-play-state does
+     by design - a static (if slightly odd-looking) cube beats a
+     continuously bouncing one for someone who's explicitly asked for
+     reduced motion. The aria-label already conveys "assistant is typing"
+     independent of whatever's visually happening here.
+     !important because ldrs/react's Bouncy.css is bundled into ChatPage's
+     own lazy-loaded chunk (see App.jsx's route-level code splitting) and
+     gets injected into <head> only once /chat is actually visited - later
+     than this always-loaded index.css, so its equal-specificity single
+     -class selectors would otherwise win the cascade on source order
+     alone. Verified live: without !important, computed animation-play
+     -state on the cube elements read "running" despite this rule
+     matching. The only !important in this file, for that reason. */
+  .typing-indicator, .typing-indicator * { animation-play-state: paused !important; }
+}
+
+.chat-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 0.35rem;
+}
+.chat-header h1 { margin-bottom: 0; }
+.chat-clear-button {
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+.chat-clear-button:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
+
+/* Pinned to the top-left, not centered in the middle of #chat - every other
+   element on this page (heading, subtitle, the message bubbles once a
+   conversation starts) reads from the left edge, and centering just this
+   one piece of content made it look unanchored from everything around it,
+   with a large dead gap between the buttons and the input row below
+   wherever #chat had more height than the content needed. */
+.chat-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+.chat-empty-state-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  max-width: 320px;
+}
+.chat-suggestion {
+  background: var(--color-surface);
+  color: var(--color-surface-text);
+  border: 1px solid var(--color-border);
+  padding: 0.6rem var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.chat-suggestion:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-bg); }
+
+.field-hint {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
 }
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
+/* Scoped to just Send, not the global button rule - the sidebar toggle,
+   logout, and suggestion-chip buttons already have their own tuned weight/
+   spacing, and this shouldn't quietly change those too. */
+#chat-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
 
 #verify-form {
   flex-direction: column;
@@ -305,7 +430,7 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
 #verify-form input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .verify-error {
@@ -388,7 +513,7 @@ h1:focus-visible {
   border-radius: 8px;
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 .brand-name { font-weight: 700; letter-spacing: -0.01em; }
 .brand-sm { margin-right: var(--space-2); }
@@ -398,58 +523,486 @@ h1:focus-visible {
 .brand-lg .brand-name { font-size: 1.15rem; }
 .brand-standalone { display: flex; justify-content: center; }
 
-.app-nav {
+/* Full-width storefront shell (replaces the old collapsible left sidebar +
+   centered-card model for every authenticated page) - copies a reference
+   e-commerce account page's structure: a top identity/category bar, a
+   second "account" bar (greeting + pill nav), then the routed page content
+   below. VerifyPage is unaffected - it's a different top-level child of
+   #root (.app-shell--centered), not this. */
+/* --color-page-bg, not --color-bg - the sidebar and AI panel below are the
+   things that read as distinct "boxes" (their own --color-bg surface,
+   border, radius, sitting on this ambient background with real gaps around
+   them), matching the reference's floating-panel layout instead of this
+   app's previous edge-to-edge columns separated by a single 1px border.
+   The topbar and routed content sit directly on this same ambient
+   background - their own children (order cards, etc.) are the boxes there. */
+.storefront-shell {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-page-bg);
+}
+
+/* #root's own padding/centering (see its rule near the top of this file) is
+   tuned for the narrow centered .app-shell card VerifyPage still uses - a
+   storefront shell wants true edge-to-edge width instead. :has() scopes
+   this to exactly that case rather than changing #root's shared rule,
+   which would also strip Verify's intentional padding. */
+#root:has(> .storefront-shell) {
+  padding: 0;
+  align-items: stretch;
+}
+
+.storefront-topbar {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
 }
-.app-nav-links {
+/* Shared by both the decorative <span> icon buttons elsewhere in the
+   topbar and the real <button> theme toggle below it - the border/
+   background/padding resets are no-ops on a <span> (which never had them)
+   but necessary on a <button>, so one class works for both instead of
+   needing a near-duplicate. */
+.storefront-icon-btn {
   position: relative;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.storefront-icon-btn:hover { background: var(--color-surface); }
+.storefront-topbar-icons { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.storefront-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* A styled span, not a real <input> - a text field that visibly invites
+   typing but silently does nothing on keystroke is a worse trap than a
+   button that does nothing on click; this can't be mistaken for something
+   that accepts input. */
+.storefront-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.storefront-search svg { flex-shrink: 0; }
+.storefront-search span:first-of-type { flex: 1; }
+.storefront-search-kbd {
+  flex-shrink: 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+}
+
+.storefront-profile-chip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.storefront-profile-chip:hover { background: var(--color-surface); }
+.storefront-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.storefront-profile-email {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.storefront-body {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.storefront-sidebar {
+  flex-shrink: 0;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  /* min-height, not height - the sidebar should be at least as tall as the
+     viewport-minus-topbar-minus-.storefront-body's-own-padding, so it reads
+     as a full-height panel even when the routed page content is short, but
+     a taller page (e.g. a long order list) should push it taller too, not
+     clip/scroll independently. */
+  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
+}
+.storefront-shop-now {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 0.65rem var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
+
+/* flex: 1, not just a plain column - lets .storefront-sidenav-section--bottom
+   below push itself (and the sidebar's own Logout button right after it)
+   down toward the bottom of .storefront-sidebar's own min-height, the same
+   spacing trick the old .storefront-help-card used before this redesign
+   replaced it. Without growing to fill the sidebar's available height
+   first, margin-top: auto on a child has no free space to consume. */
+.storefront-sidenav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
 }
-.app-nav a {
+.storefront-sidenav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.storefront-sidenav-section--bottom { margin-top: auto; }
+.storefront-sidenav-heading {
+  margin: 0 0 0.15rem;
+  padding: 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.storefront-sidenav a,
+.storefront-sidenav span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.25rem 0;
-  /* No per-link border anymore - .app-nav-indicator (one shared element)
-     owns the underline now, so it can glide between tabs on route change
-     instead of each link's own border just snapping between transparent
-     and colored. */
+  font-weight: 500;
+  cursor: pointer;
 }
-.app-nav a:hover { color: var(--color-text); }
-.app-nav a.active { color: var(--color-primary); }
+.storefront-sidenav a svg,
+.storefront-sidenav span svg { flex-shrink: 0; }
+/* The label text sits in its own nested <span> (see Layout.jsx - needed so
+   the mobile breakpoint can hide just the label, not the icon), which the
+   base ".storefront-sidenav span" rule above also matches directly, even
+   when that span is nested inside a real, active <a>. An inherited color
+   always loses to any rule that matches the element itself regardless of
+   specificity, so the parent <a>'s own active/:hover color was never
+   actually reaching the visible text - it stayed pinned to the base muted
+   color. Found by axe: 1.11:1 contrast, white-intended text still
+   computing as --color-text-muted against the solid blue active
+   background. Both states now target the label span explicitly too. */
+.storefront-sidenav a:hover,
+.storefront-sidenav span:hover,
+.storefront-sidenav a:hover span,
+.storefront-sidenav span:hover span { color: var(--color-text); background: var(--color-surface); }
+.storefront-sidenav a.active,
+.storefront-sidenav a.active span {
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
 
-/* Positioned/sized via inline style (Layout.jsx measures the active
-   NavLink's real offsetLeft/offsetWidth - text-width tabs can't be
-   pre-computed in pure CSS) - transitioning transform+width here is what
-   actually produces the glide between Orders and Chat. translateX over
-   left/right for compositor-only movement, not a layout-triggering
-   property. */
-.app-nav-indicator {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--color-primary);
-  border-radius: 1px;
-  transition: transform 0.25s ease, width 0.25s ease;
-  pointer-events: none;
-}
-.app-nav .logout-button {
+/* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
+   treatment either way, so the UI doesn't visually distinguish "count I
+   bothered to compute" from "count that happens to be small" - nothing
+   here implies Coupons/Wishlist are bigger features than they are. */
+.storefront-sidenav-count {
   margin-left: auto;
+  min-width: 20px;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+.storefront-sidenav a.active .storefront-sidenav-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--color-primary-text);
+}
+
+.storefront-tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.storefront-tag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+/* Monochrome - var(--color-text) at 5 opacity steps instead of 5 hardcoded
+   hues, so each tag is still visually distinct without reintroducing color.
+   :nth-child on the row (Layout.jsx renders no per-tag color anymore), not
+   a class per tag - one shared rule instead of 5 near-identical ones. */
+.storefront-tag-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text);
+}
+.storefront-tag:nth-child(1) .storefront-tag-dot { opacity: 1; }
+.storefront-tag:nth-child(2) .storefront-tag-dot { opacity: 0.8; }
+.storefront-tag:nth-child(3) .storefront-tag-dot { opacity: 0.6; }
+.storefront-tag:nth-child(4) .storefront-tag-dot { opacity: 0.45; }
+.storefront-tag:nth-child(5) .storefront-tag-dot { opacity: 0.3; }
+
+.storefront-logout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   background: transparent;
   color: var(--color-text-muted);
-  padding: 0.25rem var(--space-1);
-  font-size: 0.85rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
-.app-nav .logout-button:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
+.storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
+
+/* No left/right padding of its own - .storefront-body's own padding + gap
+   (above) already separate this column from the sidebar/AI panel boxes on
+   either side of it; this content area itself isn't a box (it sits
+   directly on the shared ambient page background, same as the topbar), so
+   its own children - the order cards, the header, the support banner - are
+   what read as boxes here, same as the reference's plain content column. */
+.storefront-content {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: var(--space-5);
+}
+
+/* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third boxed
+   column matching .storefront-sidebar's own card treatment (background,
+   border, radius), separated from it and from .storefront-content by
+   .storefront-body's gap instead of a shared 1px border between
+   edge-to-edge columns. */
+.ai-panel {
+  flex-shrink: 0;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+/* A real <button>, not a styled <div> - clicking it is the only way to
+   minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
+   interactive semantics, not just the look of one. Reset to plain block
+   layout instead of default button styling (border, centered text, etc.). */
+.ai-panel-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-2);
+  margin-bottom: var(--space-2);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-panel-header:hover .ai-panel-avatar { box-shadow: 0 4px 12px var(--color-shadow); }
+.ai-panel-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+}
+.ai-panel-header-text { display: block; min-width: 0; }
+.ai-panel-title { display: block; font-weight: 700; font-size: 0.95rem; }
+.ai-panel-subtitle { display: block; margin-top: 0.1rem; color: var(--color-text-muted); font-size: 0.78rem; }
+
+/* Collapsed to an icon rail - the header stays the toggle (now centered,
+   border/margin dropped since there's no content below it to separate
+   from), everything else (log, form) simply isn't rendered while
+   minimized rather than hidden via CSS. */
+.ai-panel--minimized {
+  width: auto;
+  padding: var(--space-2);
+}
+.ai-panel--minimized .ai-panel-header {
+  padding: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+.ai-panel--minimized .ai-panel-header-text { display: none; }
+
+/* Bounded height + its own scrollbar, not flex: 1 inside an unbounded
+   column - the panel's own min-height is a floor (see above), not a
+   ceiling, so an intrinsically-sized flex child would just keep growing
+   the whole column (and page) taller as a conversation gets longer instead
+   of staying docked. Mirrors #chat's own min(…, …vh) approach on ChatPage. */
+.ai-panel-log {
+  max-height: min(560px, 65vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.ai-panel-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ai-panel-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-left: 30px;
+}
+.ai-panel-form {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+.ai-panel-form input { flex: 1; min-width: 0; }
+.ai-panel-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
+
+@media (max-width: 1200px) {
+  .ai-panel { display: none; }
+}
+@media (max-width: 900px) {
+  .storefront-search { display: none; }
+}
+@media (max-width: 700px) {
+  .storefront-body { flex-direction: column; }
+  .storefront-sidebar {
+    width: 100%;
+    min-height: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  /* The section wrapper divs (Dashboard/Category/bottom) exist to group
+     items under a heading in the vertical desktop layout - display: contents
+     dissolves them here so their children (the actual nav items) become
+     direct flex items of .storefront-sidenav below and wrap into one
+     compact icon row, instead of three separate row-wrapped blocks. The
+     headings and the Category tag list are dropped entirely rather than
+     wrapped in too - decorative extras a cramped icon row has no room for. */
+  .storefront-sidenav-section { display: contents; }
+  .storefront-sidenav-heading,
+  .storefront-tag-list { display: none; }
+  .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
+  /* Same .sr-only technique as the rule of that name near the top of this
+     file, not display: none - a real <a> (My Orders, Support Chat) with
+     display: none on its only text content has no accessible name at all,
+     which axe's link-name rule correctly flags as a serious violation
+     (this app already learned this exact lesson once, for the old
+     collapsible sidebar's icon-only rail - regressed it here by not
+     reusing that pattern). Visually hidden, zero layout footprint (unlike
+     opacity: 0, which would leave a space-consuming gap in an already
+     -cramped icon row), but still in the accessibility tree. */
+  .storefront-sidenav a span,
+  .storefront-sidenav span span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+@media (max-width: 480px) {
+  .storefront-topbar { padding: var(--space-2) var(--space-3); }
+  .storefront-body { padding: var(--space-2); gap: var(--space-2); }
+  /* Real horizontal overflow, not just cosmetic - measured
+     document.documentElement.scrollWidth at 521px in a 390px viewport
+     before this. .storefront-topbar has no flex-wrap (by design - a
+     wrapped-to-two-lines top bar looks worse than a one-line bar that
+     drops its least-essential text), so brand + bell/cart/the full email
+     in the profile chip together just don't fit at phone widths. Hiding
+     the email (the avatar + chevron alone still identify "this is your
+     account menu") is what actually gets it back under the viewport
+     width, verified live after this change. */
+  .storefront-profile-email { display: none; }
+  .storefront-profile-chip { padding: 0.3rem; }
+}
 
 .back-link {
   display: inline-block;
@@ -459,6 +1012,212 @@ h1:focus-visible {
   margin-bottom: var(--space-2);
 }
 .back-link:hover { color: var(--color-primary); }
+
+.orders-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.orders-header-art { display: none; flex-shrink: 0; width: 96px; height: 96px; }
+@media (min-width: 700px) {
+  .orders-header-art { display: block; }
+}
+
+.order-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-4);
+}
+.order-filter-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.order-filter-tab:hover:not(.active) { background: var(--color-surface); }
+.order-filter-tab.active {
+  background: var(--color-solid-bg);
+  border-color: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.order-filter-count {
+  min-width: 22px;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-surface-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+.order-filter-tab.active .order-filter-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--color-primary-text);
+}
+
+.order-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+/* background: var(--color-bg), not left transparent - .storefront-content
+   (its parent) sits directly on the shell's ambient --color-page-bg now
+   (see storefront-shell above), so each card needs its own explicit
+   surface color to actually read as a raised box against that background
+   instead of just an outline with the page showing through it. */
+.order-card {
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.order-card-top { display: flex; align-items: flex-start; gap: var(--space-3); }
+.order-card-info { flex: 1; min-width: 0; }
+.order-card-id { margin: 0; font-weight: 700; }
+.order-card-date { margin: 0.15rem 0; color: var(--color-text-muted); font-size: 0.8rem; }
+.order-card-product { margin: 0.3rem 0 0.4rem; }
+.order-card-qty {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-surface-text);
+  font-size: 0.78rem;
+}
+.order-card-actions { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.order-card-details-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.order-card-details-link:hover { background: var(--color-surface); }
+
+.order-card-headline { margin: var(--space-3) 0 0.15rem; font-weight: 700; }
+.order-card-subtext { margin: 0 0 var(--space-2); color: var(--color-text-muted); font-size: 0.9rem; }
+
+/* Horizontal icon stepper - a different visual language from
+   OrderDetailPage's vertical dot timeline (.status-timeline), but the same
+   underlying rule about not implying progress that hasn't happened: a
+   step's connecting line is only colored once that step is both completed
+   AND not the current one, same as .status-timeline-step's own fix. */
+.order-progress {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+}
+.order-progress-step {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.order-progress-icon {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+.order-progress-label { font-size: 0.75rem; font-weight: 500; }
+.order-progress-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--color-border);
+}
+.order-progress-step.completed .order-progress-icon {
+  border-color: var(--color-solid-bg);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-solid-bg); }
+.order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
+
+.order-progress-cancelled {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.orders-support-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.orders-support-banner-title { margin: 0; font-weight: 700; }
+.orders-support-banner-text { margin: 0.15rem 0 0; color: var(--color-text-muted); font-size: 0.9rem; }
+.orders-support-banner-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.orders-support-banner-help {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.orders-support-banner-chat {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.orders-support-banner-chat:hover { background: var(--color-solid-bg-hover); }
+
+@media (max-width: 600px) {
+  .order-card-top { flex-wrap: wrap; }
+  .order-card-actions { flex-direction: row; margin-left: auto; }
+  .order-progress-label { display: none; }
+}
 
 .order-list {
   list-style: none;
@@ -498,14 +1257,152 @@ h1:focus-visible {
 .order-status.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
 .order-status.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
 
+/* A real 2-column grid, not one narrow stacked column - the card is 800px
+   wide specifically so there's room for this; a single column left the
+   entire right half of the card empty regardless of how many real fields
+   there were to show. Each field is its own grid item (a <div> wrapping
+   one dt/dd pair - valid inside a <dl> since HTML5.1, still parsed
+   correctly by assistive tech) so dt/dd can be label-above-value *within*
+   a cell without that pairing needing to be flat siblings across the
+   whole list. */
 .order-detail {
   margin: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-3);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4) var(--space-5);
 }
-.order-detail dt { color: var(--color-text-muted); font-size: 0.9rem; }
-.order-detail dd { margin: 0; font-weight: 500; }
+.order-detail-field { display: flex; flex-direction: column; }
+.order-detail-field dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.order-detail-field dd { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 500; }
+.order-detail-field dd a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.order-detail-field dd a:hover { text-decoration-thickness: 2px; }
+
+.order-id-heading { font-size: 2.625rem; letter-spacing: -0.03em; }
+
+/* Real photo when ProductImage.jsx has one mapped (overflow: hidden clips
+   it to this tile's own rounded corners, object-fit: cover fills the tile
+   without distorting the source photo's own aspect ratio) - the gradient
+   background (same recipe as .brand-mark/.msg-avatar, reusing
+   --color-solid-bg/-hover for theme-awareness) stays as what actually
+   shows during image load and behind the icon fallback for a product with
+   no photo mapped. */
+.product-image {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+.product-image img { width: 100%; height: 100%; object-fit: cover; }
+.product-image-sm { width: 40px; height: 40px; }
+.product-image-sm svg { width: 20px; height: 20px; }
+.product-image-lg { width: 88px; height: 88px; border-radius: 16px; }
+.product-image-lg svg { width: 44px; height: 44px; }
+
+.order-product-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 var(--space-4);
+}
+.order-product-name { margin: 0; font-size: 1.15rem; font-weight: 600; }
+
+.order-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 320px;
+}
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.order-summary-voucher { color: var(--color-success-text); }
+.order-summary-total {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.section-heading {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.status-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.status-timeline-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.4rem 0 0.4rem var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+.status-timeline-marker {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+/* The connecting line is a pseudo-element on each non-last step, not a
+   separate element - anchored to the marker's own horizontal center
+   (var(--space-1) inset + half the marker's 10px width) so it stays
+   aligned with the dots regardless of label text length/wrapping. */
+.status-timeline-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-1) + 4px);
+  top: calc(50% + 9px);
+  bottom: -0.4rem;
+  width: 2px;
+  background: var(--color-border);
+}
+.status-timeline-step.completed { color: var(--color-text); }
+.status-timeline-step.completed .status-timeline-marker { background: var(--color-primary); }
+/* :not(.current), not just .completed - a step's trailing line represents
+   progress *into the next step*, which for the current step hasn't
+   happened yet regardless of the current step's own dot being filled in.
+   Coloring it blue implied delivery was already in progress toward
+   "Delivered" the moment an order went "out for delivery," before that
+   was actually true - caught by literally looking at the rendered line,
+   not from the class logic alone reading correctly at a glance. */
+.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-primary); }
+.status-timeline-step.current .status-timeline-label { font-weight: 700; }
+
+.status-timeline-cancelled {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
 
 @media (max-width: 480px) {
   /* The card chrome (border/shadow/radius/side margins) is a nice-to-have
@@ -521,25 +1418,7 @@ h1:focus-visible {
   }
   #chat { height: min(420px, 55vh); padding: var(--space-2); }
   .msg { max-width: 90%; }
-  /* No card boundary left to break out of on mobile (chrome already
-     stripped above), so the fixed-height-plus-internal-scroll container
-     works against the grain of a normal mobile page - let content flow
-     and the whole page scroll naturally instead. */
-  .app-shell--fixed-height {
-    height: auto;
-    overflow: visible;
-  }
-  .app-shell--fixed-height main {
-    display: block;
-    overflow-y: visible;
-  }
-  /* Without this, #chat's desktop-only flex:1 (a from-zero flex-basis)
-     has nothing bounded to grow into once main goes back to intrinsic
-     block sizing above, and collapses to nearly nothing instead - caught
-     live in a screenshot, not from reading the cascade alone. Restores
-     the original fixed mobile height these rules were overriding. */
-  .app-shell--fixed-height main #chat {
-    flex: none;
-    height: min(420px, 55vh);
-  }
+  /* Two columns need real width to read as columns rather than cramped
+     half-lines - not available on an already-narrow phone viewport. */
+  .order-detail { grid-template-columns: 1fr; }
 }
