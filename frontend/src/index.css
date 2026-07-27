@@ -35,6 +35,11 @@
   --color-solid-bg-hover: #2e2e2e;
   --color-surface: #eaeaea;
   --color-surface-text: #111111;
+  /* Solid white, not var(--color-bg) (#fbfbfb) - a dedicated token since
+     the two happen to be extremely close but aren't the same value, and a
+     nav badge sitting on a card ever gets a non-white background in the
+     future, this shouldn't silently follow it. */
+  --color-nav-badge-bg: #ffffff;
   --color-error-surface: #fef2f2;
   --color-error-text: #991b1b;
   --color-error-border: #fecaca;
@@ -88,6 +93,7 @@
     --color-solid-bg-hover: #e6e6e6;
     --color-surface: #1f1f1f;
     --color-surface-text: #fbfbfb;
+    --color-nav-badge-bg: #1a1a1a;
     --color-error-surface: #3f1d1d;
     --color-error-text: #fca5a5;
     --color-error-border: #7f1d1d;
@@ -118,6 +124,7 @@
   --color-solid-bg-hover: #e6e6e6;
   --color-surface: #1f1f1f;
   --color-surface-text: #fbfbfb;
+  --color-nav-badge-bg: #1a1a1a;
   --color-error-surface: #3f1d1d;
   --color-error-text: #fca5a5;
   --color-error-border: #7f1d1d;
@@ -747,34 +754,69 @@ h1:focus-visible {
 .storefront-sidenav span:hover,
 .storefront-sidenav a:hover span,
 .storefront-sidenav span:hover span { color: var(--color-text); background: var(--color-surface); }
+/* Same var(--color-surface) as :hover above, not var(--color-solid-bg) -
+   active and hover now share one subtle background instead of active
+   being a bold inverted pill. color: var(--color-text), not var(--color-
+   primary-text) - that token assumes it's sitting on --color-solid-bg
+   (which flips to near-white in dark mode), so on this now much lighter/
+   subtler surface it would mean near-white-on-near-white in dark mode -
+   the same invisible-text mistake this file has already caught and fixed
+   twice elsewhere, worth calling out again since it'd be easy to
+   reintroduce by only changing the background and reusing the old text
+   color out of habit. */
 .storefront-sidenav a.active,
 .storefront-sidenav a.active span {
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 /* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
    treatment either way, so the UI doesn't visually distinguish "count I
    bothered to compute" from "count that happens to be small" - nothing
-   here implies Coupons/Wishlist are bigger features than they are. */
-.storefront-sidenav-count {
+   here implies Coupons/Wishlist are bigger features than they are.
+   --color-nav-badge-bg, not --color-surface - a dedicated token (solid
+   white in light mode, #1a1a1a in dark) rather than reusing the same
+   gray the row itself now sits on for :hover/.active, so the badge still
+   reads as a distinct chip instead of blending into its own background.
+   No more active-specific override needed here - now that .active uses
+   the same subtle var(--color-surface) fill as :hover instead of an
+   inverted solid pill, the default badge styling already has enough
+   contrast against it without a special case.
+   Scoped as ".storefront-sidenav .storefront-sidenav-count", not just
+   ".storefront-sidenav-count" - this badge is itself a <span> inside
+   .storefront-sidenav, so the shared ".storefront-sidenav span" rule
+   (class+type selector) is otherwise MORE specific than a single class
+   alone and was silently winning, leaving the badge stuck at the base
+   0.9rem font size and --color-surface background instead of its own -
+   found live via computed styles (font-size resolving to 14.4px/0.9rem
+   despite this rule saying 0.62rem), the same class of bug as the
+   sidenav-label and category-tag contrast fixes elsewhere in this file. */
+.storefront-sidenav .storefront-sidenav-count {
   margin-left: auto;
-  min-width: 20px;
-  padding: 0.1rem 0.4rem;
+  min-width: 18px;
+  padding: 0.05rem 0.35rem;
   border-radius: 999px;
-  background: var(--color-surface);
+  background: var(--color-nav-badge-bg);
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-align: center;
 }
+/* .active/:hover on the row (above) both include a "…span" selector to
+   reach the nested label text (see that rule's own comment), which also
+   matches this badge - a second <span> nested in the same row - and wins
+   on specificity (extra "a"/":hover" pseudo-class beats this rule's own
+   two-class scope), silently pulling the badge's background back to
+   var(--color-surface) whenever the row is hovered or active. Found live
+   via computed styles again (badge still resolving to --color-surface's
+   rgb despite this file explicitly setting --color-nav-badge-bg) - these
+   two overrides just need to out-specify those two states individually,
+   each by including one more class (".storefront-sidenav-count" itself)
+   than what they're beating. */
+.storefront-sidenav a:hover .storefront-sidenav-count,
+.storefront-sidenav span:hover .storefront-sidenav-count,
 .storefront-sidenav a.active .storefront-sidenav-count {
-  /* Neutral gray, not white - --color-solid-bg (the background this badge
-     sits on) flips between near-black and near-white per theme, so a
-     white-tinted overlay went invisible against dark mode's near-white
-     active fill. A mid-gray overlay stays visible against either. */
-  background: rgba(128, 128, 128, 0.3);
-  color: var(--color-primary-text);
+  background: var(--color-nav-badge-bg);
 }
 
 .storefront-tag-list {
