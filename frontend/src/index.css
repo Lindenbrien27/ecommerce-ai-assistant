@@ -1,4 +1,11 @@
-:root {
+/* :root, not just :root - the explicit override (see useTheme.js) needs the
+   exact same light values as the default, just at higher specificity than
+   the prefers-color-scheme block below so it wins even when the OS prefers
+   dark. Merging both selectors onto one declaration block keeps the two
+   from silently drifting apart instead of needing to hand-copy every light
+   value into a second rule. */
+:root,
+:root[data-theme="light"] {
   color-scheme: light dark;
 
   --color-bg: #fbfbfb;
@@ -51,8 +58,14 @@
   --color-focus-ring: rgba(23, 23, 23, 0.18);
 }
 
+/* :not([data-theme="light"]), not plain :root - an explicit light override
+   (see useTheme.js/the merged light rule above) needs to suppress this,
+   since an attribute-selector rule outside this media query has the same
+   specificity as a plain :root inside it, and ties go to source order, not
+   to "which one feels more specific." Without this, toggling to light on a
+   system already set to dark would visibly do nothing. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Reuses the same near-black active-state tone as this theme's base
        surface color - in dark mode that's just what a card/sidebar/panel
        background naturally wants to be anyway, and the active-state accent
@@ -78,6 +91,35 @@
     --color-warning-text: #fcd34d;
     --color-focus-ring: rgba(251, 251, 251, 0.22);
   }
+}
+
+/* Same dark values again, unconditional on OS preference this time - an
+   attribute selector (see useTheme.js), not wrapped in the media query
+   above, so toggling to dark wins regardless of what the system prefers.
+   Duplicated rather than shared with the block above because a plain CSS
+   rule can't extend into a @media-wrapped selector list - this is the
+   standard "respects system preference, but a manual toggle overrides it"
+   pattern for exactly that reason. */
+:root[data-theme="dark"] {
+  --color-bg: #171717;
+  --color-page-bg: #0a0a0a;
+  --color-text: #fbfbfb;
+  --color-text-muted: #9a9a9a;
+  --color-border: #6b6f76;
+  --color-primary: #fbfbfb;
+  --color-primary-text: #171717;
+  --color-solid-bg: #fbfbfb;
+  --color-solid-bg-hover: #e6e6e6;
+  --color-surface: #1f1f1f;
+  --color-surface-text: #fbfbfb;
+  --color-error-surface: #3f1d1d;
+  --color-error-text: #fca5a5;
+  --color-error-border: #7f1d1d;
+  --color-success-surface: #112319;
+  --color-success-text: #86efac;
+  --color-warning-surface: #2a2110;
+  --color-warning-text: #fcd34d;
+  --color-focus-ring: rgba(251, 251, 251, 0.22);
 }
 
 * { box-sizing: border-box; }
@@ -519,6 +561,11 @@ h1:focus-visible {
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
 }
+/* Shared by both the decorative <span> icon buttons elsewhere in the
+   topbar and the real <button> theme toggle below it - the border/
+   background/padding resets are no-ops on a <span> (which never had them)
+   but necessary on a <button>, so one class works for both instead of
+   needing a near-duplicate. */
 .storefront-icon-btn {
   position: relative;
   flex-shrink: 0;
@@ -527,8 +574,12 @@ h1:focus-visible {
   justify-content: center;
   width: 36px;
   height: 36px;
+  border: none;
   border-radius: 50%;
+  padding: 0;
+  background: transparent;
   color: var(--color-text-muted);
+  font: inherit;
   cursor: pointer;
 }
 .storefront-icon-btn:hover { background: var(--color-surface); }

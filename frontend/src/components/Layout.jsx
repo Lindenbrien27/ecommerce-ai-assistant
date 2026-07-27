@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
+import { useTheme } from '../hooks/useTheme.js';
 import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import {
@@ -9,6 +10,7 @@ import {
   ChatIcon,
   ChevronDownIcon,
   HeartIcon,
+  MoonIcon,
   OrdersIcon,
   LogoutIcon,
   PersonIcon,
@@ -16,6 +18,7 @@ import {
   QuestionIcon,
   SearchIcon,
   SettingsIcon,
+  SunIcon,
   TicketIcon,
 } from './icons.jsx';
 
@@ -54,6 +57,7 @@ export function Layout() {
 function LayoutInner() {
   const { email, logout } = useAuth();
   const { orders } = useOrders();
+  const { theme, toggle } = useTheme();
   const location = useLocation();
   const initial = email ? email[0].toUpperCase() : '?';
   const orderCount = orders ? orders.length : null;
@@ -70,16 +74,29 @@ function LayoutInner() {
           <span>Search for products, orders...</span>
           <span className="storefront-search-kbd">⌘K</span>
         </div>
-        <div className="storefront-topbar-icons" aria-hidden="true">
-          <span className="storefront-icon-btn storefront-badge-wrap">
+        {/* Only real control in this cluster - the bell/cart/profile chip
+            next to it are decorative (no notifications/cart/account-menu
+            backend), so aria-hidden lives on each of those individually
+            now instead of on this whole wrapper, which would have taken
+            the toggle down with it. */}
+        <div className="storefront-topbar-icons">
+          <button
+            type="button"
+            className="storefront-icon-btn"
+            onClick={toggle}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+          </button>
+          <span className="storefront-icon-btn storefront-badge-wrap" aria-hidden="true">
             <BellIcon />
             <span className="storefront-badge">2</span>
           </span>
-          <span className="storefront-icon-btn storefront-badge-wrap">
+          <span className="storefront-icon-btn storefront-badge-wrap" aria-hidden="true">
             <CartIcon />
             <span className="storefront-badge">1</span>
           </span>
-          <span className="storefront-profile-chip">
+          <span className="storefront-profile-chip" aria-hidden="true">
             <span className="storefront-avatar">{initial}</span>
             <span className="storefront-profile-text">
               <span className="storefront-profile-email">{email}</span>
