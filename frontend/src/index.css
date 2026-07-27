@@ -1,13 +1,13 @@
 :root {
   color-scheme: light dark;
 
-  --color-bg: #ffffff;
+  --color-bg: #fbfbfb;
   --color-page-bg: #f2f3f5;
-  --color-text: #1a1a1a;
+  --color-text: #171717;
   --color-text-muted: #666666;
   --color-border: #8f8f8f;
-  /* Monochrome brand - no blue anywhere in this file anymore. #0b1215/
-     #f9f7f7 (near-black/near-white, not literal #000/#fff) are the two
+  /* Monochrome brand - no blue anywhere in this file anymore. #171717/
+     #fbfbfb (near-black/near-white, not literal #000/#fff) are the two
      "active state" tones: whichever one contrasts against the current
      theme's own near-opposite is what --color-solid-bg uses, so an active
      nav pill/button/bubble is always the strongest, darkest-or-lightest
@@ -16,10 +16,10 @@
      fixed white-on-blue pair) - --color-solid-bg itself flips from
      near-black to near-white per theme, so the text sitting on it has to
      flip too or it'd end up near-white-on-near-white in dark mode. */
-  --color-primary: #0b1215;
-  --color-primary-text: #f9f7f7;
-  --color-solid-bg: #0b1215;
-  --color-solid-bg-hover: #262f34;
+  --color-primary: #171717;
+  --color-primary-text: #fbfbfb;
+  --color-solid-bg: #171717;
+  --color-solid-bg-hover: #2e2e2e;
   --color-surface: #f1f1f1;
   --color-surface-text: #111111;
   --color-error-surface: #fef2f2;
@@ -48,7 +48,7 @@
   --font-size-lg: 1.85rem;
   --font-size-sm: 0.9rem;
 
-  --color-focus-ring: rgba(11, 18, 21, 0.18);
+  --color-focus-ring: rgba(23, 23, 23, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,19 +56,19 @@
     /* Reuses the same near-black active-state tone as this theme's base
        surface color - in dark mode that's just what a card/sidebar/panel
        background naturally wants to be anyway, and the active-state accent
-       (--color-solid-bg below) is the *other* tone, #f9f7f7, giving active
+       (--color-solid-bg below) is the *other* tone, #fbfbfb, giving active
        elements real pop against it instead of blending in. */
-    --color-bg: #0b1215;
-    --color-page-bg: #050708;
-    --color-text: #f9f7f7;
+    --color-bg: #171717;
+    --color-page-bg: #0a0a0a;
+    --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
     --color-border: #6b6f76;
-    --color-primary: #f9f7f7;
-    --color-primary-text: #0b1215;
-    --color-solid-bg: #f9f7f7;
-    --color-solid-bg-hover: #e3e0e0;
-    --color-surface: #171d21;
-    --color-surface-text: #f9f7f7;
+    --color-primary: #fbfbfb;
+    --color-primary-text: #171717;
+    --color-solid-bg: #fbfbfb;
+    --color-solid-bg-hover: #e6e6e6;
+    --color-surface: #1f1f1f;
+    --color-surface-text: #fbfbfb;
     --color-error-surface: #3f1d1d;
     --color-error-text: #fca5a5;
     --color-error-border: #7f1d1d;
@@ -76,7 +76,7 @@
     --color-success-text: #86efac;
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
-    --color-focus-ring: rgba(249, 247, 247, 0.22);
+    --color-focus-ring: rgba(251, 251, 251, 0.22);
   }
 }
 
@@ -146,7 +146,7 @@ body {
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.08),
     0 12px 32px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(11, 18, 21, 0.05);
+    0 0 0 1px rgba(23, 23, 23, 0.05);
   padding: var(--space-4) var(--space-5);
 }
 
@@ -155,7 +155,7 @@ body {
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.3),
       0 20px 48px rgba(0, 0, 0, 0.45),
-      0 0 0 1px rgba(249, 247, 247, 0.06);
+      0 0 0 1px rgba(251, 251, 251, 0.06);
   }
 }
 
