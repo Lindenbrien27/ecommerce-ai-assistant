@@ -9,10 +9,16 @@
   color-scheme: light dark;
 
   --color-bg: #fbfbfb;
-  --color-page-bg: #f2f3f5;
+  --color-page-bg: #f4f4f6;
   --color-text: #171717;
   --color-text-muted: #666666;
-  --color-border: #8f8f8f;
+  /* Softer, lighter gray than the #8f8f8f this used to be - container
+     borders (sidebar/content/AI-panel cards, order cards, inputs) read as
+     a subtle separation from the page now instead of a visibly heavy
+     outline. Dark mode's own --color-border below is untouched - it's
+     already tuned soft against a near-black background, and this specific
+     hex is a light-mode-only swatch that would be invisible there. */
+  --color-border: #e5e5e8;
   /* Monochrome brand - no blue anywhere in this file anymore. #171717/
      #fbfbfb (near-black/near-white, not literal #000/#fff) are the two
      "active state" tones: whichever one contrasts against the current
@@ -27,7 +33,7 @@
   --color-primary-text: #fbfbfb;
   --color-solid-bg: #171717;
   --color-solid-bg-hover: #2e2e2e;
-  --color-surface: #f1f1f1;
+  --color-surface: #eaeaea;
   --color-surface-text: #111111;
   --color-error-surface: #fef2f2;
   --color-error-text: #991b1b;
@@ -75,7 +81,7 @@
     --color-page-bg: #0a0a0a;
     --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
-    --color-border: #6b6f76;
+    --color-border: #e5e5e5;
     --color-primary: #fbfbfb;
     --color-primary-text: #171717;
     --color-solid-bg: #fbfbfb;
@@ -105,7 +111,7 @@
   --color-page-bg: #0a0a0a;
   --color-text: #fbfbfb;
   --color-text-muted: #9a9a9a;
-  --color-border: #6b6f76;
+  --color-border: #e5e5e5;
   --color-primary: #fbfbfb;
   --color-primary-text: #171717;
   --color-solid-bg: #fbfbfb;
@@ -524,18 +530,17 @@ h1:focus-visible {
 .brand-standalone { display: flex; justify-content: center; }
 
 /* Full-width storefront shell (replaces the old collapsible left sidebar +
-   centered-card model for every authenticated page) - copies a reference
-   e-commerce account page's structure: a top identity/category bar, a
-   second "account" bar (greeting + pill nav), then the routed page content
-   below. VerifyPage is unaffected - it's a different top-level child of
-   #root (.app-shell--centered), not this. */
-/* --color-page-bg, not --color-bg - the sidebar and AI panel below are the
-   things that read as distinct "boxes" (their own --color-bg surface,
-   border, radius, sitting on this ambient background with real gaps around
-   them), matching the reference's floating-panel layout instead of this
-   app's previous edge-to-edge columns separated by a single 1px border.
-   The topbar and routed content sit directly on this same ambient
-   background - their own children (order cards, etc.) are the boxes there. */
+   centered-card model for every authenticated page) - three boxed columns
+   (sidebar, content, AI panel), no separate top bar; the brand lives at
+   the top of the sidebar and the search/theme-toggle live in the content
+   card's own header (see Layout.jsx). VerifyPage is unaffected - it's a
+   different top-level child of #root (.app-shell--centered), not this.
+   --color-page-bg, not --color-bg, on this shell itself - the sidebar,
+   content, and AI panel below are each their own distinct box (their own
+   --color-bg surface, border, radius) sitting on this shared ambient
+   background with real gaps between them, matching the reference's
+   floating-panel layout instead of edge-to-edge columns separated by a
+   single 1px border. */
 .storefront-shell {
   width: 100%;
   min-height: 100vh;
@@ -554,18 +559,11 @@ h1:focus-visible {
   align-items: stretch;
 }
 
-.storefront-topbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-/* Shared by both the decorative <span> icon buttons elsewhere in the
-   topbar and the real <button> theme toggle below it - the border/
-   background/padding resets are no-ops on a <span> (which never had them)
-   but necessary on a <button>, so one class works for both instead of
-   needing a near-duplicate. */
+/* The real <button> theme toggle's reset - border/background/padding are
+   no-ops for nothing else using this class anymore (the old decorative
+   bell/cart icon-buttons and the full-width top bar they lived in are
+   gone; the brand moved to the top of the sidebar, search + the toggle
+   moved into the content card's own header below). */
 .storefront-icon-btn {
   position: relative;
   flex-shrink: 0;
@@ -583,34 +581,19 @@ h1:focus-visible {
   cursor: pointer;
 }
 .storefront-icon-btn:hover { background: var(--color-surface); }
-.storefront-topbar-icons { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
-.storefront-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
-}
 
-/* A styled span, not a real <input> - a text field that visibly invites
-   typing but silently does nothing on keystroke is a worse trap than a
-   button that does nothing on click; this can't be mistaken for something
-   that accepts input. */
+/* .storefront-content-header holds this + the theme toggle, top-right of
+   the main content card (see Layout.jsx) - a styled span, not a real
+   <input>, since a text field that visibly invites typing but silently
+   does nothing on keystroke is a worse trap than a button that does
+   nothing on click; this can't be mistaken for something that accepts
+   input. */
 .storefront-search {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex: 1;
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 320px;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -628,13 +611,16 @@ h1:focus-visible {
   font-size: 0.7rem;
 }
 
+/* Full-width row in the sidebar now, not a shrink-to-fit pill in a top bar
+   - matches the reference's own bottom-of-sidebar user chip, and sits
+   right above the real Logout button (see Layout.jsx). */
 .storefront-profile-chip {
-  flex-shrink: 0;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
-  border-radius: 999px;
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .storefront-profile-chip:hover { background: var(--color-surface); }
@@ -651,8 +637,8 @@ h1:focus-visible {
   font-size: 0.85rem;
   font-weight: 700;
 }
+.storefront-profile-text { flex: 1; min-width: 0; }
 .storefront-profile-email {
-  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -660,12 +646,15 @@ h1:focus-visible {
   font-weight: 600;
 }
 
+/* Uniform var(--space-3) on every side, not the old mixed space-3/space-4 -
+   softer, tighter gutter now that there's no separate top bar eating into
+   the vertical rhythm above this row. */
 .storefront-body {
   flex: 1;
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-3);
 }
 
 .storefront-sidebar {
@@ -673,18 +662,20 @@ h1:focus-visible {
   width: 260px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-3);
+  gap: var(--space-3);
+  padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   /* min-height, not height - the sidebar should be at least as tall as the
-     viewport-minus-topbar-minus-.storefront-body's-own-padding, so it reads
-     as a full-height panel even when the routed page content is short, but
-     a taller page (e.g. a long order list) should push it taller too, not
-     clip/scroll independently. */
-  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
+     viewport minus .storefront-body's own padding, so it reads as a
+     full-height panel even when the routed page content is short, but a
+     taller page (e.g. a long order list) should push it taller too, not
+     clip/scroll independently. No top-bar height to subtract anymore - the
+     brand now lives inside the sidebar itself instead of above it. */
+  min-height: calc(100vh - 2 * var(--space-3));
 }
+.storefront-sidebar .brand { margin-bottom: var(--space-1); }
 .storefront-shop-now {
   display: flex;
   align-items: center;
@@ -778,7 +769,11 @@ h1:focus-visible {
   text-align: center;
 }
 .storefront-sidenav a.active .storefront-sidenav-count {
-  background: rgba(255, 255, 255, 0.25);
+  /* Neutral gray, not white - --color-solid-bg (the background this badge
+     sits on) flips between near-black and near-white per theme, so a
+     white-tinted overlay went invisible against dark mode's near-white
+     active fill. A mid-gray overlay stays visible against either. */
+  background: rgba(128, 128, 128, 0.3);
   color: var(--color-primary-text);
 }
 
@@ -826,16 +821,27 @@ h1:focus-visible {
 }
 .storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
-/* No left/right padding of its own - .storefront-body's own padding + gap
-   (above) already separate this column from the sidebar/AI panel boxes on
-   either side of it; this content area itself isn't a box (it sits
-   directly on the shared ambient page background, same as the topbar), so
-   its own children - the order cards, the header, the support banner - are
-   what read as boxes here, same as the reference's plain content column. */
+/* Its own boxed card now too, same recipe as .storefront-sidebar/.ai-panel
+   (background, border, radius) - all three columns read as distinct cards
+   resting on the shared ambient page background, matching the reference
+   instead of leaving this one column bare while its neighbors were boxed. */
 .storefront-content {
   flex: 1;
   min-width: 0;
-  padding-bottom: var(--space-5);
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+/* Search (decorative) + the real theme toggle, top-right of the content
+   card - flex-end, not space-between, since there's no page title sharing
+   this row (each routed page owns its own <h1> further down). */
+.storefront-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 /* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third boxed
@@ -848,7 +854,7 @@ h1:focus-visible {
   width: 320px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
+  min-height: calc(100vh - 2 * var(--space-3));
   padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -989,17 +995,11 @@ h1:focus-visible {
   }
 }
 @media (max-width: 480px) {
-  .storefront-topbar { padding: var(--space-2) var(--space-3); }
   .storefront-body { padding: var(--space-2); gap: var(--space-2); }
-  /* Real horizontal overflow, not just cosmetic - measured
-     document.documentElement.scrollWidth at 521px in a 390px viewport
-     before this. .storefront-topbar has no flex-wrap (by design - a
-     wrapped-to-two-lines top bar looks worse than a one-line bar that
-     drops its least-essential text), so brand + bell/cart/the full email
-     in the profile chip together just don't fit at phone widths. Hiding
-     the email (the avatar + chevron alone still identify "this is your
-     account menu") is what actually gets it back under the viewport
-     width, verified live after this change. */
+  /* The mobile sidebar wraps (see the 700px breakpoint above), but the
+     profile chip's own row still doesn't reliably have room for a full
+     email address at phone widths - the avatar + chevron alone still
+     identify "this is your account menu" without it. */
   .storefront-profile-email { display: none; }
   .storefront-profile-chip { padding: 0.3rem; }
 }
@@ -1024,42 +1024,55 @@ h1:focus-visible {
   .orders-header-art { display: block; }
 }
 
+/* A single connected segmented-control track (inline-flex + one shared
+   background/radius), not individually-bordered pill buttons - the active
+   item gets its own elevated fill; inactive items are borderless text
+   sitting directly on the shared track instead of each having its own
+   outline. */
 .order-filter-tabs {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 2px;
   margin: var(--space-3) 0 var(--space-4);
+  padding: 3px;
+  background: var(--color-surface);
+  border-radius: 999px;
 }
 .order-filter-tab {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-radius: 999px;
   background: transparent;
-  color: var(--color-text);
-  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
   font-weight: 500;
 }
-.order-filter-tab:hover:not(.active) { background: var(--color-surface); }
+.order-filter-tab:hover:not(.active) { color: var(--color-text); }
 .order-filter-tab.active {
   background: var(--color-solid-bg);
-  border-color: var(--color-solid-bg);
   color: var(--color-primary-text);
+  box-shadow: 0 1px 3px var(--color-shadow);
 }
+/* Light badge inside an inactive (dark-text-on-transparent) tab - sits on
+   the track's own --color-surface, so the card's --color-bg tone reads as
+   distinctly lighter than its surroundings without needing its own hue. */
 .order-filter-count {
-  min-width: 22px;
-  padding: 0.1rem 0.4rem;
+  min-width: 20px;
+  padding: 0.05rem 0.4rem;
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-surface-text);
-  font-size: 0.75rem;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
   font-weight: 700;
   text-align: center;
 }
 .order-filter-tab.active .order-filter-count {
-  background: rgba(255, 255, 255, 0.25);
+  /* Neutral gray, not white - see .storefront-sidenav-count above for why
+     a white-tinted overlay breaks in dark mode. */
+  background: rgba(128, 128, 128, 0.3);
   color: var(--color-primary-text);
 }
 

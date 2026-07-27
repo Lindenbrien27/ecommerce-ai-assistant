@@ -5,8 +5,6 @@ import { useTheme } from '../hooks/useTheme.js';
 import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import {
-  BellIcon,
-  CartIcon,
   ChatIcon,
   ChevronDownIcon,
   HeartIcon,
@@ -32,16 +30,16 @@ import {
 // from its position (:nth-child in index.css) instead of a hardcoded hex.
 const CATEGORY_TAGS = ['Audio', 'Cables', 'Peripherals', 'Furniture', 'Displays'];
 
-// Most of this sidebar/top bar is intentionally inert - plain <span>s, not
-// <button>s, copying a reference design's structure. This app has no
-// coupon/wishlist/FAQ/settings/profile-editing backend for those items to
-// actually do something - a non-interactive element styled to look
-// clickable is more honest than a real control with no real behavior. My
-// Orders, Support Chat, Logout, and the AI Assistant panel are the ones
-// that stay functional. My Orders' and Coupons' counts are real numbers
-// derived from the signed-in customer's own orders, not placeholders -
-// Wishlist has no backing data at all, so it gets no number rather than a
-// fabricated one.
+// Most of this sidebar/content-header is intentionally inert - plain
+// <span>s, not <button>s, copying a reference design's structure. This app
+// has no coupon/wishlist/FAQ/settings/profile-editing/global-search backend
+// for those items to actually do something - a non-interactive element
+// styled to look clickable is more honest than a real control with no real
+// behavior. My Orders, Support Chat, Logout, the theme toggle, and the AI
+// Assistant panel are the ones that stay functional. My Orders' and
+// Coupons' counts are real numbers derived from the signed-in customer's
+// own orders, not placeholders - Wishlist has no backing data at all, so it
+// gets no number rather than a fabricated one.
 // OrdersProvider wraps LayoutInner (not the other way around) so this outer
 // component can stay the default export React Router renders for every
 // authenticated route, while still giving LayoutInner - and, via Outlet,
@@ -67,47 +65,14 @@ function LayoutInner() {
 
   return (
     <div className="storefront-shell">
-      <header className="storefront-topbar">
-        <Brand size="sm" />
-        <div className="storefront-search" aria-hidden="true">
-          <SearchIcon />
-          <span>Search for products, orders...</span>
-          <span className="storefront-search-kbd">⌘K</span>
-        </div>
-        {/* Only real control in this cluster - the bell/cart/profile chip
-            next to it are decorative (no notifications/cart/account-menu
-            backend), so aria-hidden lives on each of those individually
-            now instead of on this whole wrapper, which would have taken
-            the toggle down with it. */}
-        <div className="storefront-topbar-icons">
-          <button
-            type="button"
-            className="storefront-icon-btn"
-            onClick={toggle}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
-          </button>
-          <span className="storefront-icon-btn storefront-badge-wrap" aria-hidden="true">
-            <BellIcon />
-            <span className="storefront-badge">2</span>
-          </span>
-          <span className="storefront-icon-btn storefront-badge-wrap" aria-hidden="true">
-            <CartIcon />
-            <span className="storefront-badge">1</span>
-          </span>
-          <span className="storefront-profile-chip" aria-hidden="true">
-            <span className="storefront-avatar">{initial}</span>
-            <span className="storefront-profile-text">
-              <span className="storefront-profile-email">{email}</span>
-            </span>
-            <ChevronDownIcon />
-          </span>
-        </div>
-      </header>
-
+      {/* No more full-width global top bar - the brand lives at the top of
+          the sidebar below, and the (decorative) search bar + real theme
+          toggle live in the main content card's own header instead, same
+          as the reference this shell is modeled on. */}
       <div className="storefront-body">
         <aside className="storefront-sidebar">
+          <Brand size="sm" />
+
           <span className="storefront-shop-now" aria-hidden="true">
             <PlusIcon /> Shop Now
           </span>
@@ -156,6 +121,17 @@ function LayoutInner() {
             </div>
           </nav>
 
+          {/* Profile chip moved down here from the old top bar - decorative
+              (no account-menu backend behind the chevron), same as the
+              reference's own bottom-of-sidebar user chip. */}
+          <span className="storefront-profile-chip" aria-hidden="true">
+            <span className="storefront-avatar">{initial}</span>
+            <span className="storefront-profile-text">
+              <span className="storefront-profile-email">{email}</span>
+            </span>
+            <ChevronDownIcon />
+          </span>
+
           {/* Kept working, unlike the rest of this sidebar - with no other
               way to sign out, a decorative Logout would strand anyone
               verified with the "wrong" test account. */}
@@ -165,6 +141,21 @@ function LayoutInner() {
         </aside>
 
         <main className="storefront-content">
+          <div className="storefront-content-header">
+            <div className="storefront-search" aria-hidden="true">
+              <SearchIcon />
+              <span>Search for products, orders...</span>
+              <span className="storefront-search-kbd">⌘K</span>
+            </div>
+            <button
+              type="button"
+              className="storefront-icon-btn"
+              onClick={toggle}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+            </button>
+          </div>
           <Outlet />
         </main>
 
