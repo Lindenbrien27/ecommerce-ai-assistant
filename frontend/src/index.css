@@ -107,7 +107,12 @@
     --color-panel-bg: #0a0a0a;
     --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
-    --color-border: #e5e5e5;
+    /* Same grey as --color-page-bg, not the near-white #e5e5e5 this used
+       to be - that value made every panel/card border read as a thick
+       bright outline against the dark surfaces it was supposed to subtly
+       separate, instead of the near-invisible seam a border is meant to
+       be at this app's own "dividers should barely register" standard. */
+    --color-border: #262626;
     --color-primary: #fbfbfb;
     --color-primary-text: #171717;
     --color-solid-bg: #fbfbfb;
@@ -139,7 +144,7 @@
   --color-panel-bg: #0a0a0a;
   --color-text: #fbfbfb;
   --color-text-muted: #9a9a9a;
-  --color-border: #e5e5e5;
+  --color-border: #262626;
   --color-primary: #fbfbfb;
   --color-primary-text: #171717;
   --color-solid-bg: #fbfbfb;
