@@ -77,7 +77,7 @@ function OrderProgress({ status }) {
 
 export function OrdersPage() {
   const { email, logout } = useAuth();
-  const { orders, nextCursor, loadingMore, error, loadMore } = useOrders();
+  const { orders, nextCursor, loadingMore, error, loadMore, selectedCategories } = useOrders();
   const [activeFilter, setActiveFilter] = useState('all');
 
   const counts = {};
@@ -90,7 +90,17 @@ export function OrdersPage() {
   }
 
   const activeStatuses = STATUS_FILTERS.find((f) => f.key === activeFilter).statuses;
-  const visibleOrders = orders && activeStatuses ? orders.filter((o) => activeStatuses.includes(o.status)) : orders;
+  // Status (filter tabs) and category (sidebar chips) narrow the same list
+  // together, not separately - an order has to match the active status
+  // tab AND (if any categories are selected) be one of them. No categories
+  // selected means no category narrowing at all, not "show nothing" - an
+  // empty multi-select reads as "no filter applied", the same convention
+  // "All Orders" already uses for the status tabs.
+  const visibleOrders = orders
+    ? orders
+        .filter((o) => !activeStatuses || activeStatuses.includes(o.status))
+        .filter((o) => selectedCategories.size === 0 || selectedCategories.has(o.product_icon))
+    : orders;
 
   return (
     <>

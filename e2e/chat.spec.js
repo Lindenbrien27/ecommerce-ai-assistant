@@ -7,8 +7,12 @@ test.describe('chat', () => {
     await expect(page).toHaveURL(/\/orders$/);
   });
 
-  test('is reachable from the nav bar', async ({ page }) => {
-    await page.click('.storefront-sidenav a[href="/chat"]');
+  test('is reachable from the orders page support banner', async ({ page }) => {
+    // The sidebar no longer has its own link to /chat (the decorative
+    // Support Chat/FAQ's/Settings/Profile footer group was removed) - the
+    // orders-support-banner's own "Chat with Support" link is the real,
+    // working path now.
+    await page.click('.orders-support-banner-chat');
     await expect(page).toHaveURL(/\/chat$/);
     await expect(page.locator('#chat-input')).toBeVisible();
   });

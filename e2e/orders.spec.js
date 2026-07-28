@@ -55,4 +55,28 @@ test.describe('orders', () => {
     await expect(page.locator('.verify-error')).toHaveText('Order not found.');
     await expect(page.locator('.order-detail')).toHaveCount(0);
   });
+
+  test('the sidebar Category chips are a real multi-select filter, not decorative', async ({ page }) => {
+    const audioChip = page.locator('.storefront-tag-list button', { hasText: 'Audio' });
+    const cablesChip = page.locator('.storefront-tag-list button', { hasText: 'Cables' });
+
+    // ORD-1001 is headphones (Audio), ORD-1002 is a USB-C cable (Cables).
+    await expect(page.locator('.order-card')).toHaveCount(2);
+    await expect(audioChip).toHaveAttribute('aria-pressed', 'false');
+
+    await audioChip.click();
+    await expect(audioChip).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-card-product')).toHaveText('Wireless Noise-Cancelling Headphones');
+
+    // Selecting a second category is additive (multi-select), not a swap.
+    await cablesChip.click();
+    await expect(page.locator('.order-card')).toHaveCount(2);
+
+    // Deselecting every category goes back to "no filter", not "show nothing".
+    await audioChip.click();
+    await cablesChip.click();
+    await expect(audioChip).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('.order-card')).toHaveCount(2);
+  });
 });

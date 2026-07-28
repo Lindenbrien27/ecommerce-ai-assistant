@@ -67,6 +67,20 @@
      pair, same as --color-shadow itself. */
   --color-card-shadow: rgba(0, 0, 0, 0.06);
 
+  /* The one accent hue in an otherwise fully monochrome app - scoped to
+     exactly one job, the category filter chip's selected state (a real
+     interactive control's own state signal, not a decorative flourish -
+     see .storefront-tag below). Everything else in this file still holds
+     to the near-white/near-black scale above. --color-chip-text is a
+     stronger near-black than --color-text-muted on purpose: the given
+     spec calls for #222 specifically for an unselected chip's own label,
+     not this app's usual secondary-text muted tone. */
+  --color-chip-border: rgba(0, 0, 0, 0.15);
+  --color-chip-text: #222222;
+  --color-chip-selected-bg: rgba(124, 58, 237, 0.08);
+  --color-chip-selected-border: #8b5cf6;
+  --color-chip-selected-text: #5b21b6;
+
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -128,6 +142,11 @@
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
     --color-focus-ring: rgba(251, 251, 251, 0.22);
+    --color-chip-border: rgba(255, 255, 255, 0.15);
+    --color-chip-text: rgba(255, 255, 255, 0.75);
+    --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
+    --color-chip-selected-border: #a78bfa;
+    --color-chip-selected-text: #ddd6fe;
   }
 }
 
@@ -160,6 +179,11 @@
   --color-warning-surface: #2a2110;
   --color-warning-text: #fcd34d;
   --color-focus-ring: rgba(251, 251, 251, 0.22);
+  --color-chip-border: rgba(255, 255, 255, 0.15);
+  --color-chip-text: rgba(255, 255, 255, 0.75);
+  --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
+  --color-chip-selected-border: #a78bfa;
+  --color-chip-selected-text: #ddd6fe;
 }
 
 * { box-sizing: border-box; }
@@ -706,13 +730,22 @@ h1:focus-visible {
 /* Full-width row in the sidebar now, not a shrink-to-fit pill in a top bar
    - matches the reference's own bottom-of-sidebar user chip, and sits
    right above the real Logout button (see Layout.jsx). */
+/* margin-top: auto is the whole mechanism that keeps this pinned to the
+   sidebar's own floor (see .storefront-sidebar's own comment) - .storefront-
+   sidenav no longer grows to fill the remaining height itself; this row
+   consumes whatever's left instead, the same "lots of empty space, on
+   purpose" rhythm a later design pass (the Quiet Workspace exploration)
+   argued for. */
 .storefront-profile-chip {
   width: 100%;
+  flex-shrink: 0;
+  margin-top: auto;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.5rem;
-  border-radius: var(--radius-md);
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 .storefront-profile-chip:hover { background: var(--color-surface); }
@@ -749,13 +782,19 @@ h1:focus-visible {
   padding: var(--space-3);
 }
 
+/* 240px/16px-top-12px-elsewhere/no shared gap - an exact spec (down to
+   each individual transition's own margin below) replacing what used to
+   be one uniform var(--space-3) gap between every child. display:flex/
+   column/no explicit height needed for the margin-top: auto trick above
+   to work - .storefront-body's own align-items: flex-start would
+   otherwise shrink this to its content height, but min-height below
+   already keeps it full-height regardless. */
 .storefront-sidebar {
   flex-shrink: 0;
-  width: 260px;
+  width: 240px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  padding: 16px 12px 12px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -767,14 +806,16 @@ h1:focus-visible {
      brand now lives inside the sidebar itself instead of above it. */
   min-height: calc(100vh - 2 * var(--space-3));
 }
-.storefront-sidebar .brand { margin-bottom: var(--space-1); }
+.storefront-sidebar .brand { min-height: 40px; gap: 10px; margin-bottom: 24px; }
 .storefront-shop-now {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  padding: 0.65rem var(--space-3);
-  border-radius: var(--radius-md);
+  height: 40px;
+  padding: 0 16px;
+  margin-bottom: 24px;
+  border-radius: 10px;
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
   font-size: 0.9rem;
@@ -783,40 +824,38 @@ h1:focus-visible {
 }
 .storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
 
-/* flex: 1, not just a plain column - lets .storefront-sidenav-section--bottom
-   below push itself (and the sidebar's own Logout button right after it)
-   down toward the bottom of .storefront-sidebar's own min-height, the same
-   spacing trick the old .storefront-help-card used before this redesign
-   replaced it. Without growing to fill the sidebar's available height
-   first, margin-top: auto on a child has no free space to consume. */
-.storefront-sidenav {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
+.storefront-sidenav { flex-shrink: 0; }
 .storefront-sidenav-section {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 4px;
 }
-.storefront-sidenav-section--bottom { margin-top: auto; }
+/* 13px/500/65% opacity, not uppercase-and-tracked - deliberately small and
+   quiet enough to skim past rather than compete with the nav items below
+   it; the given spec was explicit that this treatment (not the small-caps
+   heading look most section labels default to) was the point. */
 .storefront-sidenav-heading {
-  margin: 0 0 0.15rem;
-  padding: 0 0.75rem;
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  margin: 0 0 12px;
+  padding: 0 4px;
+  color: var(--color-text);
+  opacity: 0.65;
+  font-size: 13px;
+  font-weight: 500;
 }
+/* The "Category" label specifically: 32px above it (not the 12px every
+   label defaults to below itself), 16px below it to the tag grid (not
+   12px to a nav item) - two different label-to-content gaps in this
+   sidebar, not one shared rule. Matches only this label, since it's the
+   one immediately preceded by the Dashboard .storefront-sidenav-section. */
+.storefront-sidenav-section + .storefront-sidenav-heading { margin-top: 32px; margin-bottom: 16px; }
 .storefront-sidenav a,
 .storefront-sidenav span {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--radius-md);
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -905,70 +944,54 @@ h1:focus-visible {
   background: var(--color-nav-badge-bg);
 }
 
+/* 2-column grid, not a wrapped inline-flex row - gives every chip the same
+   width and lines row 2 up under row 1, instead of pill widths falling
+   wherever their own text happens to end. */
 .storefront-tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  row-gap: 8px;
+  column-gap: 8px;
+  padding: 0 4px;
 }
-/* Neutral chip, colored dot - not a tinted background. A tinted pill was
-   this app's one deliberate spot of color in an otherwise monochrome UI,
-   but it also made the tag's own text colored, which is exactly the kind
-   of "vibrant accent" a later design pass (see the Quiet Workspace
-   artifact this followed) argued against: a small solid dot next to
-   neutral text is a functional color code, not a theming choice - real
-   Linear/Raycast tag UI makes the same distinction. Scoped as
-   ".storefront-tag-list .storefront-tag", not just ".storefront-tag" -
-   the shared ".storefront-sidenav span" rule (class+type selector) is
-   otherwise MORE specific than a single class alone and was silently
-   winning, leaving every badge's text stuck at the muted gray that rule
-   sets instead of its own color. */
+/* A real multi-select filter now (see Layout.jsx/OrdersPage.jsx), not a
+   decorative label - default/selected are both explicit states rather
+   than a plain badge with an implied color. Default: transparent
+   background, a low-opacity border, plain text - no tint, unlike the
+   colored-dot version this replaces. Selected: a soft violet wash
+   (background/border/text all shift together, not just the border), the
+   one deliberate accent color in this app, scoped to exactly this one
+   real interactive state (see --color-chip-* tokens for why). */
 .storefront-tag-list .storefront-tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--color-chip-border);
+  color: var(--color-chip-text);
+  font: inherit;
   font-size: 0.75rem;
   font-weight: 500;
+  cursor: pointer;
 }
-/* rgb(var(--tag-rgb-light)) directly, not background: currentColor - this
-   dot is itself a <span> inside .storefront-sidenav, so the shared
-   ".storefront-sidenav span" rule matches it directly too and sets its own
-   (muted gray) color right on this element, which currentColor would
-   otherwise reflect instead of the tag's own category color - inheritance
-   always loses to any rule matching the element itself, the same lesson as
-   the sidenav-label contrast bug elsewhere in this file. The custom
-   properties themselves still inherit from .storefront-tag regardless of
-   what wins the color/currentColor fight, so reading them directly
-   sidesteps the conflict entirely. Still a light/dark pair (not one
-   value) so each hue stays legible against its own theme's chip
-   background, same reasoning as the palette-wide light/dark split - a dot
-   is smaller than the text this same split used to protect, but still
-   visible enough to be worth tuning per theme rather than guessing one
-   value that's a little washed out in one of them. */
-.storefront-tag-dot {
-  flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgb(var(--tag-rgb-light));
+.storefront-tag-list .storefront-tag:hover { background: var(--color-surface); }
+.storefront-tag-list .storefront-tag[aria-pressed="true"] {
+  background: var(--color-chip-selected-bg);
+  border-color: var(--color-chip-selected-border);
+  color: var(--color-chip-selected-text);
+  font-weight: 600;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .storefront-tag-dot {
-    background: rgb(var(--tag-rgb-dark));
-  }
-}
-:root[data-theme="dark"] .storefront-tag-dot {
-  background: rgb(var(--tag-rgb-dark));
-}
+.storefront-tag-list .storefront-tag[aria-pressed="true"]:hover { filter: brightness(1.05); }
 
 .storefront-logout {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-top: 4px;
   background: transparent;
   color: var(--color-text-muted);
   padding: 0.6rem 0.75rem;
@@ -1181,20 +1204,21 @@ h1:focus-visible {
     gap: var(--space-2);
     padding: var(--space-3);
   }
-  /* The section wrapper divs (Dashboard/Category/bottom) exist to group
-     items under a heading in the vertical desktop layout - display: contents
-     dissolves them here so their children (the actual nav items) become
-     direct flex items of .storefront-sidenav below and wrap into one
-     compact icon row, instead of three separate row-wrapped blocks. The
-     headings and the Category tag list are dropped entirely rather than
-     wrapped in too - decorative extras a cramped icon row has no room for. */
+  /* The Dashboard section wrapper div exists to group its items under a
+     heading in the vertical desktop layout - display: contents dissolves
+     it here so its children (the actual nav items) become direct flex
+     items of .storefront-sidenav below and wrap into one compact icon
+     row. Both headings are dropped entirely, and so is the Category tag
+     grid - a cramped icon row has no room for a 2-column filter grid, so
+     category filtering isn't reachable below this width for now (still
+     resettable from a wider viewport if a filter was left selected). */
   .storefront-sidenav-section { display: contents; }
   .storefront-sidenav-heading,
   .storefront-tag-list { display: none; }
   .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
   /* Same .sr-only technique as the rule of that name near the top of this
-     file, not display: none - a real <a> (My Orders, Support Chat) with
-     display: none on its only text content has no accessible name at all,
+     file, not display: none - a real <a> (My Orders) with display: none
+     on its only text content has no accessible name at all,
      which axe's link-name rule correctly flags as a serious violation
      (this app already learned this exact lesson once, for the old
      collapsible sidebar's icon-only rail - regressed it here by not
