@@ -97,9 +97,11 @@ export function OrdersPage() {
       {/* The heading itself (and the decorative header-art flourish that
           used to sit next to it) is gone from here - Layout.jsx now owns
           "Your Orders" as part of the shared page-header row alongside the
-          search bar/theme toggle (see Layout.jsx's PAGE_HEADERS). */}
-      <p className="subtitle">Every order placed under your verified email.</p>
-
+          search bar/theme toggle (see Layout.jsx's PAGE_HEADERS). The
+          subtitle that used to sit here is gone too, not just relocated -
+          a high-density SaaS header goes straight from the header's own
+          divider line to the filter tabs, no explanatory line between
+          them. */}
       <nav className="order-filter-tabs" aria-label="Filter orders by status">
         {STATUS_FILTERS.map((filter) => (
           <button

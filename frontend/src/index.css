@@ -632,14 +632,17 @@ h1:focus-visible {
    bell/cart icon-buttons and the full-width top bar they lived in are
    gone; the brand moved to the top of the sidebar, search + the toggle
    moved into the content card's own header below). */
+/* 32px, not 36px - sized to match .page-header's own target height (see
+   its comment) now that this button lives in that row; it isn't used
+   anywhere else in the app. */
 .storefront-icon-btn {
   position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: 50%;
   padding: 0;
@@ -670,7 +673,18 @@ h1:focus-visible {
   cursor: pointer;
 }
 .storefront-search svg { flex-shrink: 0; }
-.storefront-search span:first-of-type { flex: 1; }
+/* min-width: 0 + truncation, not just flex: 1 - at this row's narrower
+   260px max-width (down from 320px, to fit next to the page title now),
+   the placeholder text no longer reliably fits on one line, and a wrapped
+   second line was quietly making this whole row - and the border-bottom
+   alignment that depends on its height - taller than intended. */
+.storefront-search span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .storefront-search-kbd {
   flex-shrink: 0;
   padding: 0.1rem 0.4rem;
@@ -987,14 +1001,26 @@ h1:focus-visible {
    Layout.jsx's PAGE_HEADERS for why the title lives here now, not in each
    page). min-height, not height - OrderDetailPage's title (an order
    number) is plain text with no natural cap on length, so the row should
-   be free to grow rather than clip it. */
+   be free to grow rather than clip it.
+   padding-bottom + border-bottom is the exact same recipe as
+   .ai-panel-header's own divider (0 0 var(--space-2), border-bottom) -
+   .storefront-content and .ai-panel already share the same 16px top
+   padding, so copying that recipe here (down to the 32px min-height,
+   matching .ai-panel-avatar's own 32px) is what lands this row's divider
+   on the identical Y as the AI panel's, not just a visually-similar one.
+   margin-bottom is separate, after the border, and only controls the gap
+   to whatever comes next (e.g. OrdersPage's filter tabs, which supply
+   their own margin-top that collapses with this one to one clean 16px
+   gap - see .order-filter-tabs). */
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 40px;
+  min-height: 32px;
+  padding: 0 0 var(--space-2);
   margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
 }
 .page-header-title {
   display: flex;
