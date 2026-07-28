@@ -10,6 +10,14 @@
 
   --color-bg: #fbfbfb;
   --color-page-bg: #f4f4f6;
+  /* Sits between --color-page-bg and --color-bg, on purpose - the main
+     content panel used to share --color-bg with the order cards inside it,
+     which read as a flat "box in a box" since nothing distinguished the
+     panel from its own contents. This one step-down gives the panel its
+     own subtle depth without the cards needing to go all the way to a
+     literal #ffffff (this app's --color-bg is already an intentional
+     near-white, not a pure value - see its own history below). */
+  --color-panel-bg: #f7f7f8;
   --color-text: #171717;
   --color-text-muted: #666666;
   /* Softer, lighter gray than the #8f8f8f this used to be - container
@@ -52,9 +60,16 @@
      glow this replaces (see brand-mark/msg-avatar/product-image below), so
      one value covers both instead of needing a per-theme pair. */
   --color-shadow: rgba(0, 0, 0, 0.3);
+  /* Same "reads as darker than its surroundings in both themes" reasoning
+     as --color-shadow above, just sized for a much subtler use (order
+     cards resting on --color-panel-bg) rather than that token's stronger
+     4-12px elevation shadows - one shared value instead of a light/dark
+     pair, same as --color-shadow itself. */
+  --color-card-shadow: rgba(0, 0, 0, 0.06);
 
   --radius-sm: 6px;
   --radius-md: 8px;
+  --radius-lg: 12px;
 
   --space-1: 0.5rem;
   --space-2: 0.75rem;
@@ -84,6 +99,7 @@
        elements real pop against it instead of blending in. */
     --color-bg: #171717;
     --color-page-bg: #0a0a0a;
+    --color-panel-bg: #101010;
     --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
     --color-border: #e5e5e5;
@@ -115,6 +131,7 @@
 :root[data-theme="dark"] {
   --color-bg: #171717;
   --color-page-bg: #0a0a0a;
+  --color-panel-bg: #101010;
   --color-text: #fbfbfb;
   --color-text-muted: #9a9a9a;
   --color-border: #e5e5e5;
@@ -355,14 +372,17 @@ p.subtitle {
   .typing-indicator, .typing-indicator * { animation-play-state: paused !important; }
 }
 
-.chat-header {
+/* "Order Support Assistant" itself now lives in Layout.jsx's shared
+   page-header row (see .page-header) - this row is just what's left that's
+   actually specific to the chat page: its subtitle and the Clear button. */
+.chat-toolbar {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-bottom: 0.35rem;
+  margin-bottom: var(--space-4);
 }
-.chat-header h1 { margin-bottom: 0; }
+.chat-toolbar .subtitle { margin-bottom: 0; }
 .chat-clear-button {
   flex-shrink: 0;
   background: transparent;
@@ -630,8 +650,8 @@ h1:focus-visible {
 }
 .storefront-icon-btn:hover { background: var(--color-surface); }
 
-/* .storefront-content-header holds this + the theme toggle, top-right of
-   the main content card (see Layout.jsx) - a styled span, not a real
+/* .page-header-actions holds this + the theme toggle, right side of the
+   shared page-header row (see Layout.jsx) - a styled span, not a real
    <input>, since a text field that visibly invites typing but silently
    does nothing on keystroke is a worse trap than a button that does
    nothing on click; this can't be mistaken for something that accepts
@@ -641,7 +661,7 @@ h1:focus-visible {
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  max-width: 320px;
+  max-width: 260px;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -714,7 +734,7 @@ h1:focus-visible {
   padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   /* min-height, not height - the sidebar should be at least as tall as the
      viewport minus .storefront-body's own padding, so it reads as a
      full-height panel even when the routed page content is short, but a
@@ -944,26 +964,66 @@ h1:focus-visible {
 .storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
 /* Its own boxed card now too, same recipe as .storefront-sidebar/.ai-panel
-   (background, border, radius) - all three columns read as distinct cards
-   resting on the shared ambient page background, matching the reference
-   instead of leaving this one column bare while its neighbors were boxed. */
+   (border, radius) - all three columns read as distinct cards resting on
+   the shared ambient page background, matching the reference instead of
+   leaving this one column bare while its neighbors were boxed.
+   --color-panel-bg, not --color-bg - see that token's own comment for why
+   the panel now needs a tone of its own, distinct from the order cards
+   resting on it. padding-top stays 16px, matching the sidebar/AI panel's
+   own top padding exactly (see .page-header below for why that's what
+   actually keeps "Your Orders" level with the sidebar's own first row) -
+   only the other three sides go to 24px.  */
 .storefront-content {
   flex: 1;
   min-width: 0;
-  padding: var(--space-3);
-  background: var(--color-bg);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--color-panel-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
 }
-/* Search (decorative) + the real theme toggle, top-right of the content
-   card - flex-end, not space-between, since there's no page title sharing
-   this row (each routed page owns its own <h1> further down). */
-.storefront-content-header {
+/* The routed page's own icon+title (left) and the search bar/theme toggle
+   (right) on one row - previously just the search/toggle on their own row,
+   with every page's <h1> stacked below it instead of beside it (see
+   Layout.jsx's PAGE_HEADERS for why the title lives here now, not in each
+   page). min-height, not height - OrderDetailPage's title (an order
+   number) is plain text with no natural cap on length, so the row should
+   be free to grow rather than clip it. */
+.page-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 40px;
   margin-bottom: var(--space-3);
+}
+.page-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+/* var(--font-size-sm)-ish scale and the same 700 weight/tight tracking as
+   .brand-name in the sidebar (see Brand.jsx) - a page title sharing this
+   row with a compact search bar and icon button reads oddly at this file's
+   old page-heading size (var(--font-size-lg), ~30px); shrinking it to
+   visually match the sidebar's own wordmark is what actually makes the
+   two columns look like they belong to the same design instead of one
+   heading dwarfing the row it's now sharing. */
+.page-header-title h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-header-title svg { flex-shrink: 0; width: 20px; height: 20px; }
+.page-header-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third boxed
@@ -980,7 +1040,7 @@ h1:focus-visible {
   padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
 }
 /* A real <button>, not a styled <div> - clicking it is the only way to
    minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
@@ -1135,16 +1195,6 @@ h1:focus-visible {
 }
 .back-link:hover { color: var(--color-primary); }
 
-.orders-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-.orders-header-art { display: none; flex-shrink: 0; width: 96px; height: 96px; }
-@media (min-width: 700px) {
-  .orders-header-art { display: block; }
-}
 
 /* A single connected segmented-control track (inline-flex + one shared
    background/radius), not individually-bordered pill buttons - the active
@@ -1211,16 +1261,20 @@ h1:focus-visible {
    (see storefront-shell above), so each card needs its own explicit
    surface color to actually read as a raised box against that background
    instead of just an outline with the page showing through it. */
-/* 20px/12px, not the shared --space-3/--radius-md (16px/8px) tokens - a
-   deliberate one-off, same as .storefront-shop-now and a few other spots
-   in this file that pick their own radius rather than force-fitting the
-   shared scale. */
+/* 16px/20px, not the shared --space-3 (16px) token on every side - more
+   horizontal room than vertical, so the wide card doesn't carry more empty
+   right-hand space than its content actually needs. A soft shadow now too
+   (--color-card-shadow, sized for exactly this - see its own comment)
+   since the card sits on --color-panel-bg rather than directly on the page
+   background, and a border alone read as flatter than an actually-raised
+   card once the panel had a tone of its own to be raised above. */
 .order-card {
   position: relative;
-  padding: 20px;
+  padding: 16px 20px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px var(--color-card-shadow);
 }
 /* padding-right leaves room for .order-card-details-link, pinned to this
    same corner via absolute positioning below - without it, a long product
@@ -1507,8 +1561,6 @@ h1:focus-visible {
   text-underline-offset: 2px;
 }
 .order-detail-field dd a:hover { text-decoration-thickness: 2px; }
-
-.order-id-heading { font-size: 2.625rem; letter-spacing: -0.03em; }
 
 /* Real photo when ProductImage.jsx has one mapped (overflow: hidden clips
    it to this tile's own rounded corners, object-fit: cover fills the tile

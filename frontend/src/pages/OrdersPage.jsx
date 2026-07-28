@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
-import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
-import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { ProductImage } from '../components/ProductImage.jsx';
 import { CheckIcon, EmptyOrdersIcon } from '../components/icons.jsx';
 
@@ -78,8 +76,6 @@ function OrderProgress({ status }) {
 }
 
 export function OrdersPage() {
-  useDocumentTitle('Your Orders');
-  const headingRef = useFocusOnMount();
   const { email, logout } = useAuth();
   const { orders, nextCursor, loadingMore, error, loadMore } = useOrders();
   const [activeFilter, setActiveFilter] = useState('all');
@@ -98,26 +94,11 @@ export function OrdersPage() {
 
   return (
     <>
-      <div className="orders-header">
-        <div>
-          <h1 ref={headingRef} tabIndex={-1}>
-            Your Orders
-          </h1>
-          <p className="subtitle">Every order placed under your verified email.</p>
-        </div>
-        {/* Purely decorative flourish, not a product photo - nothing here
-            claims to depict a real shipment. */}
-        <svg className="orders-header-art" viewBox="0 0 120 120" fill="none" aria-hidden="true">
-          <rect x="28" y="42" width="64" height="52" rx="6" fill="var(--color-solid-bg)" opacity="0.9" />
-          <path d="M28 58h64" stroke="var(--color-solid-bg-hover)" strokeWidth="3" />
-          <path d="M52 42v52M68 42v52" stroke="var(--color-solid-bg-hover)" strokeWidth="3" />
-          <circle cx="94" cy="88" r="14" fill="var(--color-bg)" stroke="var(--color-solid-bg)" strokeWidth="3" />
-          <path d="M88 88l4 4 8-8" stroke="var(--color-solid-bg)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          <g stroke="var(--color-solid-bg)" strokeWidth="2.5" strokeLinecap="round" opacity="0.6">
-            <path d="M22 30l4 4M22 34l-4 0M96 26l0 5M100 30l-4 4" />
-          </g>
-        </svg>
-      </div>
+      {/* The heading itself (and the decorative header-art flourish that
+          used to sit next to it) is gone from here - Layout.jsx now owns
+          "Your Orders" as part of the shared page-header row alongside the
+          search bar/theme toggle (see Layout.jsx's PAGE_HEADERS). */}
+      <p className="subtitle">Every order placed under your verified email.</p>
 
       <nav className="order-filter-tabs" aria-label="Filter orders by status">
         {STATUS_FILTERS.map((filter) => (

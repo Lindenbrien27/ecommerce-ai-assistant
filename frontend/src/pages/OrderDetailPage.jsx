@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
-import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
-import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { ProductImage } from '../components/ProductImage.jsx';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -113,8 +111,6 @@ function StatusTimeline({ status }) {
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams();
-  useDocumentTitle(orderNumber);
-  const headingRef = useFocusOnMount();
   const authorizedFetch = useAuthorizedFetch();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
@@ -160,9 +156,9 @@ export function OrderDetailPage() {
       <Link to="/orders" className="back-link">
         &larr; All Orders
       </Link>
-      <h1 ref={headingRef} tabIndex={-1} className="order-id-heading">
-        {orderNumber}
-      </h1>
+      {/* The heading (the order number itself) moved into Layout.jsx's
+          shared page-header row, alongside the search bar/theme toggle -
+          see Layout.jsx's getPageHeader, which reads it from :orderNumber. */}
 
       <div aria-live="polite">
         {error && (

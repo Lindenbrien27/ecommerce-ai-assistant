@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
 import { useTheme } from '../hooks/useTheme.js';
@@ -19,6 +20,33 @@ import {
   SunIcon,
   TicketIcon,
 } from './icons.jsx';
+
+// The routed page's own title/icon, keyed by path - not each page rendering
+// its own <h1> anymore. The header row now needs the title on the same
+// line as the search bar/theme toggle (see .page-header), which live here
+// in Layout, not in any one page - centralizing both in the one component
+// that's actually common to every route was simpler and more reliable than
+// threading each page's heading into a shared slot (a page-owned <h1> with
+// its own focus-on-mount ref would be focused before the shared header
+// slot even had a render tick to pick it up - a real race, not a
+// theoretical one). :orderNumber's title comes from useParams() below
+// instead of a static entry here, since it's the one route without a
+// fixed title.
+// docTitle is deliberately its own field, not just reused from title - the
+// browser tab for /chat previously said "Chat · Order Support Assistant",
+// not "Order Support Assistant · Order Support Assistant", since this
+// app's own name (the document-title suffix, see the effect below) already
+// says "Order Support Assistant" once; the on-page heading and the tab
+// title are allowed to differ, and here they deliberately do.
+const PAGE_HEADERS = {
+  '/orders': { icon: OrdersIcon, title: 'Your Orders', docTitle: 'Your Orders' },
+  '/chat': { icon: ChatIcon, title: 'Order Support Assistant', docTitle: 'Chat' },
+};
+
+function getPageHeader(pathname, params) {
+  if (params.orderNumber) return { icon: OrdersIcon, title: params.orderNumber, docTitle: params.orderNumber };
+  return PAGE_HEADERS[pathname] || { icon: null, title: '', docTitle: '' };
+}
 
 // Purely decorative labels, matching this app's own 5 real products (see
 // PRODUCT_ICONS in icons.jsx) rather than the clothing categories ("tshirt,
@@ -74,11 +102,28 @@ function LayoutInner() {
   const { orders } = useOrders();
   const { theme, toggle } = useTheme();
   const location = useLocation();
+  const params = useParams();
   const initial = email ? email[0].toUpperCase() : '?';
   const orderCount = orders ? orders.length : null;
   const voucherCount = orders ? orders.filter((o) => o.voucher_cents > 0).length : null;
 
   const showAiPanel = location.pathname !== '/chat';
+
+  const { icon: PageIcon, title: pageTitle, docTitle } = getPageHeader(location.pathname, params);
+  const headingRef = useRef(null);
+
+  // Same two jobs useFocusOnMount/useDocumentTitle used to do per-page, now
+  // done once here since the heading itself lives here now. Keyed on
+  // pathname (not on pageTitle) so a param change under the same route
+  // (e.g. one order to another, if that ever becomes a link rather than a
+  // full navigation) still moves focus - matching the old per-page
+  // behavior, where every route entry was a fresh mount.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [location.pathname]);
+  useEffect(() => {
+    document.title = docTitle ? `${docTitle} · Order Support Assistant` : 'Order Support Assistant';
+  }, [docTitle]);
 
   return (
     <div className="storefront-shell">
@@ -162,20 +207,28 @@ function LayoutInner() {
         </aside>
 
         <main className="storefront-content">
-          <div className="storefront-content-header">
-            <div className="storefront-search" aria-hidden="true">
-              <SearchIcon />
-              <span>Search for products, orders...</span>
-              <span className="storefront-search-kbd">⌘K</span>
+          <div className="page-header">
+            <div className="page-header-title">
+              {PageIcon && <PageIcon aria-hidden="true" />}
+              <h1 ref={headingRef} tabIndex={-1}>
+                {pageTitle}
+              </h1>
             </div>
-            <button
-              type="button"
-              className="storefront-icon-btn"
-              onClick={toggle}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
-            </button>
+            <div className="page-header-actions">
+              <div className="storefront-search" aria-hidden="true">
+                <SearchIcon />
+                <span>Search for products, orders...</span>
+                <span className="storefront-search-kbd">⌘K</span>
+              </div>
+              <button
+                type="button"
+                className="storefront-icon-btn"
+                onClick={toggle}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+              </button>
+            </div>
           </div>
           <Outlet />
         </main>
