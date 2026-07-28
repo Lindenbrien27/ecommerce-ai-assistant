@@ -5,7 +5,7 @@ import { useOrders } from '../context/OrdersContext.jsx';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { CheckSquareIcon, ClipboardIcon, EmptyOrdersIcon, PackageIcon, TruckIcon } from '../components/icons.jsx';
+import { CheckIcon, EmptyOrdersIcon } from '../components/icons.jsx';
 
 // "Returned" has no matching value in this app's real `status` enum (see
 // the CHECK constraint in migrations/1784973065584_initial-schema.sql) -
@@ -21,14 +21,14 @@ const STATUS_FILTERS = [
 ];
 
 // The four forward-progression statuses this app actually has, each with
-// the icon/headline/subtext an order card shows for it - cancelled is
-// handled separately in OrderProgress below since it's a branch-off, not a
-// further step in this sequence.
+// the headline/subtext an order card shows for it - cancelled is handled
+// separately in OrderProgress below since it's a branch-off, not a further
+// step in this sequence.
 const STATUS_STEPS = [
-  { key: 'processing', label: 'Processing', icon: ClipboardIcon },
-  { key: 'shipped', label: 'Shipped', icon: PackageIcon },
-  { key: 'out_for_delivery', label: 'Out for delivery', icon: TruckIcon },
-  { key: 'delivered', label: 'Delivered', icon: CheckSquareIcon },
+  { key: 'processing', label: 'Processing' },
+  { key: 'shipped', label: 'Shipped' },
+  { key: 'out_for_delivery', label: 'Out for delivery' },
+  { key: 'delivered', label: 'Delivered' },
 ];
 const STATUS_MESSAGES = {
   processing: { headline: 'Your order is being processed', text: 'We are preparing your order for shipment.' },
@@ -53,7 +53,7 @@ function OrderProgress({ status }) {
   const currentIndex = STATUS_STEPS.findIndex((step) => step.key === status);
 
   return (
-    <ol className="order-progress">
+    <ol className="order-progress" aria-label={`Order progress: ${status.replace(/_/g, ' ')}`}>
       {STATUS_STEPS.map((step, i) => (
         <li
           key={step.key}
@@ -61,8 +61,14 @@ function OrderProgress({ status }) {
             i === currentIndex ? ' current' : ''
           }`}
         >
-          <span className="order-progress-icon" aria-hidden="true">
-            <step.icon />
+          {/* One shared glyph per state, not one glyph per step - a step
+              that hasn't been reached yet gets an empty ring, never a
+              checkmark, regardless of which step it is. */}
+          <span
+            className={`order-progress-icon ${i < currentIndex ? 'icon-check' : i === currentIndex ? 'icon-dot' : 'icon-ring'}`}
+            aria-hidden="true"
+          >
+            {i < currentIndex && <CheckIcon />}
           </span>
           <span className="order-progress-label">{step.label}</span>
         </li>
@@ -166,21 +172,23 @@ export function OrdersPage() {
           <ul className="order-cards">
             {visibleOrders.map((order) => (
               <li key={order.order_number} className="order-card">
+                <Link to={`/orders/${order.order_number}`} className="order-card-details-link">
+                  View Details
+                </Link>
                 <div className="order-card-top">
                   <ProductImage icon={order.product_icon} size="lg" />
                   <div className="order-card-info">
-                    <p className="order-card-id">{order.order_number}</p>
-                    <p className="order-card-date">{dateTimeFormatter.format(new Date(order.created_at))}</p>
                     <p className="order-card-product">{order.product_name}</p>
-                    <span className="order-card-qty">Quantity: 1</span>
-                  </div>
-                  <div className="order-card-actions">
+                    <p className="order-card-meta">
+                      <span className="order-card-id">{order.order_number}</span>
+                      <span aria-hidden="true">&bull;</span>
+                      <span>{dateTimeFormatter.format(new Date(order.created_at))}</span>
+                      <span aria-hidden="true">&bull;</span>
+                      <span>Qty: 1</span>
+                    </p>
                     <span className={`order-status status-${order.status}`}>
                       {order.status.replace(/_/g, ' ')}
                     </span>
-                    <Link to={`/orders/${order.order_number}`} className="order-card-details-link">
-                      View Details
-                    </Link>
                   </div>
                 </div>
 

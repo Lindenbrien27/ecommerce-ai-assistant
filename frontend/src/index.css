@@ -1211,27 +1211,42 @@ h1:focus-visible {
    (see storefront-shell above), so each card needs its own explicit
    surface color to actually read as a raised box against that background
    instead of just an outline with the page showing through it. */
+/* 20px/12px, not the shared --space-3/--radius-md (16px/8px) tokens - a
+   deliberate one-off, same as .storefront-shop-now and a few other spots
+   in this file that pick their own radius rather than force-fitting the
+   shared scale. */
 .order-card {
-  padding: var(--space-3);
+  position: relative;
+  padding: 20px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
 }
-.order-card-top { display: flex; align-items: flex-start; gap: var(--space-3); }
+/* padding-right leaves room for .order-card-details-link, pinned to this
+   same corner via absolute positioning below - without it, a long product
+   name would run underneath the button instead of wrapping clear of it. */
+.order-card-top { display: flex; align-items: flex-start; gap: var(--space-3); padding-right: 108px; }
 .order-card-info { flex: 1; min-width: 0; }
-.order-card-id { margin: 0; font-weight: 700; }
-.order-card-date { margin: 0.15rem 0; color: var(--color-text-muted); font-size: 0.8rem; }
-.order-card-product { margin: 0.3rem 0 0.4rem; }
-.order-card-qty {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-surface-text);
-  font-size: 0.78rem;
+.order-card-product { margin: 0 0 0.3rem; font-weight: 700; }
+/* One consolidated line (id · date · qty) instead of three stacked
+   elements plus a separate qty pill - the pill read as more visually
+   important than this metadata actually is next to the product name and
+   status badge. */
+.order-card-meta {
+  margin: 0 0 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
-.order-card-actions { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.order-card-id { color: var(--color-text-muted); }
 .order-card-details-link {
+  position: absolute;
+  top: 20px;
+  right: 20px;
   display: inline-flex;
   align-items: center;
   padding: 0.4rem 0.8rem;
@@ -1292,10 +1307,25 @@ h1:focus-visible {
   height: 2px;
   background: var(--color-border);
 }
-.order-progress-step.completed .order-progress-icon {
+/* Two of the three states get the same solid fill (completed's checkmark
+   and current's node both read as "reached"); .icon-ring is deliberately
+   left unstyled here since the base .order-progress-icon rule above
+   already is an empty muted ring - a future step needs no override. */
+.order-progress-icon.icon-check,
+.order-progress-icon.icon-dot {
   border-color: var(--color-solid-bg);
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
+}
+.order-progress-icon.icon-check svg { width: 15px; height: 15px; }
+/* The current step gets a plain filled dot, not a checkmark - a checkmark
+   here would claim this step is done, which it isn't yet. */
+.order-progress-icon.icon-dot::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-primary-text);
 }
 .order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-solid-bg); }
 .order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
@@ -1401,8 +1431,12 @@ h1:focus-visible {
 .orders-support-banner-chat:hover { background: var(--color-solid-bg-hover); }
 
 @media (max-width: 600px) {
-  .order-card-top { flex-wrap: wrap; }
-  .order-card-actions { flex-direction: row; margin-left: auto; }
+  /* The absolute-positioned corner button needs a real, cleared spot to
+     land in once the card gets this narrow - dropped back into normal
+     document flow (it's the first element in the card, so it renders
+     above the product info) rather than overlapping it. */
+  .order-card-top { flex-wrap: wrap; padding-right: 0; }
+  .order-card-details-link { position: static; margin-bottom: var(--space-2); }
   .order-progress-label { display: none; }
 }
 
