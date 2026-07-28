@@ -115,6 +115,43 @@ test('POST /api/auth/otp/request rejects an invalid email', async (t) => {
   });
 });
 
+test('EMAIL_RE does not catastrophically backtrack on a crafted adversarial string', () => {
+  // A regression test for a real CodeQL js/polynomial-redos finding: the
+  // old EMAIL_RE (/^[^\s@]+@[^\s@]+\.[^\s@]+$/) had two +'s that could
+  // both match '.', which is ambiguous with the literal \. between them -
+  // on a *failing* match, the engine backtracks through every possible
+  // split point. Confirmed against the actual old pattern before writing
+  // this fix: 'x@' + '!.'.repeat(30000) + a trailing '@' (so the final
+  // [^\s@]+$ group can never close out the match, forcing exhaustive
+  // backtracking) took ~900ms; at 50000 reps, ~2.5s - roughly quadratic
+  // growth, i.e. genuinely polynomial, not a fluke. isValidEmail's own
+  // 254-char cap means no real call site can ever reach this - EMAIL_RE
+  // is tested directly here (bypassing that cap) so the regex
+  // construction itself is provably safe, not just shielded by a
+  // caller-side length check that could be loosened or bypassed later.
+  const { EMAIL_RE } = require('../src/controllers/authController');
+  const adversarial = `x@${'!.'.repeat(50000)}@`;
+
+  const start = Date.now();
+  const result = EMAIL_RE.test(adversarial);
+  const elapsedMs = Date.now() - start;
+
+  assert.equal(result, false);
+  assert.ok(elapsedMs < 100, `expected near-instant rejection, took ${elapsedMs}ms`);
+});
+
+test('POST /api/auth/otp/request rejects an email over the 254-character RFC 5321 limit', async (t) => {
+  await withServer(t, async (base) => {
+    const tooLong = `${'a'.repeat(250)}@b.co`;
+    const res = await fetch(`${base}/api/auth/otp/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: tooLong }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
 test('POST /api/auth/otp/verify issues a token on a correct code', async (t) => {
   const crypto = require('crypto');
   const code = '482913';

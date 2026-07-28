@@ -4,7 +4,26 @@ const { sendOtpEmail } = require('../services/emailService');
 const { logError } = require('../utils/logger');
 const { auditLog } = require('../config/auditLog');
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// [^\s@]+ on both sides of a literal \. that character class can also
+// match is a classic ReDoS shape (CodeQL js/polynomial-redos) - on a
+// failing match like "x@" + "!.".repeat(50), the engine backtracks
+// through every possible split point between the two +'s and the literal
+// dot. EMAIL_RE here has no @ inside either segment, so it can't be
+// ambiguous the same way; the "must contain a dot" requirement is
+// re-checked as a plain substring search in isValidEmail below instead of
+// being folded back into the regex.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
+// RFC 5321's own cap, and cheap insurance regardless of the regex fix
+// above - no legitimate email is longer than this, so rejecting first
+// keeps every check below working on a bounded string.
+const EMAIL_MAX_LENGTH = 254;
+
+function isValidEmail(email) {
+  if (typeof email !== 'string' || email.length === 0 || email.length > EMAIL_MAX_LENGTH) return false;
+  if (!EMAIL_RE.test(email)) return false;
+  const domain = email.slice(email.indexOf('@') + 1);
+  return domain.includes('.') && !domain.startsWith('.') && !domain.endsWith('.');
+}
 
 // Always the same response shape regardless of whether this email has ever
 // placed an order, or whether the email actually sent - see otpService's
@@ -16,7 +35,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 async function requestOtpHandler(req, res) {
   const { email } = req.body;
 
-  if (!email || typeof email !== 'string' || !EMAIL_RE.test(email)) {
+  if (!isValidEmail(email)) {
     return res.status(400).json({ error: 'A valid email address is required.' });
   }
 
@@ -65,4 +84,9 @@ async function verifyOtpHandler(req, res) {
   }
 }
 
-module.exports = { requestOtpHandler, verifyOtpHandler };
+// EMAIL_RE is exported alongside isValidEmail solely so a test can prove
+// the regex construction itself is safe against pathological input,
+// independent of isValidEmail's own length gate - the length check alone
+// already keeps every real call site safe, but it shouldn't be the only
+// thing standing between this regex and a catastrophic-backtracking input.
+module.exports = { requestOtpHandler, verifyOtpHandler, isValidEmail, EMAIL_RE };
