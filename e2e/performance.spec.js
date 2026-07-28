@@ -45,7 +45,7 @@ test.describe('performance', () => {
       }
     });
 
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
 
     const loadedSoFar = [...jsChunksLoaded];
@@ -57,7 +57,14 @@ test.describe('performance', () => {
     expect([...jsChunksLoaded].some((p) => p.includes('/OrderDetailPage-'))).toBe(true);
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(false);
 
-    await page.click('.storefront-sidenav a[href="/chat"]');
+    // The sidebar no longer has its own link to /chat (the decorative
+    // Support Chat/FAQ's/Settings/Profile footer group was removed) - back
+    // to /orders, then the orders-support-banner's real "Chat with Support"
+    // link, both still real client-side <Link>s (not a full page load,
+    // which would defeat the point of this specific lazy-loading check).
+    await page.click('.back-link');
+    await expect(page).toHaveURL(/\/orders$/);
+    await page.click('.orders-support-banner-chat');
     await expect(page.locator('#chat-input')).toBeVisible();
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(true);
   });

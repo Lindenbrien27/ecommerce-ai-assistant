@@ -9,10 +9,24 @@
   color-scheme: light dark;
 
   --color-bg: #fbfbfb;
-  --color-page-bg: #f2f3f5;
+  --color-page-bg: #f4f4f6;
+  /* Sits between --color-page-bg and --color-bg, on purpose - the main
+     content panel used to share --color-bg with the order cards inside it,
+     which read as a flat "box in a box" since nothing distinguished the
+     panel from its own contents. This one step-down gives the panel its
+     own subtle depth without the cards needing to go all the way to a
+     literal #ffffff (this app's --color-bg is already an intentional
+     near-white, not a pure value - see its own history below). */
+  --color-panel-bg: #f7f7f8;
   --color-text: #171717;
   --color-text-muted: #666666;
-  --color-border: #8f8f8f;
+  /* Softer, lighter gray than the #8f8f8f this used to be - container
+     borders (sidebar/content/AI-panel cards, order cards, inputs) read as
+     a subtle separation from the page now instead of a visibly heavy
+     outline. Dark mode's own --color-border below is untouched - it's
+     already tuned soft against a near-black background, and this specific
+     hex is a light-mode-only swatch that would be invisible there. */
+  --color-border: #e5e5e8;
   /* Monochrome brand - no blue anywhere in this file anymore. #171717/
      #fbfbfb (near-black/near-white, not literal #000/#fff) are the two
      "active state" tones: whichever one contrasts against the current
@@ -27,8 +41,13 @@
   --color-primary-text: #fbfbfb;
   --color-solid-bg: #171717;
   --color-solid-bg-hover: #2e2e2e;
-  --color-surface: #f1f1f1;
+  --color-surface: #eaeaea;
   --color-surface-text: #111111;
+  /* Solid white, not var(--color-bg) (#fbfbfb) - a dedicated token since
+     the two happen to be extremely close but aren't the same value, and a
+     nav badge sitting on a card ever gets a non-white background in the
+     future, this shouldn't silently follow it. */
+  --color-nav-badge-bg: #ffffff;
   --color-error-surface: #fef2f2;
   --color-error-text: #991b1b;
   --color-error-border: #fecaca;
@@ -41,9 +60,42 @@
      glow this replaces (see brand-mark/msg-avatar/product-image below), so
      one value covers both instead of needing a per-theme pair. */
   --color-shadow: rgba(0, 0, 0, 0.3);
+  /* Same "reads as darker than its surroundings in both themes" reasoning
+     as --color-shadow above, just sized for a much subtler use (order
+     cards resting on --color-panel-bg) rather than that token's stronger
+     4-12px elevation shadows - one shared value instead of a light/dark
+     pair, same as --color-shadow itself. */
+  --color-card-shadow: rgba(0, 0, 0, 0.06);
+
+  /* Two scoped accent hues in an otherwise monochrome app, each doing
+     exactly one job. Violet marks the category filter chip's selected
+     state (see .storefront-tag below); everything else in this file still
+     holds to the near-white/near-black scale above. --color-chip-text is a
+     stronger near-black than --color-text-muted on purpose: the given
+     spec calls for #222 specifically for an unselected chip's own label,
+     not this app's usual secondary-text muted tone. */
+  --color-chip-border: rgba(0, 0, 0, 0.15);
+  --color-chip-text: #222222;
+  --color-chip-selected-bg: rgba(124, 58, 237, 0.08);
+  --color-chip-selected-border: #8b5cf6;
+  --color-chip-selected-text: #5b21b6;
+
+  /* The second accent - one fixed blue for "where the order actually is"
+     in both order-progress steppers (the order card's horizontal icon
+     row and OrderDetailPage's vertical dot timeline), completed/current
+     steps only. Deliberately the same hex in both themes, not a light/
+     dark pair like the chip accent above - the point is a single
+     unmistakable landmark color, not one that itself shifts with the
+     theme. Outlined nodes (border + glyph, transparent center), not
+     filled ones, so there's no separate "text on fill" contrast color to
+     carry - the accent itself is legible straight on this app's own
+     --color-bg in both themes. */
+  --color-progress-accent: #3b82f6;
+  --color-progress-accent-glow: rgba(59, 130, 246, 0.35);
 
   --radius-sm: 6px;
   --radius-md: 8px;
+  --radius-lg: 12px;
 
   --space-1: 0.5rem;
   --space-2: 0.75rem;
@@ -71,17 +123,29 @@
        background naturally wants to be anyway, and the active-state accent
        (--color-solid-bg below) is the *other* tone, #fbfbfb, giving active
        elements real pop against it instead of blending in. */
-    --color-bg: #171717;
-    --color-page-bg: #0a0a0a;
+    --color-bg: #0d0d0d;
+    /* #262626, not a near-black - lighter than every panel/card surface it
+       sits behind, on purpose (per direct design feedback): the gaps
+       between the sidebar/content/AI columns need to read as a visible
+       seam, not the barely-there sliver a near-black page bg leaves next
+       to near-black panels. */
+    --color-page-bg: #262626;
+    --color-panel-bg: #0a0a0a;
     --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
-    --color-border: #6b6f76;
+    /* Same grey as --color-page-bg, not the near-white #e5e5e5 this used
+       to be - that value made every panel/card border read as a thick
+       bright outline against the dark surfaces it was supposed to subtly
+       separate, instead of the near-invisible seam a border is meant to
+       be at this app's own "dividers should barely register" standard. */
+    --color-border: #262626;
     --color-primary: #fbfbfb;
     --color-primary-text: #171717;
     --color-solid-bg: #fbfbfb;
     --color-solid-bg-hover: #e6e6e6;
-    --color-surface: #1f1f1f;
+    --color-surface: #1a1a1a;
     --color-surface-text: #fbfbfb;
+    --color-nav-badge-bg: #1a1a1a;
     --color-error-surface: #3f1d1d;
     --color-error-text: #fca5a5;
     --color-error-border: #7f1d1d;
@@ -90,6 +154,11 @@
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
     --color-focus-ring: rgba(251, 251, 251, 0.22);
+    --color-chip-border: rgba(255, 255, 255, 0.15);
+    --color-chip-text: rgba(255, 255, 255, 0.75);
+    --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
+    --color-chip-selected-border: #a78bfa;
+    --color-chip-selected-text: #ddd6fe;
   }
 }
 
@@ -101,17 +170,19 @@
    standard "respects system preference, but a manual toggle overrides it"
    pattern for exactly that reason. */
 :root[data-theme="dark"] {
-  --color-bg: #171717;
-  --color-page-bg: #0a0a0a;
+  --color-bg: #0d0d0d;
+  --color-page-bg: #262626;
+  --color-panel-bg: #0a0a0a;
   --color-text: #fbfbfb;
   --color-text-muted: #9a9a9a;
-  --color-border: #6b6f76;
+  --color-border: #262626;
   --color-primary: #fbfbfb;
   --color-primary-text: #171717;
   --color-solid-bg: #fbfbfb;
   --color-solid-bg-hover: #e6e6e6;
-  --color-surface: #1f1f1f;
+  --color-surface: #1a1a1a;
   --color-surface-text: #fbfbfb;
+  --color-nav-badge-bg: #1a1a1a;
   --color-error-surface: #3f1d1d;
   --color-error-text: #fca5a5;
   --color-error-border: #7f1d1d;
@@ -120,6 +191,11 @@
   --color-warning-surface: #2a2110;
   --color-warning-text: #fcd34d;
   --color-focus-ring: rgba(251, 251, 251, 0.22);
+  --color-chip-border: rgba(255, 255, 255, 0.15);
+  --color-chip-text: rgba(255, 255, 255, 0.75);
+  --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
+  --color-chip-selected-border: #a78bfa;
+  --color-chip-selected-text: #ddd6fe;
 }
 
 * { box-sizing: border-box; }
@@ -342,14 +418,17 @@ p.subtitle {
   .typing-indicator, .typing-indicator * { animation-play-state: paused !important; }
 }
 
-.chat-header {
+/* "Order Support Assistant" itself now lives in Layout.jsx's shared
+   page-header row (see .page-header) - this row is just what's left that's
+   actually specific to the chat page: its subtitle and the Clear button. */
+.chat-toolbar {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-bottom: 0.35rem;
+  margin-bottom: var(--space-4);
 }
-.chat-header h1 { margin-bottom: 0; }
+.chat-toolbar .subtitle { margin-bottom: 0; }
 .chat-clear-button {
   flex-shrink: 0;
   background: transparent;
@@ -411,7 +490,8 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
    spacing, and this shouldn't quietly change those too. */
 #chat-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
 
-#verify-form {
+#verify-form,
+#otp-form {
   flex-direction: column;
   align-items: stretch;
   gap: 1.25rem;
@@ -427,11 +507,51 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
    shared input/button :focus-visible rule below), scoped to this one form
    rather than changed everywhere - matches the reference design
    specifically requested for this screen. */
-#verify-form input:focus-visible {
+#verify-form input:focus-visible,
+.otp-row input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
+
+/* fieldset/legend, not a plain div - the six boxes are one logical field
+   (a single 6-digit code), which is what grouping them under one legend
+   communicates to a screen reader instead of six unrelated single-character
+   inputs. Browser default fieldset border/padding reset to nothing so it
+   doesn't visually look like a second nested card inside the verify card. */
+.otp-fieldset { border: none; margin: 0; padding: 0; }
+.otp-row { display: flex; gap: 0.5rem; justify-content: center; }
+.otp-row input {
+  width: 44px;
+  height: 54px;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Looks like .back-link (muted, underline-free until hover) but is a real
+   <button>, not an <a> - "Resend code"/"Use a different email" trigger
+   real handlers, not navigation, so button semantics (and the reset below)
+   are the correct element even though the visual language matches. */
+.link-button {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.link-button:hover:not(:disabled) { color: var(--color-text); }
+.link-button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 .verify-error {
   margin: 0;
@@ -524,18 +644,17 @@ h1:focus-visible {
 .brand-standalone { display: flex; justify-content: center; }
 
 /* Full-width storefront shell (replaces the old collapsible left sidebar +
-   centered-card model for every authenticated page) - copies a reference
-   e-commerce account page's structure: a top identity/category bar, a
-   second "account" bar (greeting + pill nav), then the routed page content
-   below. VerifyPage is unaffected - it's a different top-level child of
-   #root (.app-shell--centered), not this. */
-/* --color-page-bg, not --color-bg - the sidebar and AI panel below are the
-   things that read as distinct "boxes" (their own --color-bg surface,
-   border, radius, sitting on this ambient background with real gaps around
-   them), matching the reference's floating-panel layout instead of this
-   app's previous edge-to-edge columns separated by a single 1px border.
-   The topbar and routed content sit directly on this same ambient
-   background - their own children (order cards, etc.) are the boxes there. */
+   centered-card model for every authenticated page) - three boxed columns
+   (sidebar, content, AI panel), no separate top bar; the brand lives at
+   the top of the sidebar and the search/theme-toggle live in the content
+   card's own header (see Layout.jsx). VerifyPage is unaffected - it's a
+   different top-level child of #root (.app-shell--centered), not this.
+   --color-page-bg, not --color-bg, on this shell itself - the sidebar,
+   content, and AI panel below are each their own distinct box (their own
+   --color-bg surface, border, radius) sitting on this shared ambient
+   background with real gaps between them, matching the reference's
+   floating-panel layout instead of edge-to-edge columns separated by a
+   single 1px border. */
 .storefront-shell {
   width: 100%;
   min-height: 100vh;
@@ -554,26 +673,22 @@ h1:focus-visible {
   align-items: stretch;
 }
 
-.storefront-topbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-/* Shared by both the decorative <span> icon buttons elsewhere in the
-   topbar and the real <button> theme toggle below it - the border/
-   background/padding resets are no-ops on a <span> (which never had them)
-   but necessary on a <button>, so one class works for both instead of
-   needing a near-duplicate. */
+/* The real <button> theme toggle's reset - border/background/padding are
+   no-ops for nothing else using this class anymore (the old decorative
+   bell/cart icon-buttons and the full-width top bar they lived in are
+   gone; the brand moved to the top of the sidebar, search + the toggle
+   moved into the content card's own header below). */
+/* 32px, not 36px - sized to match .page-header's own target height (see
+   its comment) now that this button lives in that row; it isn't used
+   anywhere else in the app. */
 .storefront-icon-btn {
   position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: 50%;
   padding: 0;
@@ -583,34 +698,19 @@ h1:focus-visible {
   cursor: pointer;
 }
 .storefront-icon-btn:hover { background: var(--color-surface); }
-.storefront-topbar-icons { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
-.storefront-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
-}
 
-/* A styled span, not a real <input> - a text field that visibly invites
-   typing but silently does nothing on keystroke is a worse trap than a
-   button that does nothing on click; this can't be mistaken for something
-   that accepts input. */
+/* .page-header-actions holds this + the theme toggle, right side of the
+   shared page-header row (see Layout.jsx) - a styled span, not a real
+   <input>, since a text field that visibly invites typing but silently
+   does nothing on keystroke is a worse trap than a button that does
+   nothing on click; this can't be mistaken for something that accepts
+   input. */
 .storefront-search {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex: 1;
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 260px;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -619,7 +719,18 @@ h1:focus-visible {
   cursor: pointer;
 }
 .storefront-search svg { flex-shrink: 0; }
-.storefront-search span:first-of-type { flex: 1; }
+/* min-width: 0 + truncation, not just flex: 1 - at this row's narrower
+   260px max-width (down from 320px, to fit next to the page title now),
+   the placeholder text no longer reliably fits on one line, and a wrapped
+   second line was quietly making this whole row - and the border-bottom
+   alignment that depends on its height - taller than intended. */
+.storefront-search span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .storefront-search-kbd {
   flex-shrink: 0;
   padding: 0.1rem 0.4rem;
@@ -628,13 +739,25 @@ h1:focus-visible {
   font-size: 0.7rem;
 }
 
+/* Full-width row in the sidebar now, not a shrink-to-fit pill in a top bar
+   - matches the reference's own bottom-of-sidebar user chip, and sits
+   right above the real Logout button (see Layout.jsx). */
+/* margin-top: auto is the whole mechanism that keeps this pinned to the
+   sidebar's own floor (see .storefront-sidebar's own comment) - .storefront-
+   sidenav no longer grows to fill the remaining height itself; this row
+   consumes whatever's left instead, the same "lots of empty space, on
+   purpose" rhythm a later design pass (the Quiet Workspace exploration)
+   argued for. */
 .storefront-profile-chip {
+  width: 100%;
   flex-shrink: 0;
+  margin-top: auto;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
-  border-radius: 999px;
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 .storefront-profile-chip:hover { background: var(--color-surface); }
@@ -651,8 +774,8 @@ h1:focus-visible {
   font-size: 0.85rem;
   font-weight: 700;
 }
+.storefront-profile-text { flex: 1; min-width: 0; }
 .storefront-profile-email {
-  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -660,80 +783,93 @@ h1:focus-visible {
   font-weight: 600;
 }
 
+/* 8px outer edge, 6px between panels - an exact spec, not the space-*
+   scale (no existing token lands on 6px), matching the precise-px pattern
+   the sidebar rebuild below already uses. Tighter than the old uniform
+   var(--space-3) pairing so the three panels (sidebar, content, AI panel)
+   read as closely-set columns rather than loosely-spaced blocks. */
 .storefront-body {
   flex: 1;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  gap: 6px;
+  padding: 8px;
 }
 
+/* 240px/16px-top-12px-elsewhere/no shared gap - an exact spec (down to
+   each individual transition's own margin below) replacing what used to
+   be one uniform var(--space-3) gap between every child. display:flex/
+   column/no explicit height needed for the margin-top: auto trick above
+   to work - .storefront-body's own align-items: flex-start would
+   otherwise shrink this to its content height, but min-height below
+   already keeps it full-height regardless. */
 .storefront-sidebar {
   flex-shrink: 0;
-  width: 260px;
+  width: 240px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-3);
+  padding: 16px 12px 12px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   /* min-height, not height - the sidebar should be at least as tall as the
-     viewport-minus-topbar-minus-.storefront-body's-own-padding, so it reads
-     as a full-height panel even when the routed page content is short, but
-     a taller page (e.g. a long order list) should push it taller too, not
-     clip/scroll independently. */
-  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
+     viewport minus .storefront-body's own padding, so it reads as a
+     full-height panel even when the routed page content is short, but a
+     taller page (e.g. a long order list) should push it taller too, not
+     clip/scroll independently. No top-bar height to subtract anymore - the
+     brand now lives inside the sidebar itself instead of above it. */
+  min-height: calc(100vh - 16px);
 }
+.storefront-sidebar .brand { min-height: 40px; gap: 10px; margin-bottom: 24px; }
 .storefront-shop-now {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  padding: 0.65rem var(--space-3);
-  border-radius: var(--radius-md);
+  height: 40px;
+  padding: 0 16px;
+  margin-bottom: 24px;
+  border-radius: 10px;
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 .storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
 
-/* flex: 1, not just a plain column - lets .storefront-sidenav-section--bottom
-   below push itself (and the sidebar's own Logout button right after it)
-   down toward the bottom of .storefront-sidebar's own min-height, the same
-   spacing trick the old .storefront-help-card used before this redesign
-   replaced it. Without growing to fill the sidebar's available height
-   first, margin-top: auto on a child has no free space to consume. */
-.storefront-sidenav {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
+.storefront-sidenav { flex-shrink: 0; }
 .storefront-sidenav-section {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 4px;
 }
-.storefront-sidenav-section--bottom { margin-top: auto; }
+/* 13px/500/65% opacity, not uppercase-and-tracked - deliberately small and
+   quiet enough to skim past rather than compete with the nav items below
+   it; the given spec was explicit that this treatment (not the small-caps
+   heading look most section labels default to) was the point. */
 .storefront-sidenav-heading {
-  margin: 0 0 0.15rem;
-  padding: 0 0.75rem;
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  margin: 0 0 12px;
+  padding: 0 4px;
+  color: var(--color-text);
+  opacity: 0.65;
+  font-size: 13px;
+  font-weight: 500;
 }
+/* The "Category" label specifically: 32px above it (not the 12px every
+   label defaults to below itself), 16px below it to the tag grid (not
+   12px to a nav item) - two different label-to-content gaps in this
+   sidebar, not one shared rule. Matches only this label, since it's the
+   one immediately preceded by the Dashboard .storefront-sidenav-section. */
+.storefront-sidenav-section + .storefront-sidenav-heading { margin-top: 32px; margin-bottom: 16px; }
 .storefront-sidenav a,
 .storefront-sidenav span {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--radius-md);
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -756,68 +892,120 @@ h1:focus-visible {
 .storefront-sidenav span:hover,
 .storefront-sidenav a:hover span,
 .storefront-sidenav span:hover span { color: var(--color-text); background: var(--color-surface); }
+/* Same var(--color-surface) as :hover above, not var(--color-solid-bg) -
+   active and hover now share one subtle background instead of active
+   being a bold inverted pill. color: var(--color-text), not var(--color-
+   primary-text) - that token assumes it's sitting on --color-solid-bg
+   (which flips to near-white in dark mode), so on this now much lighter/
+   subtler surface it would mean near-white-on-near-white in dark mode -
+   the same invisible-text mistake this file has already caught and fixed
+   twice elsewhere, worth calling out again since it'd be easy to
+   reintroduce by only changing the background and reusing the old text
+   color out of habit. */
 .storefront-sidenav a.active,
 .storefront-sidenav a.active span {
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 700;
 }
 
 /* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
    treatment either way, so the UI doesn't visually distinguish "count I
    bothered to compute" from "count that happens to be small" - nothing
-   here implies Coupons/Wishlist are bigger features than they are. */
-.storefront-sidenav-count {
+   here implies Coupons/Wishlist are bigger features than they are.
+   --color-nav-badge-bg, not --color-surface - a dedicated token (solid
+   white in light mode, #1a1a1a in dark) rather than reusing the same
+   gray the row itself now sits on for :hover/.active, so the badge still
+   reads as a distinct chip instead of blending into its own background.
+   No more active-specific override needed here - now that .active uses
+   the same subtle var(--color-surface) fill as :hover instead of an
+   inverted solid pill, the default badge styling already has enough
+   contrast against it without a special case.
+   Scoped as ".storefront-sidenav .storefront-sidenav-count", not just
+   ".storefront-sidenav-count" - this badge is itself a <span> inside
+   .storefront-sidenav, so the shared ".storefront-sidenav span" rule
+   (class+type selector) is otherwise MORE specific than a single class
+   alone and was silently winning, leaving the badge stuck at the base
+   0.9rem font size and --color-surface background instead of its own -
+   found live via computed styles (font-size resolving to 14.4px/0.9rem
+   despite this rule saying 0.62rem), the same class of bug as the
+   sidenav-label and category-tag contrast fixes elsewhere in this file. */
+.storefront-sidenav .storefront-sidenav-count {
   margin-left: auto;
-  min-width: 20px;
-  padding: 0.1rem 0.4rem;
+  min-width: 18px;
+  padding: 0.05rem 0.35rem;
   border-radius: 999px;
-  background: var(--color-surface);
+  background: var(--color-nav-badge-bg);
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-align: center;
 }
+/* .active/:hover on the row (above) both include a "…span" selector to
+   reach the nested label text (see that rule's own comment), which also
+   matches this badge - a second <span> nested in the same row - and wins
+   on specificity (extra "a"/":hover" pseudo-class beats this rule's own
+   two-class scope), silently pulling the badge's background back to
+   var(--color-surface) whenever the row is hovered or active. Found live
+   via computed styles again (badge still resolving to --color-surface's
+   rgb despite this file explicitly setting --color-nav-badge-bg) - these
+   two overrides just need to out-specify those two states individually,
+   each by including one more class (".storefront-sidenav-count" itself)
+   than what they're beating. */
+.storefront-sidenav a:hover .storefront-sidenav-count,
+.storefront-sidenav span:hover .storefront-sidenav-count,
 .storefront-sidenav a.active .storefront-sidenav-count {
-  background: rgba(255, 255, 255, 0.25);
-  color: var(--color-primary-text);
+  background: var(--color-nav-badge-bg);
 }
 
+/* 2-column grid, not a wrapped inline-flex row - gives every chip the same
+   width and lines row 2 up under row 1, instead of pill widths falling
+   wherever their own text happens to end. */
 .storefront-tag-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  row-gap: 8px;
+  column-gap: 8px;
+  padding: 0 4px;
 }
-.storefront-tag {
-  display: flex;
+/* A real multi-select filter now (see Layout.jsx/OrdersPage.jsx), not a
+   decorative label - default/selected are both explicit states rather
+   than a plain badge with an implied color. Default: transparent
+   background, a low-opacity border, plain text - no tint, unlike the
+   colored-dot version this replaces. Selected: a soft violet wash
+   (background/border/text all shift together, not just the border), the
+   one deliberate accent color in this app, scoped to exactly this one
+   real interactive state (see --color-chip-* tokens for why). */
+.storefront-tag-list .storefront-tag {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  font-size: 0.88rem;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--color-chip-border);
+  color: var(--color-chip-text);
+  font: inherit;
+  font-size: 0.75rem;
   font-weight: 500;
+  cursor: pointer;
 }
-/* Monochrome - var(--color-text) at 5 opacity steps instead of 5 hardcoded
-   hues, so each tag is still visually distinct without reintroducing color.
-   :nth-child on the row (Layout.jsx renders no per-tag color anymore), not
-   a class per tag - one shared rule instead of 5 near-identical ones. */
-.storefront-tag-dot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-text);
+.storefront-tag-list .storefront-tag:hover { background: var(--color-surface); }
+.storefront-tag-list .storefront-tag[aria-pressed="true"] {
+  background: var(--color-chip-selected-bg);
+  border-color: var(--color-chip-selected-border);
+  color: var(--color-chip-selected-text);
+  font-weight: 600;
 }
-.storefront-tag:nth-child(1) .storefront-tag-dot { opacity: 1; }
-.storefront-tag:nth-child(2) .storefront-tag-dot { opacity: 0.8; }
-.storefront-tag:nth-child(3) .storefront-tag-dot { opacity: 0.6; }
-.storefront-tag:nth-child(4) .storefront-tag-dot { opacity: 0.45; }
-.storefront-tag:nth-child(5) .storefront-tag-dot { opacity: 0.3; }
+.storefront-tag-list .storefront-tag[aria-pressed="true"]:hover { filter: brightness(1.05); }
 
 .storefront-logout {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-top: 4px;
   background: transparent;
   color: var(--color-text-muted);
   padding: 0.6rem 0.75rem;
@@ -826,16 +1014,79 @@ h1:focus-visible {
 }
 .storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
 
-/* No left/right padding of its own - .storefront-body's own padding + gap
-   (above) already separate this column from the sidebar/AI panel boxes on
-   either side of it; this content area itself isn't a box (it sits
-   directly on the shared ambient page background, same as the topbar), so
-   its own children - the order cards, the header, the support banner - are
-   what read as boxes here, same as the reference's plain content column. */
+/* Its own boxed card now too, same recipe as .storefront-sidebar/.ai-panel
+   (border, radius) - all three columns read as distinct cards resting on
+   the shared ambient page background, matching the reference instead of
+   leaving this one column bare while its neighbors were boxed.
+   --color-panel-bg, not --color-bg - see that token's own comment for why
+   the panel now needs a tone of its own, distinct from the order cards
+   resting on it. padding-top stays 16px, matching the sidebar/AI panel's
+   own top padding exactly (see .page-header below for why that's what
+   actually keeps "Your Orders" level with the sidebar's own first row) -
+   only the other three sides go to 24px.  */
 .storefront-content {
   flex: 1;
   min-width: 0;
-  padding-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+/* The routed page's own icon+title (left) and the search bar/theme toggle
+   (right) on one row - previously just the search/toggle on their own row,
+   with every page's <h1> stacked below it instead of beside it (see
+   Layout.jsx's PAGE_HEADERS for why the title lives here now, not in each
+   page). min-height, not height - OrderDetailPage's title (an order
+   number) is plain text with no natural cap on length, so the row should
+   be free to grow rather than clip it.
+   padding-bottom + border-bottom is the exact same recipe as
+   .ai-panel-header's own divider (0 0 var(--space-2), border-bottom) -
+   .storefront-content and .ai-panel already share the same 16px top
+   padding, so copying that recipe here (down to the 32px min-height,
+   matching .ai-panel-avatar's own 32px) is what lands this row's divider
+   on the identical Y as the AI panel's, not just a visually-similar one.
+   margin-bottom is separate, after the border, and only controls the gap
+   to whatever comes next (e.g. OrdersPage's filter tabs, which supply
+   their own margin-top that collapses with this one to one clean 16px
+   gap - see .order-filter-tabs). */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: 0 0 var(--space-2);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.page-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+/* var(--font-size-sm)-ish scale and the same 700 weight/tight tracking as
+   .brand-name in the sidebar (see Brand.jsx) - a page title sharing this
+   row with a compact search bar and icon button reads oddly at this file's
+   old page-heading size (var(--font-size-lg), ~30px); shrinking it to
+   visually match the sidebar's own wordmark is what actually makes the
+   two columns look like they belong to the same design instead of one
+   heading dwarfing the row it's now sharing. */
+.page-header-title h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-header-title svg { flex-shrink: 0; width: 20px; height: 20px; }
+.page-header-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third boxed
@@ -848,11 +1099,11 @@ h1:focus-visible {
   width: 320px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 65px - 2 * var(--space-3) - var(--space-4));
+  min-height: calc(100vh - 16px);
   padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
 }
 /* A real <button>, not a styled <div> - clicking it is the only way to
    minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
@@ -923,12 +1174,24 @@ h1:focus-visible {
   flex-direction: column;
   gap: var(--space-3);
 }
+/* Wrapped row, not a stacked column - reads as a set of quick options to
+   pick from rather than a list to read top-to-bottom, matching how
+   Linear/Raycast-style assistant panels present suggested prompts. */
+.ai-panel-suggested-label {
+  margin: 0 0 0 30px;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 .ai-panel-suggestions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: var(--space-1);
   margin-left: 30px;
 }
+.ai-panel-suggestions .chat-suggestion { flex: 0 1 auto; width: auto; }
 .ai-panel-form {
   display: flex;
   gap: var(--space-1);
@@ -955,20 +1218,21 @@ h1:focus-visible {
     gap: var(--space-2);
     padding: var(--space-3);
   }
-  /* The section wrapper divs (Dashboard/Category/bottom) exist to group
-     items under a heading in the vertical desktop layout - display: contents
-     dissolves them here so their children (the actual nav items) become
-     direct flex items of .storefront-sidenav below and wrap into one
-     compact icon row, instead of three separate row-wrapped blocks. The
-     headings and the Category tag list are dropped entirely rather than
-     wrapped in too - decorative extras a cramped icon row has no room for. */
+  /* The Dashboard section wrapper div exists to group its items under a
+     heading in the vertical desktop layout - display: contents dissolves
+     it here so its children (the actual nav items) become direct flex
+     items of .storefront-sidenav below and wrap into one compact icon
+     row. Both headings are dropped entirely, and so is the Category tag
+     grid - a cramped icon row has no room for a 2-column filter grid, so
+     category filtering isn't reachable below this width for now (still
+     resettable from a wider viewport if a filter was left selected). */
   .storefront-sidenav-section { display: contents; }
   .storefront-sidenav-heading,
   .storefront-tag-list { display: none; }
   .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
   /* Same .sr-only technique as the rule of that name near the top of this
-     file, not display: none - a real <a> (My Orders, Support Chat) with
-     display: none on its only text content has no accessible name at all,
+     file, not display: none - a real <a> (My Orders) with display: none
+     on its only text content has no accessible name at all,
      which axe's link-name rule correctly flags as a serious violation
      (this app already learned this exact lesson once, for the old
      collapsible sidebar's icon-only rail - regressed it here by not
@@ -989,17 +1253,11 @@ h1:focus-visible {
   }
 }
 @media (max-width: 480px) {
-  .storefront-topbar { padding: var(--space-2) var(--space-3); }
   .storefront-body { padding: var(--space-2); gap: var(--space-2); }
-  /* Real horizontal overflow, not just cosmetic - measured
-     document.documentElement.scrollWidth at 521px in a 390px viewport
-     before this. .storefront-topbar has no flex-wrap (by design - a
-     wrapped-to-two-lines top bar looks worse than a one-line bar that
-     drops its least-essential text), so brand + bell/cart/the full email
-     in the profile chip together just don't fit at phone widths. Hiding
-     the email (the avatar + chevron alone still identify "this is your
-     account menu") is what actually gets it back under the viewport
-     width, verified live after this change. */
+  /* The mobile sidebar wraps (see the 700px breakpoint above), but the
+     profile chip's own row still doesn't reliably have room for a full
+     email address at phone widths - the avatar + chevron alone still
+     identify "this is your account menu" without it. */
   .storefront-profile-email { display: none; }
   .storefront-profile-chip { padding: 0.3rem; }
 }
@@ -1013,53 +1271,56 @@ h1:focus-visible {
 }
 .back-link:hover { color: var(--color-primary); }
 
-.orders-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-.orders-header-art { display: none; flex-shrink: 0; width: 96px; height: 96px; }
-@media (min-width: 700px) {
-  .orders-header-art { display: block; }
-}
 
+/* A single connected segmented-control track (inline-flex + one shared
+   background/radius), not individually-bordered pill buttons - the active
+   item gets its own elevated fill; inactive items are borderless text
+   sitting directly on the shared track instead of each having its own
+   outline. */
 .order-filter-tabs {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 2px;
   margin: var(--space-3) 0 var(--space-4);
+  padding: 3px;
+  background: var(--color-surface);
+  border-radius: 999px;
 }
 .order-filter-tab {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-radius: 999px;
   background: transparent;
-  color: var(--color-text);
-  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
   font-weight: 500;
 }
-.order-filter-tab:hover:not(.active) { background: var(--color-surface); }
+.order-filter-tab:hover:not(.active) { color: var(--color-text); }
 .order-filter-tab.active {
   background: var(--color-solid-bg);
-  border-color: var(--color-solid-bg);
   color: var(--color-primary-text);
+  box-shadow: 0 1px 3px var(--color-shadow);
 }
+/* Light badge inside an inactive (dark-text-on-transparent) tab - sits on
+   the track's own --color-surface, so the card's --color-bg tone reads as
+   distinctly lighter than its surroundings without needing its own hue. */
 .order-filter-count {
-  min-width: 22px;
-  padding: 0.1rem 0.4rem;
+  min-width: 20px;
+  padding: 0.05rem 0.4rem;
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-surface-text);
-  font-size: 0.75rem;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
   font-weight: 700;
   text-align: center;
 }
 .order-filter-tab.active .order-filter-count {
-  background: rgba(255, 255, 255, 0.25);
+  /* Neutral gray, not white - see .storefront-sidenav-count above for why
+     a white-tinted overlay breaks in dark mode. */
+  background: rgba(128, 128, 128, 0.3);
   color: var(--color-primary-text);
 }
 
@@ -1076,27 +1337,46 @@ h1:focus-visible {
    (see storefront-shell above), so each card needs its own explicit
    surface color to actually read as a raised box against that background
    instead of just an outline with the page showing through it. */
+/* 16px/20px, not the shared --space-3 (16px) token on every side - more
+   horizontal room than vertical, so the wide card doesn't carry more empty
+   right-hand space than its content actually needs. A soft shadow now too
+   (--color-card-shadow, sized for exactly this - see its own comment)
+   since the card sits on --color-panel-bg rather than directly on the page
+   background, and a border alone read as flatter than an actually-raised
+   card once the panel had a tone of its own to be raised above. */
 .order-card {
-  padding: var(--space-3);
+  position: relative;
+  padding: 16px 20px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px var(--color-card-shadow);
 }
-.order-card-top { display: flex; align-items: flex-start; gap: var(--space-3); }
+/* padding-right leaves room for .order-card-details-link, pinned to this
+   same corner via absolute positioning below - without it, a long product
+   name would run underneath the button instead of wrapping clear of it. */
+.order-card-top { display: flex; align-items: flex-start; gap: var(--space-3); padding-right: 108px; }
 .order-card-info { flex: 1; min-width: 0; }
-.order-card-id { margin: 0; font-weight: 700; }
-.order-card-date { margin: 0.15rem 0; color: var(--color-text-muted); font-size: 0.8rem; }
-.order-card-product { margin: 0.3rem 0 0.4rem; }
-.order-card-qty {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-surface-text);
-  font-size: 0.78rem;
+.order-card-product { margin: 0 0 0.3rem; font-weight: 700; }
+/* One consolidated line (id · date · qty) instead of three stacked
+   elements plus a separate qty pill - the pill read as more visually
+   important than this metadata actually is next to the product name and
+   status badge. */
+.order-card-meta {
+  margin: 0 0 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
-.order-card-actions { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.order-card-id { color: var(--color-text-muted); }
 .order-card-details-link {
+  position: absolute;
+  top: 20px;
+  right: 20px;
   display: inline-flex;
   align-items: center;
   padding: 0.4rem 0.8rem;
@@ -1157,13 +1437,45 @@ h1:focus-visible {
   height: 2px;
   background: var(--color-border);
 }
-.order-progress-step.completed .order-progress-icon {
-  border-color: var(--color-solid-bg);
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
+/* Two of the three states get the same treatment (completed's checkmark
+   and current's node both read as "reached"); .icon-ring is deliberately
+   left unstyled here since the base .order-progress-icon rule above
+   already is an empty muted ring - a future step needs no override.
+   Outlined, not filled - only the border and glyph switch to
+   --color-progress-accent, the background stays the same var(--color-bg)
+   every step already sits on, so completed/current read as "the same
+   ring, now lit up" rather than a different shape taking over. */
+.order-progress-icon.icon-check,
+.order-progress-icon.icon-dot {
+  border-color: var(--color-progress-accent);
+  color: var(--color-progress-accent);
 }
-.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-solid-bg); }
+.order-progress-icon.icon-check svg { width: 15px; height: 15px; }
+/* The current step gets a plain filled dot, not a checkmark - a checkmark
+   here would claim this step is done, which it isn't yet. */
+.order-progress-icon.icon-dot::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-progress-accent);
+}
+.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-progress-accent); }
 .order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
+/* A one-shot pulse on the just-reached step, not a looping one - this is
+   an acknowledgment of a milestone the page loaded already at ("your
+   order has shipped"), not a live event arriving while watched, so it
+   plays once on mount and settles rather than drawing the eye
+   indefinitely. var(--color-progress-accent-glow), not --color-focus-ring -
+   the halo now echoes the accent it's pulsing around instead of this
+   app's neutral near-black/near-white ring, same reasoning as the icon
+   fill itself. See the reduced-motion override further down for why this
+   is opt-out, not opt-in. */
+.order-progress-step.current .order-progress-icon { animation: step-pulse 0.9s ease-out; }
+@keyframes step-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--color-progress-accent-glow); transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px var(--color-progress-accent-glow); transform: scale(1.1); }
+}
 
 .order-progress-cancelled {
   margin: var(--space-2) 0 0;
@@ -1174,6 +1486,43 @@ h1:focus-visible {
   border-radius: var(--radius-md);
   font-size: 0.9rem;
 }
+
+/* A verified-but-orderless email is a real, expected destination now (see
+   OrdersPage.jsx), not a dead end - full icon/title/text/actions treatment
+   instead of a single line of muted text, same as this app's other
+   deliberate empty states (.chat-empty-state). */
+.orders-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  padding: 3.5rem 1.5rem;
+}
+.orders-empty-icon { color: var(--color-text-muted); margin-bottom: 0.5rem; }
+.orders-empty-title { margin: 0; font-weight: 700; font-size: 1.05rem; }
+.orders-empty-text {
+  margin: 0;
+  max-width: 340px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.orders-empty-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.orders-empty-primary,
+.orders-empty-secondary {
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+.orders-empty-primary { background: var(--color-solid-bg); color: var(--color-primary-text); border: none; }
+.orders-empty-primary:hover { background: var(--color-solid-bg-hover); }
+.orders-empty-secondary { background: none; border: 1px solid var(--color-border); color: var(--color-text); }
+.orders-empty-secondary:hover { background: var(--color-surface); }
 
 .orders-support-banner {
   display: flex;
@@ -1214,8 +1563,12 @@ h1:focus-visible {
 .orders-support-banner-chat:hover { background: var(--color-solid-bg-hover); }
 
 @media (max-width: 600px) {
-  .order-card-top { flex-wrap: wrap; }
-  .order-card-actions { flex-direction: row; margin-left: auto; }
+  /* The absolute-positioned corner button needs a real, cleared spot to
+     land in once the card gets this narrow - dropped back into normal
+     document flow (it's the first element in the card, so it renders
+     above the product info) rather than overlapping it. */
+  .order-card-top { flex-wrap: wrap; padding-right: 0; }
+  .order-card-details-link { position: static; margin-bottom: var(--space-2); }
   .order-progress-label { display: none; }
 }
 
@@ -1286,8 +1639,6 @@ h1:focus-visible {
   text-underline-offset: 2px;
 }
 .order-detail-field dd a:hover { text-decoration-thickness: 2px; }
-
-.order-id-heading { font-size: 2.625rem; letter-spacing: -0.03em; }
 
 /* Real photo when ProductImage.jsx has one mapped (overflow: hidden clips
    it to this tile's own rounded corners, object-fit: cover fills the tile
@@ -1362,12 +1713,25 @@ h1:focus-visible {
   color: var(--color-text-muted);
   font-size: 0.9rem;
 }
+/* An outlined ring, not a filled dot - matches .order-progress-icon's own
+   outlined treatment above so the two steppers read as the same signal.
+   A small inner dot (::after), not a checkmark glyph, marks "reached" -
+   there's no room for a legible check at 10px. */
 .status-timeline-marker {
+  position: relative;
   flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-border);
+  border: 2px solid var(--color-border);
+}
+.status-timeline-marker::after {
+  content: '';
+  position: absolute;
+  inset: 2.5px;
+  border-radius: 50%;
+  background: var(--color-progress-accent);
+  opacity: 0;
 }
 /* The connecting line is a pseudo-element on each non-last step, not a
    separate element - anchored to the marker's own horizontal center
@@ -1383,16 +1747,45 @@ h1:focus-visible {
   background: var(--color-border);
 }
 .status-timeline-step.completed { color: var(--color-text); }
-.status-timeline-step.completed .status-timeline-marker { background: var(--color-primary); }
+/* var(--color-progress-accent), not --color-primary - same single
+   vibrant landmark color as .order-progress-icon's completed/current ring
+   above, so the two steppers (this vertical timeline and the order
+   card's horizontal one) read as the same signal rather than one going
+   monochrome and the other accented. */
+.status-timeline-step.completed .status-timeline-marker,
+.status-timeline-step.current .status-timeline-marker { border-color: var(--color-progress-accent); }
+.status-timeline-step.completed .status-timeline-marker::after,
+.status-timeline-step.current .status-timeline-marker::after { opacity: 1; }
 /* :not(.current), not just .completed - a step's trailing line represents
    progress *into the next step*, which for the current step hasn't
    happened yet regardless of the current step's own dot being filled in.
-   Coloring it blue implied delivery was already in progress toward
-   "Delivered" the moment an order went "out for delivery," before that
-   was actually true - caught by literally looking at the rendered line,
-   not from the class logic alone reading correctly at a glance. */
-.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-primary); }
+   Coloring it the same accent as a completed line would imply delivery
+   was already in progress toward "Delivered" the moment an order went
+   "out for delivery," before that was actually true - caught by
+   literally looking at the rendered line, not from the class logic alone
+   reading correctly at a glance. */
+.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-progress-accent); }
 .status-timeline-step.current .status-timeline-label { font-weight: 700; }
+/* Same one-shot milestone pulse as .order-progress-icon's own (see its
+   comment) - shared keyframes, since it's the same "acknowledge the step
+   this order is currently at" moment, just on the vertical timeline's dot
+   instead of the horizontal stepper's icon circle. */
+.status-timeline-step.current .status-timeline-marker { animation: step-pulse 0.9s ease-out; }
+
+/* A second prefers-reduced-motion block, not folded into the one near the
+   top of this file - these two selectors have to physically come after
+   the unconditional rules just above (and .order-progress-icon's
+   equivalent, earlier in the file) that they're overriding. Equal
+   specificity ties resolve by source order, not by "which one has a media
+   condition" - an earlier media-scoped rule loses to a later unconditional
+   one with the same selector, which is exactly what happened here the
+   first time through (verified live: animation-name still read
+   "step-pulse" under a reduced-motion emulation despite an `animation:
+   none` rule that looked like it should have won). */
+@media (prefers-reduced-motion: reduce) {
+  .order-progress-step.current .order-progress-icon,
+  .status-timeline-step.current .status-timeline-marker { animation: none; }
+}
 
 .status-timeline-cancelled {
   margin: 0;

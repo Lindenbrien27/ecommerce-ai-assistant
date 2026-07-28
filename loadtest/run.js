@@ -1,7 +1,6 @@
 const autocannon = require('autocannon');
 
 // Same seed customer test/e2e already use (migrations/1784973065584_initial-schema.sql).
-const ORDER_NUMBER = 'ORD-1001';
 const EMAIL = 'jane.doe@example.com';
 
 const TARGET = process.env.LOADTEST_TARGET || 'http://127.0.0.1:3000';
@@ -15,15 +14,31 @@ const CONNECTIONS = Number(process.env.LOADTEST_CONNECTIONS) || 20;
 // .github/workflows/loadtest.yml) or every request past the first ~30/min
 // just measures 429s instead of real backend latency.
 async function getToken() {
-  const res = await fetch(`${TARGET}/api/auth/verify`, {
+  const requestRes = await fetch(`${TARGET}/api/auth/otp/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderNumber: ORDER_NUMBER, email: EMAIL }),
+    body: JSON.stringify({ email: EMAIL }),
   });
-  if (!res.ok) {
-    throw new Error(`Setup failed: POST /api/auth/verify returned ${res.status}`);
+  if (!requestRes.ok) {
+    throw new Error(`Setup failed: POST /api/auth/otp/request returned ${requestRes.status}`);
   }
-  const { token } = await res.json();
+  // NODE_ENV is 'test' here (see .github/workflows/loadtest.yml) and no SMTP_*
+  // is configured, so the code comes back directly instead of being emailed -
+  // same devCode fallback the e2e suite relies on (see e2e/helpers.js).
+  const { devCode } = await requestRes.json();
+  if (!devCode) {
+    throw new Error('Setup failed: no devCode in response - is SMTP configured or NODE_ENV=production?');
+  }
+
+  const verifyRes = await fetch(`${TARGET}/api/auth/otp/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: EMAIL, code: devCode }),
+  });
+  if (!verifyRes.ok) {
+    throw new Error(`Setup failed: POST /api/auth/otp/verify returned ${verifyRes.status}`);
+  }
+  const { token } = await verifyRes.json();
   return token;
 }
 

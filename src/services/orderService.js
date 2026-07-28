@@ -7,10 +7,9 @@ const MAX_PAGE_SIZE = 100;
 class InvalidCursorError extends Error {}
 
 // Orders are effectively read-only (see config/cache.js), and getOrderByNumber
-// specifically sits on three separate hot paths - auth verification
-// (authService.verifyCustomer), GET /api/orders/:id, and the chat tool
-// get_order_by_number - so caching here benefits all three from one place
-// instead of each call site needing its own. `.has()` before `.get()`
+// specifically sits on two separate hot paths - GET /api/orders/:id and the
+// chat tool get_order_by_number - so caching here benefits both from one
+// place instead of each call site needing its own. `.has()` before `.get()`
 // because a cached "not found" is a real, valid, deliberately-cached
 // result (a `null`) - `cache.get(key) ?? fallback` would be wrong here,
 // since `null` is falsy and indistinguishable from "never cached."

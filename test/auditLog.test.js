@@ -33,41 +33,59 @@ test('auditLog() logs details under the event name via the audit-tagged child lo
   assert.deepEqual(auditLogger.info.mock.calls[0].arguments, [{ foo: 'bar' }, 'some.event']);
 });
 
-test('a failed verify attempt logs auth.verify_failed with the attempted order number and email', async (t) => {
+test('requesting a code logs auth.otp_requested with the email and whether it was actually emailed', async (t) => {
   t.mock.method(pool, 'query', async () => ({ rows: [] }));
   t.mock.method(auditLogger, 'info', () => {});
 
   await withServer(t, async (base) => {
-    await fetch(`${base}/api/auth/verify`, {
+    await fetch(`${base}/api/auth/otp/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderNumber: 'ORD-9999', email: 'Nobody@Example.com' }),
+      body: JSON.stringify({ email: 'Nobody@Example.com' }),
     });
   });
 
-  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'auth.verify_failed');
-  assert.ok(call, 'expected an auth.verify_failed audit log entry');
-  assert.equal(call.arguments[0].orderNumber, 'ORD-9999');
+  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'auth.otp_requested');
+  assert.ok(call, 'expected an auth.otp_requested audit log entry');
   assert.equal(call.arguments[0].email, 'nobody@example.com');
+  // No SMTP_* configured in this test environment (see emailService.js) -
+  // sent is always false here, which is itself the behavior worth locking
+  // down: the audit trail should show whether an email genuinely went out.
+  assert.equal(call.arguments[0].sent, false);
 });
 
-test('a successful verify logs auth.verify_succeeded with the canonical email', async (t) => {
-  t.mock.method(pool, 'query', async () => ({
-    rows: [{ order_number: 'ORD-1001', customer_email: 'Jane@Example.com' }],
-  }));
+test('a successful code verification logs auth.otp_verify_succeeded with the email', async (t) => {
+  const crypto = require('crypto');
+  const code = '482913';
+  t.mock.method(pool, 'query', async (sql) => {
+    if (sql.startsWith('SELECT')) {
+      return {
+        rows: [
+          {
+            id: 1,
+            email: 'jane@example.com',
+            code_hash: crypto.createHash('sha256').update(code).digest('hex'),
+            attempts: 0,
+            expires_at: new Date(Date.now() + 60_000),
+          },
+        ],
+      };
+    }
+    return { rows: [] };
+  });
   t.mock.method(auditLogger, 'info', () => {});
 
   await withServer(t, async (base) => {
-    await fetch(`${base}/api/auth/verify`, {
+    await fetch(`${base}/api/auth/otp/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' }),
+      body: JSON.stringify({ email: 'Jane@Example.com', code }),
     });
   });
 
-  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'auth.verify_succeeded');
-  assert.ok(call, 'expected an auth.verify_succeeded audit log entry');
-  assert.equal(call.arguments[0].email, 'Jane@Example.com');
+  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'auth.otp_verify_succeeded');
+  assert.ok(call, 'expected an auth.otp_verify_succeeded audit log entry');
+  assert.equal(call.arguments[0].email, 'jane@example.com');
 });
 
 test('a missing Authorization header logs auth.token_rejected with reason "missing"', async (t) => {
@@ -139,12 +157,12 @@ test('exceeding the auth rate limit logs rate_limit.exceeded', async (t) => {
 
   await withServer(t, async (base) => {
     const headers = { 'Content-Type': 'application/json' };
-    const body = JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' });
+    const body = JSON.stringify({ email: 'jane@example.com' });
 
     for (let i = 0; i < max; i += 1) {
-      await fetch(`${base}/api/auth/verify`, { method: 'POST', headers, body });
+      await fetch(`${base}/api/auth/otp/request`, { method: 'POST', headers, body });
     }
-    const res = await fetch(`${base}/api/auth/verify`, { method: 'POST', headers, body });
+    const res = await fetch(`${base}/api/auth/otp/request`, { method: 'POST', headers, body });
     assert.equal(res.status, 429);
   });
 

@@ -3,7 +3,7 @@ const { verifyAs } = require('./helpers');
 
 test.describe('orders', () => {
   test.beforeEach(async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
   });
 
@@ -54,5 +54,38 @@ test.describe('orders', () => {
     await expect(page.locator('.verify-error')).toBeVisible();
     await expect(page.locator('.verify-error')).toHaveText('Order not found.');
     await expect(page.locator('.order-detail')).toHaveCount(0);
+  });
+
+  test('the sidebar Category chips are a real multi-select filter, not decorative', async ({
+    page,
+  }, testInfo) => {
+    // The Category tag grid is dropped entirely below 700px (see the
+    // comment on that breakpoint in index.css) - a cramped mobile icon row
+    // has no room for a 2-column filter grid, same precedent as the search
+    // bar being hidden below 900px. Both mobile projects render narrower
+    // than that, so the chips this test clicks don't exist there.
+    test.skip(testInfo.project.name.startsWith('Mobile'), 'category chips are hidden below 700px by design');
+
+    const audioChip = page.locator('.storefront-tag-list button', { hasText: 'Audio' });
+    const cablesChip = page.locator('.storefront-tag-list button', { hasText: 'Cables' });
+
+    // ORD-1001 is headphones (Audio), ORD-1002 is a USB-C cable (Cables).
+    await expect(page.locator('.order-card')).toHaveCount(2);
+    await expect(audioChip).toHaveAttribute('aria-pressed', 'false');
+
+    await audioChip.click();
+    await expect(audioChip).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-card-product')).toHaveText('Wireless Noise-Cancelling Headphones');
+
+    // Selecting a second category is additive (multi-select), not a swap.
+    await cablesChip.click();
+    await expect(page.locator('.order-card')).toHaveCount(2);
+
+    // Deselecting every category goes back to "no filter", not "show nothing".
+    await audioChip.click();
+    await cablesChip.click();
+    await expect(audioChip).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('.order-card')).toHaveCount(2);
   });
 });

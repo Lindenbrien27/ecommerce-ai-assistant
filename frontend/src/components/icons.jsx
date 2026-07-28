@@ -25,6 +25,18 @@ export function OrdersIcon(props) {
   );
 }
 
+// OrdersIcon's own box-and-strap, plus a flat line across the middle where
+// contents would otherwise be - reads as "empty box" rather than "box".
+export function EmptyOrdersIcon(props) {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M8 7V5a4 4 0 0 1 8 0v2" />
+      <line x1="9" y1="12" x2="15" y2="12" />
+    </svg>
+  );
+}
+
 export function ChatIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -167,43 +179,14 @@ export function HeadsetIcon(props) {
   );
 }
 
-export function ClipboardIcon(props) {
+// Order-progress step markers - one shared glyph per state (completed/
+// current/upcoming), not one glyph per step - see OrdersPage.jsx's
+// OrderProgress for why a per-step icon set couldn't actually represent
+// "not reached yet" without a checkmark-shaped icon on a future step.
+export function CheckIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="8" y="2" width="8" height="4" rx="1" />
-      <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" />
-      <line x1="8" y1="11" x2="16" y2="11" />
-      <line x1="8" y1="15" x2="13" y2="15" />
-    </svg>
-  );
-}
-
-export function PackageIcon(props) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" y1="22.08" x2="12" y2="12" />
-    </svg>
-  );
-}
-
-export function TruckIcon(props) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="1" y="3" width="15" height="13" rx="1" />
-      <path d="M16 8h4l3 3v5h-7V8z" />
-      <circle cx="5.5" cy="18.5" r="2.5" />
-      <circle cx="18.5" cy="18.5" r="2.5" />
-    </svg>
-  );
-}
-
-export function CheckSquareIcon(props) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M9 11l3 3L22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M20 6L9 17l-5-5" />
     </svg>
   );
 }

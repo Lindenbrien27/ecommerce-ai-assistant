@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from '../components/MessageBubble.jsx';
 import { useChatConversation, SUGGESTED_PROMPTS } from '../hooks/useChatConversation.js';
-import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
-import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 export function ChatPage() {
-  useDocumentTitle('Chat');
-  const headingRef = useFocusOnMount();
   const { bubbles, pending, sendMessage, clear } = useChatConversation();
   const [input, setInput] = useState('');
 
@@ -33,17 +29,17 @@ export function ChatPage() {
 
   return (
     <>
-      <div className="chat-header">
-        <h1 ref={headingRef} tabIndex={-1}>
-          Order Support Assistant
-        </h1>
+      {/* The heading ("Order Support Assistant") moved into Layout.jsx's
+          shared page-header row, alongside the search bar/theme toggle -
+          this row now only holds what's actually specific to this page. */}
+      <div className="chat-toolbar">
+        <p className="subtitle">Ask about your order status or tracking - try "Where's my order?"</p>
         {bubbles.length > 0 && (
           <button type="button" className="chat-clear-button" onClick={handleClear} disabled={pending}>
             Clear chat
           </button>
         )}
       </div>
-      <p className="subtitle">Ask about your order status or tracking - try "Where's my order?"</p>
 
       {/* tabIndex so a keyboard-only user can actually reach and scroll this
           region once its content overflows - a scrollable container with no
