@@ -18,7 +18,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Obtained from POST /api/auth/verify. Carries the verified customer's email; expires after 1 hour."
+        "description": "Obtained from POST /api/auth/otp/verify. Carries the verified customer's email; expires after 1 hour."
       }
     },
     "schemas": {
@@ -92,19 +92,19 @@
         }
       }
     },
-    "/api/auth/verify": {
+    "/api/auth/otp/request": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Verify order ownership, receive a bearer token",
+        "summary": "Request a 6-digit sign-in code by email",
+        "description": "Always responds the same way whether or not the email has ever placed an order - see README > Auth for why (this would otherwise let a caller enumerate real customer emails). Outside production, if no email provider is configured, the response includes the code directly (devCode) instead of emailing it.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["orderNumber", "email"],
+                "required": ["email"],
                 "properties": {
-                  "orderNumber": { "type": "string", "example": "ORD-1001" },
                   "email": { "type": "string", "format": "email", "example": "jane.doe@example.com" }
                 }
               }
@@ -113,7 +113,49 @@
         },
         "responses": {
           "200": {
-            "description": "Order number + email matched a real order",
+            "description": "A code was generated (and, if an email provider is configured, sent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "devCode": { "type": "string", "description": "Non-production only, and only when no email provider is configured" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "email missing or not a validly-formatted address",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
+    "/api/auth/otp/verify": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Verify a 6-digit code, receive a bearer token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "jane.doe@example.com" },
+                  "code": { "type": "string", "example": "482913" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The code matched an outstanding, unexpired code for that email",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "properties": { "token": { "type": "string", "description": "JWT, 1 hour expiry" } } }
@@ -121,11 +163,11 @@
             }
           },
           "400": {
-            "description": "orderNumber or email missing from the request body",
+            "description": "email or code missing from the request body",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "401": {
-            "description": "No order matches that order number + email pair. Deliberately the same response whether the order number doesn't exist or the email doesn't match it - see README > Authorization.",
+            "description": "The code is wrong, expired, was never requested, or too many incorrect attempts have already been made against it - deliberately the same response shape for all of these, same enumeration reasoning as POST /api/auth/otp/request.",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "429": { "$ref": "#/components/responses/TooManyRequests" }

@@ -83,8 +83,11 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
-// A customer proves ownership of an order (order number + email) here and
-// gets back a token scoped to their own email - no shared secret involved.
+// A customer proves ownership of an email address via a one-time code sent
+// to it, then gets back a token scoped to that email - no password, no
+// order number, no shared secret involved. authLimiter (IP-keyed, no
+// customer identity exists yet at this point) covers both the request and
+// verify steps.
 app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);

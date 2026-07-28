@@ -132,7 +132,13 @@ export function OrdersPage() {
           </p>
         )}
         {!error && orders === null && <p className="subtitle">Loading...</p>}
-        {orders && orders.length === 0 && <p className="subtitle">No orders found.</p>}
+        {/* A real, expected state now, not just a theoretical edge case -
+            any email that verifies via OTP lands here, whether or not it's
+            ever actually placed an order (see README > Auth), so this
+            explains why rather than just saying "not found." */}
+        {orders && orders.length === 0 && (
+          <p className="subtitle">No orders found for this email. If you used a different email at checkout, sign out and verify with that one instead.</p>
+        )}
         {orders && orders.length > 0 && visibleOrders.length === 0 && (
           <p className="subtitle">No orders in this category.</p>
         )}

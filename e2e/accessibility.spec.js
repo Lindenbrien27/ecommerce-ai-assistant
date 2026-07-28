@@ -25,7 +25,7 @@ async function expectPageAnnounced(page, { heading, titleContains }) {
 test.describe('accessibility', () => {
   test('/verify has no violations', async ({ page }) => {
     await page.goto('/verify');
-    await expectPageAnnounced(page, { heading: 'Order Support Assistant', titleContains: 'Verify your order' });
+    await expectPageAnnounced(page, { heading: 'Track your orders', titleContains: 'Verify your order' });
     await expectNoViolations(page);
   });
 
@@ -36,13 +36,25 @@ test.describe('accessibility', () => {
   });
 
   test('/verify shows an accessible error after a failed verification attempt', async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'not-jane@example.com' });
+    // No such thing as a "wrong email" rejection under email-OTP (see
+    // auth.spec.js's own comment on why) - the reachable failure mode is a
+    // wrong code, entered after a real request for a real email.
+    await page.goto('/verify');
+    await page.fill('input[type="email"]', 'jane.doe@example.com');
+    await page.click('#verify-form button[type="submit"]');
+    await page.waitForSelector('#otp-form');
+    const wrongCode = '000000';
+    for (let i = 0; i < wrongCode.length; i += 1) {
+      await page.fill(`#otp-digit-${i}`, wrongCode[i]);
+    }
+    await page.click('#otp-form button[type="submit"]');
+
     await expect(page.locator('.verify-error')).toBeVisible();
     await expectNoViolations(page);
   });
 
   test('/orders has no violations', async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await expectPageAnnounced(page, { heading: 'Your Orders', titleContains: 'Your Orders' });
     await expectNoViolations(page);
@@ -50,13 +62,13 @@ test.describe('accessibility', () => {
 
   test('/orders has no violations in dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await expectNoViolations(page);
   });
 
   test('/orders/:id has no violations', async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/orders/ORD-1001');
     await expect(page.locator('.order-detail')).toBeVisible();
@@ -66,7 +78,7 @@ test.describe('accessibility', () => {
 
   test('/orders/:id has no violations in dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/orders/ORD-1001');
     await expect(page.locator('.order-detail')).toBeVisible();
@@ -74,7 +86,7 @@ test.describe('accessibility', () => {
   });
 
   test('/orders/:id has no violations on a not-found order', async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     // ORD-1003 belongs to a different customer, so this exercises the same
     // 404 "not found" state a genuinely nonexistent order number would.
@@ -84,7 +96,7 @@ test.describe('accessibility', () => {
   });
 
   test('/chat has no violations', async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/chat');
     await expectPageAnnounced(page, { heading: 'Order Support Assistant', titleContains: 'Chat' });
@@ -93,14 +105,14 @@ test.describe('accessibility', () => {
 
   test('/chat has no violations in dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/chat');
     await expectNoViolations(page);
   });
 
   test('/chat has no violations once a message and an error reply are in the transcript', async ({ page }) => {
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/chat');
     await page.fill('#chat-input', "Where's my order?");

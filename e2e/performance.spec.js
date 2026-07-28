@@ -45,7 +45,7 @@ test.describe('performance', () => {
       }
     });
 
-    await verifyAs(page, { orderNumber: 'ORD-1001', email: 'jane.doe@example.com' });
+    await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
 
     const loadedSoFar = [...jsChunksLoaded];

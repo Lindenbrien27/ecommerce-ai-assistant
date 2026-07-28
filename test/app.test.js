@@ -50,7 +50,7 @@ test('GET /health/db reports 503 when the database is unreachable', async (t) =>
 
 test('a malformed JSON request body gets a JSON 400, not Express\'s default HTML error page', async (t) => {
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/auth/verify`, {
+    const res = await fetch(`${base}/api/auth/otp/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{not valid json',
@@ -62,16 +62,14 @@ test('a malformed JSON request body gets a JSON 400, not Express\'s default HTML
   });
 });
 
-test('POST /api/auth/verify issues a token when order number + email match', async (t) => {
-  t.mock.method(pool, 'query', async () => ({
-    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }],
-  }));
+test('POST /api/auth/otp/request accepts a valid email and returns a devCode outside production (no SMTP configured in tests)', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
 
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/auth/verify`, {
+    const res = await fetch(`${base}/api/auth/otp/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' }),
+      body: JSON.stringify({ email: 'jane@example.com' }),
     });
     assert.equal(res.status, 200);
     // Never a Set-Cookie - session fixation targets a server-side session
@@ -81,31 +79,100 @@ test('POST /api/auth/verify issues a token when order number + email match', asy
     // testing).
     assert.equal(res.headers.get('set-cookie'), null);
     const body = await res.json();
+    assert.match(body.devCode, /^\d{6}$/);
+  });
+});
+
+test('POST /api/auth/otp/request responds identically for an email with no orders as for one that has some - no enumeration signal', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
+
+  await withServer(t, async (base) => {
+    const resKnown = await fetch(`${base}/api/auth/otp/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'jane.doe@example.com' }),
+    });
+    const resUnknown = await fetch(`${base}/api/auth/otp/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'nobody-has-ever-heard-of-this-email@example.com' }),
+    });
+
+    assert.equal(resKnown.status, resUnknown.status);
+    const [bodyKnown, bodyUnknown] = await Promise.all([resKnown.json(), resUnknown.json()]);
+    assert.equal(bodyKnown.message, bodyUnknown.message);
+  });
+});
+
+test('POST /api/auth/otp/request rejects an invalid email', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/auth/otp/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'not-an-email' }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('POST /api/auth/otp/verify issues a token on a correct code', async (t) => {
+  const crypto = require('crypto');
+  const code = '482913';
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+  t.mock.method(pool, 'query', async (sql) => {
+    if (sql.startsWith('SELECT')) {
+      return { rows: [{ id: 1, email: 'jane@example.com', code_hash: codeHash, attempts: 0, expires_at: new Date(Date.now() + 60_000) }] };
+    }
+    return { rows: [] };
+  });
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/auth/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'jane@example.com', code }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
     assert.ok(typeof body.token === 'string' && body.token.length > 0);
   });
 });
 
-test('POST /api/auth/verify rejects a mismatched email', async (t) => {
-  t.mock.method(pool, 'query', async () => ({
-    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }],
-  }));
+test('POST /api/auth/otp/verify rejects a wrong code', async (t) => {
+  const crypto = require('crypto');
+  t.mock.method(pool, 'query', async (sql) => {
+    if (sql.startsWith('SELECT')) {
+      return {
+        rows: [
+          {
+            id: 1,
+            email: 'jane@example.com',
+            code_hash: crypto.createHash('sha256').update('482913').digest('hex'),
+            attempts: 0,
+            expires_at: new Date(Date.now() + 60_000),
+          },
+        ],
+      };
+    }
+    return { rows: [] };
+  });
 
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/auth/verify`, {
+    const res = await fetch(`${base}/api/auth/otp/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderNumber: 'ORD-1001', email: 'someone-else@example.com' }),
+      body: JSON.stringify({ email: 'jane@example.com', code: '000000' }),
     });
     assert.equal(res.status, 401);
   });
 });
 
-test('POST /api/auth/verify rejects missing fields', async (t) => {
+test('POST /api/auth/otp/verify rejects missing fields', async (t) => {
   await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/auth/verify`, {
+    const res = await fetch(`${base}/api/auth/otp/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderNumber: 'ORD-1001' }),
+      body: JSON.stringify({ email: 'jane@example.com' }),
     });
     assert.equal(res.status, 400);
   });

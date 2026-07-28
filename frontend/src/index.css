@@ -424,7 +424,8 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
    spacing, and this shouldn't quietly change those too. */
 #chat-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
 
-#verify-form {
+#verify-form,
+#otp-form {
   flex-direction: column;
   align-items: stretch;
   gap: 1.25rem;
@@ -440,11 +441,51 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
    shared input/button :focus-visible rule below), scoped to this one form
    rather than changed everywhere - matches the reference design
    specifically requested for this screen. */
-#verify-form input:focus-visible {
+#verify-form input:focus-visible,
+.otp-row input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
+
+/* fieldset/legend, not a plain div - the six boxes are one logical field
+   (a single 6-digit code), which is what grouping them under one legend
+   communicates to a screen reader instead of six unrelated single-character
+   inputs. Browser default fieldset border/padding reset to nothing so it
+   doesn't visually look like a second nested card inside the verify card. */
+.otp-fieldset { border: none; margin: 0; padding: 0; }
+.otp-row { display: flex; gap: 0.5rem; justify-content: center; }
+.otp-row input {
+  width: 44px;
+  height: 54px;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Looks like .back-link (muted, underline-free until hover) but is a real
+   <button>, not an <a> - "Resend code"/"Use a different email" trigger
+   real handlers, not navigation, so button semantics (and the reset below)
+   are the correct element even though the visual language matches. */
+.link-button {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.link-button:hover:not(:disabled) { color: var(--color-text); }
+.link-button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 .verify-error {
   margin: 0;

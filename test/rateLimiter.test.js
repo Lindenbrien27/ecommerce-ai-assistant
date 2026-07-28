@@ -104,7 +104,7 @@ test('/api/chat rate limit is keyed by authenticated customer, not source IP - t
   assert.notEqual(johnFirstRequest.status, 429, "john's first request should not be affected by jane's limit");
 });
 
-test('returns 429 once a client exceeds RATE_LIMIT_AUTH_MAX requests to /api/auth/verify', async (t) => {
+test('returns 429 once a client exceeds RATE_LIMIT_AUTH_MAX requests to /api/auth/otp/request', async (t) => {
   t.mock.method(pool, 'query', async () => ({ rows: [] }));
 
   const server = app.listen(0);
@@ -116,13 +116,13 @@ test('returns 429 once a client exceeds RATE_LIMIT_AUTH_MAX requests to /api/aut
   assert.ok(max > 0, 'RATE_LIMIT_AUTH_MAX must be set for this test');
 
   const headers = { 'Content-Type': 'application/json' };
-  const body = JSON.stringify({ orderNumber: 'ORD-1001', email: 'jane@example.com' });
+  const body = JSON.stringify({ email: 'jane@example.com' });
 
   for (let i = 0; i < max; i += 1) {
-    const res = await fetch(`${base}/api/auth/verify`, { method: 'POST', headers, body });
+    const res = await fetch(`${base}/api/auth/otp/request`, { method: 'POST', headers, body });
     assert.notEqual(res.status, 429, `request ${i + 1} should not be rate limited yet`);
   }
 
-  const res = await fetch(`${base}/api/auth/verify`, { method: 'POST', headers, body });
+  const res = await fetch(`${base}/api/auth/otp/request`, { method: 'POST', headers, body });
   assert.equal(res.status, 429);
 });

@@ -48,7 +48,8 @@ flowchart LR
 |--------|-------------------|--------------------------------------------------------------------|
 | GET    | `/health`         | Liveness check for load balancers / container orchestrators - process is up, nothing more (no auth) |
 | GET    | `/health/db`      | Deeper check for external uptime monitoring - liveness plus a real `SELECT 1` against the database, `503` if unreachable (no auth) |
-| POST   | `/api/auth/verify` | Prove ownership of an order (order number + email) and receive a customer-scoped token (no auth) |
+| POST   | `/api/auth/otp/request` | Request a 6-digit sign-in code by email - always the same response regardless of whether that email is a real customer (no auth) |
+| POST   | `/api/auth/otp/verify` | Verify a code and receive a customer-scoped token (no auth) |
 | POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools scoped to the authenticated customer (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/orders`     | Paginated list of orders belonging to the authenticated customer - keyset pagination via `?limit=` (default 20, max 100) and `?cursor=` (opaque, from the previous page's `nextCursor`); responds `{ orders, nextCursor }` (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/orders/:id` | Fetch a single order by order number - only if it belongs to the authenticated customer (requires `Authorization: Bearer <token>`) |
@@ -88,25 +89,39 @@ Each migration file has an `-- Up Migration` and `-- Down Migration` section. `n
 
 ### Auth
 
-Per-customer, not a shared key. A customer proves who they are with something only they'd know: their order number *and* the email it was placed under - the same low-friction pattern real package-tracking tools use (Shopify, UPS, FedEx). No password to store, no email-sending service required.
+Passwordless email OTP, not a password and not an order number - a customer proves they own an email address by receiving and entering a 6-digit code sent to it, then gets a token scoped to *every* order under that email (not just one they already knew the number of). This replaced an earlier "order number + email" pattern (still visible in git history) - that scheme's real weakness was that order numbers here are sequential and guessable (`ORD-1001`, `ORD-1002`, ...), so "prove you know this order's number" was a weaker identity check than it looked like. No password to store; does need an outbound email provider (see below).
 
 ```bash
-# 1. Verify ownership, get a token scoped to that customer's email
-curl -X POST http://localhost:3000/api/auth/verify \
+# 1. Request a code - always the same response whether or not this email
+#    has ever placed an order (see below for why)
+curl -X POST http://localhost:3000/api/auth/otp/request \
   -H "Content-Type: application/json" \
-  -d '{"orderNumber": "ORD-1001", "email": "jane.doe@example.com"}'
+  -d '{"email": "jane.doe@example.com"}'
+# => {"message": "If that email has an account, we've sent it a code..."}
+# Outside production, if no email provider is configured (see Secrets
+# management below), the response also includes "devCode" - the code
+# itself, so local dev and e2e tests work without a real inbox.
+
+# 2. Verify it, get a token scoped to that email
+curl -X POST http://localhost:3000/api/auth/otp/verify \
+  -H "Content-Type: application/json" \
+  -d '{"email": "jane.doe@example.com", "code": "482913"}'
 # => {"token": "eyJhbGciOi..."}
 
-# 2. Use it on subsequent requests
+# 3. Use it on subsequent requests
 curl -H "Authorization: Bearer eyJhbGciOi..." http://localhost:3000/api/orders/ORD-1001
 ```
 
-The token is a JWT (`JWT_SECRET`, 1 hour expiry) carrying the customer's email. Every protected route uses it, never a value the client supplies:
+The token is a JWT (`JWT_SECRET`, 1 hour expiry) carrying the customer's email - unchanged from before; only how the email gets *verified* changed. Every protected route uses it, never a value the client supplies:
 
 - `GET /api/orders/:id` - `orderController` returns `404` (not `403`, to avoid confirming another customer's order exists) if the order's `customer_email` doesn't match the token.
 - `POST /api/chat` - the authenticated email is passed into `aiService.runChat()` and threaded through to every tool implementation in `trackingTools.js`. Each one enforces the ownership check server-side (`get_my_orders` ignores any email the model might be told to pass and always uses the authenticated one), so the assistant can't be prompted into revealing a different customer's order - the model never has the ability to ask for someone else's data in the first place.
 
-`RATE_LIMIT_AUTH_MAX` (default 10 per `RATE_LIMIT_AUTH_WINDOW_MS`, default 60s) limits `/api/auth/verify` specifically, since it's a credential-guessing surface.
+**No email enumeration.** `POST /api/auth/otp/request` never reveals whether an email is a real customer - it always generates a code and returns the identical response either way (`test/app.test.js` asserts this directly, comparing the response for a known customer email against an unrecognized one). Whether that email has any orders is answered later, by `GET /api/orders` once a token actually exists - not at login time, where a different response would let someone enumerate real customer emails by trying candidates. An email with zero orders still verifies successfully and lands on a real, honest empty dashboard rather than a rejection.
+
+**Codes, not passwords, but still real security properties**: generated with `crypto.randomInt` (a CSPRNG, not `Math.random`), stored as a SHA-256 hash rather than plaintext (`otp_codes.code_hash`), expire after 10 minutes, are single-use (deleted on successful verify), and are capped at 5 incorrect attempts before locking out that code. Each request gets its own independently-valid code rather than one shared mutable slot per email - an earlier version invalidated any outstanding code on every new request, which is fine for one person but breaks the moment two genuinely independent things happen concurrently for the same email (two browser tabs; or, what actually surfaced this live, this project's own e2e suite running many specs in parallel against one shared seeded test email) - the second request would silently invalidate the code the first request's flow was still about to submit. A successful verify only deletes the one code that matched, not every outstanding one, for the same reason.
+
+`RATE_LIMIT_AUTH_MAX` (default 10 per `RATE_LIMIT_AUTH_WINDOW_MS`, default 60s) limits both `/api/auth/otp/request` and `/api/auth/otp/verify`, since both are pre-authentication surfaces an automated client could otherwise hammer.
 
 ### Authorization
 
@@ -117,13 +132,14 @@ Authentication proves *who's asking*; authorization is the separate guarantee th
 | `GET /api/orders` | SQL is scoped with `WHERE customer_email = $1` using `req.customerEmail` - there's no parameter through which another customer's data could be requested |
 | `GET /api/orders/:id` | `orderController.getOrder` compares the fetched order's `customer_email` to `req.customerEmail`; mismatch or missing order both return an identical `404 Order not found`, so the response never confirms whether an order number exists at all |
 | `POST /api/chat` tools (`trackingTools.js`) | `get_order_by_number` and `get_order_by_tracking_number` fetch the order first, then discard it (return `null`) unless it belongs to `context.customerEmail`; `get_my_orders` takes no email parameter at all - the model has no way to even ask for someone else's data |
-| `POST /api/auth/verify` | Wrong order number and wrong email on a real order return the identical generic `401`, so the endpoint can't be used to enumerate which order numbers exist |
+| `POST /api/auth/otp/request` | Always the identical response regardless of whether the email is a real customer (see [Auth](#auth)) - can't be used to enumerate real customer emails |
+| `POST /api/auth/otp/verify` | A wrong code, an expired code, and a code that was never requested all return the identical generic `401` |
 
 Live-verified against the real Neon database (not just mocked): authenticating as `jane.doe@example.com` and requesting `john.smith@example.com`'s order by number, by tracking number, and via the chat tool implementations directly all correctly return `404`/`null` rather than the other customer's data. Test coverage lives in `test/app.test.js` (HTTP-level, cross-customer tokens via `issueToken()`) and `test/trackingTools.test.js` (tool-level, asserting a different `customerEmail` in context yields `null` even when the order lookup itself succeeds).
 
 ### Rate limiting
 
-- `/api/auth/verify` is capped at `RATE_LIMIT_AUTH_MAX` requests (default 10) per `RATE_LIMIT_AUTH_WINDOW_MS` (default 60s) per client, to slow down (order number, email) guessing.
+- `/api/auth/otp/request` and `/api/auth/otp/verify` are both capped at `RATE_LIMIT_AUTH_MAX` requests (default 10) per `RATE_LIMIT_AUTH_WINDOW_MS` (default 60s) per client, to slow down code-request spamming and code-guessing respectively.
 - `/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound Claude API cost under abuse or accidental retry loops.
 - `/api/orders/:id` is capped at `RATE_LIMIT_ORDERS_MAX` requests (default 30) per `RATE_LIMIT_ORDERS_WINDOW_MS` (default 60s) per client, to slow down order-number enumeration/scanning attempts.
 
@@ -159,8 +175,10 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 
 | Event | Where | Fires on |
 |---|---|---|
-| `auth.verify_failed` | `authController.js` | Wrong order number/email pair at `/api/auth/verify` |
-| `auth.verify_succeeded` | `authController.js` | A customer successfully verifies and gets a token |
+| `auth.otp_requested` | `authController.js` | A code was requested (`email`, `sent` - whether an email provider actually sent it) |
+| `auth.otp_verify_succeeded` | `authController.js` | A customer successfully verifies a code and gets a token |
+| `auth.otp_verify_failed` | `authController.js` | Wrong or expired code |
+| `auth.otp_locked` | `authController.js` | Too many incorrect attempts against an outstanding code |
 | `auth.token_rejected` | `customerAuth.js` | Missing/invalid/expired JWT on a protected route (`reason`: `missing`/`invalid`/`expired`) |
 | `order.access_denied` | `orderController.js` | `GET /api/orders/:id` denied (`reason`: `not_found`/`not_owned`) |
 | `rate_limit.exceeded` | `rateLimiter.js` | Any of the three limiters trips (`limiter`: `chat`/`orders`/`auth`) |
@@ -285,7 +303,7 @@ Measured before optimizing, not assumed - the biggest win by far wasn't shrinkin
 
 Above is caching for *transferring* the frontend bundle efficiently - this is caching for *not re-querying Neon* for data that hasn't changed. `src/config/cache.js` is a single [`lru-cache`](https://github.com/isaacs/node-lru-cache) instance (`max: 500`, `ttl: 60s`) that `orderService.js` reads through for all three lookup functions - `getOrderByNumber`, `getOrdersByEmail`, `getOrderByTrackingNumber`.
 
-Why these specifically, and why a TTL rather than a real invalidation strategy: orders are effectively read-only in this app - migrations seed the table once, and nothing exposed here ever writes to it - so there's no cache-invalidation problem to actually solve today. A bounded TTL is still the deliberate choice over caching indefinitely, since "no write path exists yet" isn't a property this should silently keep assuming forever if the app ever grows one (a carrier status webhook, an admin tool). `getOrderByNumber` in particular sits on three separate call sites - `authService.verifyCustomer`, `GET /api/orders/:id`, and the chat tool `get_order_by_number` - caching once in the service layer benefits all three instead of needing its own cache at each.
+Why these specifically, and why a TTL rather than a real invalidation strategy: orders are effectively read-only in this app - migrations seed the table once, and nothing exposed here ever writes to it - so there's no cache-invalidation problem to actually solve today. A bounded TTL is still the deliberate choice over caching indefinitely, since "no write path exists yet" isn't a property this should silently keep assuming forever if the app ever grows one (a carrier status webhook, an admin tool). `getOrderByNumber` in particular sits on two separate call sites - `GET /api/orders/:id` and the chat tool `get_order_by_number` - caching once in the service layer benefits both instead of needing its own cache at each.
 
 A cached "not found" is deliberately still a cached result, not a bypass: `order_number`/`tracking_number` are client-supplied before any ownership check runs (the auth-verify endpoint and the order-lookup endpoint both accept arbitrary values), so repeatedly probing a nonexistent value costs one query total, not one per attempt - a small extra layer of protection against enumeration on top of the existing rate limits, not a replacement for them. `max: 500` bounds memory regardless of how many distinct (valid or invented) keys get probed. Caching never changes *who* can see cached data, either - the cache stores the raw row, and every caller still runs its own ownership check against it exactly as it would against a fresh one; `getOrdersByEmail`'s cache key includes the customer's own (server-derived, never client-supplied) email, so one customer's request can't populate or read another's cache entry.
 
@@ -320,7 +338,7 @@ One helmet CSP default is *removed* outside production, the same way HSTS alread
 
 ### Secrets management
 
-Three application secrets: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`. They live in [Doppler](https://doppler.com) (free tier), not as raw values scattered across environments - Doppler is the single source of truth, with versioning and an audit log of who changed what, when.
+Three required application secrets: `DATABASE_URL`, `JWT_SECRET`, plus `ANTHROPIC_API_KEY` (optional - see below). A second optional group, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`EMAIL_FROM`, is what actually emails a sign-in code from `POST /api/auth/otp/request` (see [Auth](#auth)) - unset, the app still starts and the OTP flow still works end to end, since outside production the generated code comes back directly in that endpoint's own response (`devCode`) instead. All of them live in [Doppler](https://doppler.com) (free tier), not as raw values scattered across environments - Doppler is the single source of truth, with versioning and an audit log of who changed what, when.
 
 | Environment | How secrets get in |
 |---|---|
@@ -331,7 +349,7 @@ Three application secrets: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JWT_SECRET`. Th
 
 This is a real trade-off, made deliberately rather than defaulted into: this app has three secrets, one small service, and no rotation/audit requirement yet, so a dedicated secrets manager is arguably more infrastructure than the current scale strictly needs. Doppler's free tier and the fact that `doppler run` requires zero application code changes (it injects into `process.env` exactly like `dotenv` did) made adopting one now cheap enough to be worth the upgrade path - centralized rotation and an audit trail exist before they're needed, not after an incident forces the issue.
 
-`src/config/requiredEnv.js` + a check at the top of `server.js` still make `DATABASE_URL` and `JWT_SECRET` hard requirements regardless of *how* they arrived - the process logs a clear "Missing required environment variable(s)" error and exits immediately (`process.exit(1)`) rather than starting in a broken state (e.g. `DOPPLER_TOKEN` itself missing or invalid, so `doppler run` never populates anything). `ANTHROPIC_API_KEY` is deliberately excluded from that check: a missing key already degrades gracefully per-request (`POST /api/chat` returns a generic `500` instead of the whole app refusing to start), which is what lets this project run locally without an Anthropic account or spending API credits.
+`src/config/requiredEnv.js` + a check at the top of `server.js` still make `DATABASE_URL` and `JWT_SECRET` hard requirements regardless of *how* they arrived - the process logs a clear "Missing required environment variable(s)" error and exits immediately (`process.exit(1)`) rather than starting in a broken state (e.g. `DOPPLER_TOKEN` itself missing or invalid, so `doppler run` never populates anything). `ANTHROPIC_API_KEY` and the five `SMTP_*`/`EMAIL_FROM` vars are deliberately excluded from that check: a missing `ANTHROPIC_API_KEY` already degrades gracefully per-request (`POST /api/chat` returns a generic `500` instead of the whole app refusing to start), and missing SMTP config degrades the same way (`POST /api/auth/otp/request` still works, it just doesn't email anyone - see [Auth](#auth)) - both of which are what let this project run locally without an Anthropic account, an email provider, or spending API credits.
 
 Secrets are also never *logged* - see [Structured logging](#structured-logging) above for the `pino` redact config and custom error serializer that keep them out of both request logs and error output.
 
@@ -352,7 +370,7 @@ Frontend tests are co-located next to what they cover (`Component.test.jsx` besi
 
 `e2e/` (Playwright), against real browsers and a real running server - no mocks. `playwright.config.js`'s `webServer` builds nothing itself but starts `node server.js` (on a dedicated port, `NODE_ENV=test` so the HTTPS-redirect middleware stays off) and waits for `/health` before running:
 
-- **`auth.spec.js`** - unauthenticated visits redirect to `/verify`; verifying with a real order number + its email logs in; the wrong email for a real order shows an error and doesn't log in; logging out blocks protected routes again
+- **`auth.spec.js`** - unauthenticated visits redirect to `/verify`; requesting a code and entering it correctly logs in; entering the wrong code shows an error and doesn't log in; an email with no orders still verifies successfully and shows a real empty state (see [Auth](#auth) on why there's no "wrong email" case anymore); logging out blocks protected routes again
 - **`orders.spec.js`** - the order list shows only the logged-in customer's own orders; clicking into one shows the right fields; the browser back button returns via real history, not just component state; a hard-refresh on `/orders/:id` still works (proves the SPA-fallback catch-all in `src/app.js`); navigating directly to a *different* customer's order number by URL shows a not-found error rather than their data
 - **`chat.spec.js`** - the chat page is reachable, and sending a message without a configured AI provider surfaces a visible error bubble rather than hanging - this project intentionally doesn't pay to test real Claude replies end-to-end (see [Secrets management](#secrets-management)), so the graceful-failure path is what's asserted on instead
 - **`accessibility.spec.js`** - runs `@axe-core/playwright` against every key page and asserts zero violations - see [Accessibility](#accessibility)
@@ -518,7 +536,7 @@ Reviewed and confirmed *not* vulnerable, not just left unchecked - each of these
 - **Prompt injection reaching another customer's data** - every tool implementation in `trackingTools.js` uses `context.customerEmail` (server-derived from the verified JWT), never a value the model's tool-call input supplies - none of the three tool schemas even accept an email parameter. A crafted chat message can only ever manipulate what's fed back into *that same requester's own* reply; there's no server-side persisted multi-user conversation state for it to poison.
 - **CORS/CSRF** - no CORS middleware anywhere, so the browser's same-origin policy applies by default. Auth is a bearer JWT in an explicit `Authorization` header (not a cookie), so there's no ambient credential for a forged cross-site request to ride on in the first place.
 - **Rate-limiter bypass via `X-Forwarded-For` spoofing** - `trust proxy` is set to `1` (exactly one hop), not `true`, and only in production. Express uses the entry Render's own edge appends, not an arbitrary client-supplied one; outside production, no proxy is trusted at all, so headers are ignored and `req.ip` is the real socket address.
-- **Session fixation** - not applicable to this app's architecture, not just unchecked: fixation requires a server-side session *identifier* that the server accepts or continues from client-supplied state across an authentication boundary - typically a session cookie an attacker sets before the victim logs in, then reuses after. This app has none: no `express-session`, no session store, no `Set-Cookie` ever sent (confirmed by grepping the whole codebase, not just the auth path - the only "cookie" references at all are in the pino/Sentry redact config, defensively stripping a header this app never sends). Auth is a bearer JWT, sent only via an explicit `Authorization` header the client must attach itself, never accepted from a query string or URL. Every successful `/api/auth/verify` issues a brand-new signed token; there's no pre-existing identifier for a client to submit and have the server adopt.
+- **Session fixation** - not applicable to this app's architecture, not just unchecked: fixation requires a server-side session *identifier* that the server accepts or continues from client-supplied state across an authentication boundary - typically a session cookie an attacker sets before the victim logs in, then reuses after. This app has none: no `express-session`, no session store, no `Set-Cookie` ever sent (confirmed by grepping the whole codebase, not just the auth path - the only "cookie" references at all are in the pino/Sentry redact config, defensively stripping a header this app never sends). Auth is a bearer JWT, sent only via an explicit `Authorization` header the client must attach itself, never accepted from a query string or URL. Every successful `/api/auth/otp/verify` issues a brand-new signed token; there's no pre-existing identifier for a client to submit and have the server adopt.
 
 The closest *related* real tradeoff, reviewed rather than overlooked: logout (`AuthContext.logout()`) only clears the token client-side (`sessionStorage.removeItem`) - the JWT itself stays cryptographically valid server-side until its natural 1-hour expiry, since there's no revocation list. Building one (a server-side store of revoked token IDs, checked on every request) would undo the entire point of a stateless JWT for what this app actually protects - read-only order lookups and tracking status, no payments, no account settings, nothing a same-hour token replay meaningfully escalates into. Accepted as-is given the short TTL and the data's actual sensitivity, not fixed - the same judgment call the "no password to store" design in [Auth](#auth) already made explicitly.
 
@@ -576,7 +594,7 @@ frontend/          # React app (Vite) - separate package.json, own build
     │   ├── useAuthorizedFetch.test.jsx
     │   └── useFocusOnMount.js   # moves focus to a page's <h1> on mount (a11y)
     ├── pages/
-    │   ├── VerifyPage.jsx      # order number + email verification
+    │   ├── VerifyPage.jsx      # email OTP verification (2-step: request code, enter code)
     │   ├── OrdersPage.jsx      # GET /api/orders list
     │   ├── OrderDetailPage.jsx # GET /api/orders/:id, reads useParams
     │   └── ChatPage.jsx        # the chat widget
