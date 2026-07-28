@@ -56,7 +56,16 @@ test.describe('orders', () => {
     await expect(page.locator('.order-detail')).toHaveCount(0);
   });
 
-  test('the sidebar Category chips are a real multi-select filter, not decorative', async ({ page }) => {
+  test('the sidebar Category chips are a real multi-select filter, not decorative', async ({
+    page,
+  }, testInfo) => {
+    // The Category tag grid is dropped entirely below 700px (see the
+    // comment on that breakpoint in index.css) - a cramped mobile icon row
+    // has no room for a 2-column filter grid, same precedent as the search
+    // bar being hidden below 900px. Both mobile projects render narrower
+    // than that, so the chips this test clicks don't exist there.
+    test.skip(testInfo.project.name.startsWith('Mobile'), 'category chips are hidden below 700px by design');
+
     const audioChip = page.locator('.storefront-tag-list button', { hasText: 'Audio' });
     const cablesChip = page.locator('.storefront-tag-list button', { hasText: 'Cables' });
 
