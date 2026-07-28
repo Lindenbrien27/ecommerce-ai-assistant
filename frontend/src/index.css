@@ -67,11 +67,10 @@
      pair, same as --color-shadow itself. */
   --color-card-shadow: rgba(0, 0, 0, 0.06);
 
-  /* The one accent hue in an otherwise fully monochrome app - scoped to
-     exactly one job, the category filter chip's selected state (a real
-     interactive control's own state signal, not a decorative flourish -
-     see .storefront-tag below). Everything else in this file still holds
-     to the near-white/near-black scale above. --color-chip-text is a
+  /* Two scoped accent hues in an otherwise monochrome app, each doing
+     exactly one job. Violet marks the category filter chip's selected
+     state (see .storefront-tag below); everything else in this file still
+     holds to the near-white/near-black scale above. --color-chip-text is a
      stronger near-black than --color-text-muted on purpose: the given
      spec calls for #222 specifically for an unselected chip's own label,
      not this app's usual secondary-text muted tone. */
@@ -80,6 +79,21 @@
   --color-chip-selected-bg: rgba(124, 58, 237, 0.08);
   --color-chip-selected-border: #8b5cf6;
   --color-chip-selected-text: #5b21b6;
+
+  /* The second accent - one fixed blue for "where the order actually is"
+     in both order-progress steppers (the order card's horizontal icon
+     row and OrderDetailPage's vertical dot timeline), completed/current
+     steps only. Deliberately the same hex in both themes, not a light/
+     dark pair like the chip accent above - the point is a single
+     unmistakable landmark color, not one that itself shifts with the
+     theme. --color-progress-accent-text is a fixed white (not
+     var(--color-primary-text), which flips to near-black in dark mode)
+     since the icon glyph/pulse always sits on this same blue fill
+     regardless of theme - a dark glyph on blue would lose contrast in
+     dark mode. */
+  --color-progress-accent: #3b82f6;
+  --color-progress-accent-text: #ffffff;
+  --color-progress-accent-glow: rgba(59, 130, 246, 0.35);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -1428,12 +1442,16 @@ h1:focus-visible {
 /* Two of the three states get the same solid fill (completed's checkmark
    and current's node both read as "reached"); .icon-ring is deliberately
    left unstyled here since the base .order-progress-icon rule above
-   already is an empty muted ring - a future step needs no override. */
+   already is an empty muted ring - a future step needs no override.
+   --color-progress-accent, not --color-solid-bg - a single vibrant
+   landmark color for "reached/current" instead of this app's usual
+   monochrome active-state tone, so the eye lands on where the order
+   actually is instead of reading it off the labels. */
 .order-progress-icon.icon-check,
 .order-progress-icon.icon-dot {
-  border-color: var(--color-solid-bg);
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
+  border-color: var(--color-progress-accent);
+  background: var(--color-progress-accent);
+  color: var(--color-progress-accent-text);
 }
 .order-progress-icon.icon-check svg { width: 15px; height: 15px; }
 /* The current step gets a plain filled dot, not a checkmark - a checkmark
@@ -1443,24 +1461,23 @@ h1:focus-visible {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--color-primary-text);
+  background: var(--color-progress-accent-text);
 }
-.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-solid-bg); }
+.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-progress-accent); }
 .order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
 /* A one-shot pulse on the just-reached step, not a looping one - this is
    an acknowledgment of a milestone the page loaded already at ("your
    order has shipped"), not a live event arriving while watched, so it
    plays once on mount and settles rather than drawing the eye
-   indefinitely. var(--color-focus-ring), not a new token - already the
-   right shape (a low-opacity rgba tied to this theme's own near-black/
-   near-white anchor) for a soft halo, and reusing it means this stays
-   theme-correct for free instead of needing its own light/dark pair. See
-   the reduced-motion override further down for why this is opt-out, not
-   opt-in. */
+   indefinitely. var(--color-progress-accent-glow), not --color-focus-ring -
+   the halo now echoes the accent it's pulsing around instead of this
+   app's neutral near-black/near-white ring, same reasoning as the icon
+   fill itself. See the reduced-motion override further down for why this
+   is opt-out, not opt-in. */
 .order-progress-step.current .order-progress-icon { animation: step-pulse 0.9s ease-out; }
 @keyframes step-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--color-focus-ring); transform: scale(1); }
-  50% { box-shadow: 0 0 0 6px var(--color-focus-ring); transform: scale(1.1); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--color-progress-accent-glow); transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px var(--color-progress-accent-glow); transform: scale(1.1); }
 }
 
 .order-progress-cancelled {
@@ -1720,15 +1737,21 @@ h1:focus-visible {
   background: var(--color-border);
 }
 .status-timeline-step.completed { color: var(--color-text); }
-.status-timeline-step.completed .status-timeline-marker { background: var(--color-primary); }
+/* var(--color-progress-accent), not --color-primary - same single
+   vibrant landmark color as .order-progress-icon's completed/current fill
+   above, so the two steppers (this vertical timeline and the order
+   card's horizontal one) read as the same signal rather than one going
+   monochrome and the other accented. */
+.status-timeline-step.completed .status-timeline-marker { background: var(--color-progress-accent); }
 /* :not(.current), not just .completed - a step's trailing line represents
    progress *into the next step*, which for the current step hasn't
    happened yet regardless of the current step's own dot being filled in.
-   Coloring it blue implied delivery was already in progress toward
-   "Delivered" the moment an order went "out for delivery," before that
-   was actually true - caught by literally looking at the rendered line,
-   not from the class logic alone reading correctly at a glance. */
-.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-primary); }
+   Coloring it the same accent as a completed line would imply delivery
+   was already in progress toward "Delivered" the moment an order went
+   "out for delivery," before that was actually true - caught by
+   literally looking at the rendered line, not from the class logic alone
+   reading correctly at a glance. */
+.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-progress-accent); }
 .status-timeline-step.current .status-timeline-label { font-weight: 700; }
 /* Same one-shot milestone pulse as .order-progress-icon's own (see its
    comment) - shared keyframes, since it's the same "acknowledge the step
