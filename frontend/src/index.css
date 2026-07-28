@@ -768,7 +768,7 @@ h1:focus-visible {
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 .storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
@@ -796,8 +796,8 @@ h1:focus-visible {
   padding: 0 0.75rem;
   color: var(--color-text-muted);
   font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 .storefront-sidenav a,
@@ -843,6 +843,7 @@ h1:focus-visible {
 .storefront-sidenav a.active span {
   background: var(--color-surface);
   color: var(--color-text);
+  font-weight: 700;
 }
 
 /* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
@@ -924,12 +925,12 @@ h1:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.3rem 0.65rem;
+  padding: 0.25rem 0.625rem;
   border-radius: 999px;
   background: rgba(var(--tag-rgb-light), 0.15);
   color: rgb(var(--tag-rgb-light));
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 /* rgb(var(--tag-rgb-light)) directly, not background: currentColor - this
    dot is itself a <span> inside .storefront-sidenav, so the shared
