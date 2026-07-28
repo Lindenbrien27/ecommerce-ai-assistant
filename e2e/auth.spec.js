@@ -45,7 +45,7 @@ test.describe('authentication', () => {
 
     await expect(page).toHaveURL(/\/orders$/);
     await expect(page.locator('.order-card')).toHaveCount(0);
-    await expect(page.getByText('No orders found for this email.')).toBeVisible();
+    await expect(page.getByText('No orders found for this email')).toBeVisible();
   });
 
   test('logging out clears the session and blocks protected routes again', async ({ page }) => {

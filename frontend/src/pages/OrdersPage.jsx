@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { useFocusOnMount } from '../hooks/useFocusOnMount.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { CheckSquareIcon, ClipboardIcon, PackageIcon, TruckIcon } from '../components/icons.jsx';
+import { CheckSquareIcon, ClipboardIcon, EmptyOrdersIcon, PackageIcon, TruckIcon } from '../components/icons.jsx';
 
 // "Returned" has no matching value in this app's real `status` enum (see
 // the CHECK constraint in migrations/1784973065584_initial-schema.sql) -
@@ -73,6 +74,7 @@ function OrderProgress({ status }) {
 export function OrdersPage() {
   useDocumentTitle('Your Orders');
   const headingRef = useFocusOnMount();
+  const { email, logout } = useAuth();
   const { orders, nextCursor, loadingMore, error, loadMore } = useOrders();
   const [activeFilter, setActiveFilter] = useState('all');
 
@@ -135,9 +137,26 @@ export function OrdersPage() {
         {/* A real, expected state now, not just a theoretical edge case -
             any email that verifies via OTP lands here, whether or not it's
             ever actually placed an order (see README > Auth), so this
-            explains why rather than just saying "not found." */}
+            explains why rather than just saying "not found." "Try a
+            different email" just signs out - ProtectedRoute already sends a
+            signed-out visitor to /verify, so there's no separate redirect
+            to wire up here. */}
         {orders && orders.length === 0 && (
-          <p className="subtitle">No orders found for this email. If you used a different email at checkout, sign out and verify with that one instead.</p>
+          <div className="orders-empty-state">
+            <EmptyOrdersIcon className="orders-empty-icon" aria-hidden="true" />
+            <p className="orders-empty-title">No orders found for this email</p>
+            <p className="orders-empty-text">
+              {email} isn't linked to any orders yet. If you used a different email at checkout, try that one instead.
+            </p>
+            <div className="orders-empty-actions">
+              <button type="button" className="orders-empty-primary" onClick={logout}>
+                Try a different email
+              </button>
+              <Link to="/chat" className="orders-empty-secondary">
+                Contact support
+              </Link>
+            </div>
+          </div>
         )}
         {orders && orders.length > 0 && visibleOrders.length === 0 && (
           <p className="subtitle">No orders in this category.</p>
