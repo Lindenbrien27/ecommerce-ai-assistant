@@ -906,47 +906,44 @@ h1:focus-visible {
   gap: 0.4rem;
   padding: 0 0.75rem;
 }
-/* Rounded low-opacity badge chips, not a plain text row - the one
-   deliberate spot of color in an otherwise strictly monochrome app (see
-   the CATEGORY_TAGS comment in Layout.jsx). Two custom properties per tag,
-   not one - aria-hidden exempts this from screen readers but NOT from WCAG
-   contrast (a low-vision sighted user still reads it visually), and a
-   single mid-saturation hue can't hit 4.5:1 against its own translucent
-   tint in both themes at once: that same 15%-opacity wash renders as a
-   pale tint on light mode's near-white cards (needs a dark shade of the
-   hue for contrast) but a deep tint on dark mode's near-black ones (needs
-   a light shade instead) - found by axe (2.3:1-3.4:1 against a fixed
-   mid-tone, well under 4.5:1), not assumed. --tag-rgb-light is used by
-   default and under an explicit light-mode override; --tag-rgb-dark under
-   prefers-color-scheme: dark and an explicit dark-mode override - the same
-   three-selector pattern (default/media-query/attribute-override) the
-   :root palette itself uses, just scoped to this component instead of the
-   whole page. Scoped as ".storefront-tag-list .storefront-tag", not just
-   ".storefront-tag" - the shared ".storefront-sidenav span" rule (class+
-   type selector) is otherwise MORE specific than a single class alone and
-   was silently winning, leaving every badge's text stuck at the muted gray
-   that rule sets instead of its own color. */
+/* Neutral chip, colored dot - not a tinted background. A tinted pill was
+   this app's one deliberate spot of color in an otherwise monochrome UI,
+   but it also made the tag's own text colored, which is exactly the kind
+   of "vibrant accent" a later design pass (see the Quiet Workspace
+   artifact this followed) argued against: a small solid dot next to
+   neutral text is a functional color code, not a theming choice - real
+   Linear/Raycast tag UI makes the same distinction. Scoped as
+   ".storefront-tag-list .storefront-tag", not just ".storefront-tag" -
+   the shared ".storefront-sidenav span" rule (class+type selector) is
+   otherwise MORE specific than a single class alone and was silently
+   winning, leaving every badge's text stuck at the muted gray that rule
+   sets instead of its own color. */
 .storefront-tag-list .storefront-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   padding: 0.25rem 0.625rem;
   border-radius: 999px;
-  background: rgba(var(--tag-rgb-light), 0.15);
-  color: rgb(var(--tag-rgb-light));
+  background: var(--color-surface);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
   font-weight: 500;
 }
 /* rgb(var(--tag-rgb-light)) directly, not background: currentColor - this
    dot is itself a <span> inside .storefront-sidenav, so the shared
    ".storefront-sidenav span" rule matches it directly too and sets its own
-   (muted gray) color right on this element, which currentColor then
-   correctly reflects instead of the parent's colored text - inheritance
+   (muted gray) color right on this element, which currentColor would
+   otherwise reflect instead of the tag's own category color - inheritance
    always loses to any rule matching the element itself, the same lesson as
-   the text-color fix above (and the sidenav-label contrast bug elsewhere
-   in this file). The custom properties themselves still inherit from
-   .storefront-tag regardless of what wins the color/currentColor fight, so
-   reading them directly sidesteps the conflict entirely. */
+   the sidenav-label contrast bug elsewhere in this file. The custom
+   properties themselves still inherit from .storefront-tag regardless of
+   what wins the color/currentColor fight, so reading them directly
+   sidesteps the conflict entirely. Still a light/dark pair (not one
+   value) so each hue stays legible against its own theme's chip
+   background, same reasoning as the palette-wide light/dark split - a dot
+   is smaller than the text this same split used to protect, but still
+   visible enough to be worth tuning per theme rather than guessing one
+   value that's a little washed out in one of them. */
 .storefront-tag-dot {
   flex-shrink: 0;
   width: 6px;
@@ -955,17 +952,9 @@ h1:focus-visible {
   background: rgb(var(--tag-rgb-light));
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .storefront-tag-list .storefront-tag {
-    background: rgba(var(--tag-rgb-dark), 0.15);
-    color: rgb(var(--tag-rgb-dark));
-  }
   :root:not([data-theme="light"]) .storefront-tag-dot {
     background: rgb(var(--tag-rgb-dark));
   }
-}
-:root[data-theme="dark"] .storefront-tag-list .storefront-tag {
-  background: rgba(var(--tag-rgb-dark), 0.15);
-  color: rgb(var(--tag-rgb-dark));
 }
 :root[data-theme="dark"] .storefront-tag-dot {
   background: rgb(var(--tag-rgb-dark));
@@ -1143,12 +1132,24 @@ h1:focus-visible {
   flex-direction: column;
   gap: var(--space-3);
 }
+/* Wrapped row, not a stacked column - reads as a set of quick options to
+   pick from rather than a list to read top-to-bottom, matching how
+   Linear/Raycast-style assistant panels present suggested prompts. */
+.ai-panel-suggested-label {
+  margin: 0 0 0 30px;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 .ai-panel-suggestions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: var(--space-1);
   margin-left: 30px;
 }
+.ai-panel-suggestions .chat-suggestion { flex: 0 1 auto; width: auto; }
 .ai-panel-form {
   display: flex;
   gap: var(--space-1);

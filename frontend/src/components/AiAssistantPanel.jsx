@@ -72,6 +72,7 @@ export function AiAssistantPanel() {
                     Hi! I can look up your orders, shipping status, and tracking. What do you need?
                   </div>
                 </div>
+                <p className="ai-panel-suggested-label">Suggested</p>
                 <div className="ai-panel-suggestions">
                   {SUGGESTED_PROMPTS.map((prompt) => (
                     <button
