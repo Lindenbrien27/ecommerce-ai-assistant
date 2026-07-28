@@ -97,9 +97,14 @@
        background naturally wants to be anyway, and the active-state accent
        (--color-solid-bg below) is the *other* tone, #fbfbfb, giving active
        elements real pop against it instead of blending in. */
-    --color-bg: #171717;
-    --color-page-bg: #0a0a0a;
-    --color-panel-bg: #101010;
+    --color-bg: #0d0d0d;
+    /* #262626, not a near-black - lighter than every panel/card surface it
+       sits behind, on purpose (per direct design feedback): the gaps
+       between the sidebar/content/AI columns need to read as a visible
+       seam, not the barely-there sliver a near-black page bg leaves next
+       to near-black panels. */
+    --color-page-bg: #262626;
+    --color-panel-bg: #0a0a0a;
     --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
     --color-border: #e5e5e5;
@@ -107,7 +112,7 @@
     --color-primary-text: #171717;
     --color-solid-bg: #fbfbfb;
     --color-solid-bg-hover: #e6e6e6;
-    --color-surface: #1f1f1f;
+    --color-surface: #1a1a1a;
     --color-surface-text: #fbfbfb;
     --color-nav-badge-bg: #1a1a1a;
     --color-error-surface: #3f1d1d;
@@ -129,9 +134,9 @@
    standard "respects system preference, but a manual toggle overrides it"
    pattern for exactly that reason. */
 :root[data-theme="dark"] {
-  --color-bg: #171717;
-  --color-page-bg: #0a0a0a;
-  --color-panel-bg: #101010;
+  --color-bg: #0d0d0d;
+  --color-page-bg: #262626;
+  --color-panel-bg: #0a0a0a;
   --color-text: #fbfbfb;
   --color-text-muted: #9a9a9a;
   --color-border: #e5e5e5;
@@ -139,7 +144,7 @@
   --color-primary-text: #171717;
   --color-solid-bg: #fbfbfb;
   --color-solid-bg-hover: #e6e6e6;
-  --color-surface: #1f1f1f;
+  --color-surface: #1a1a1a;
   --color-surface-text: #fbfbfb;
   --color-nav-badge-bg: #1a1a1a;
   --color-error-surface: #3f1d1d;
