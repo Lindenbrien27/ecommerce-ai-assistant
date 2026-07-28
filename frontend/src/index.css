@@ -771,15 +771,17 @@ h1:focus-visible {
   font-weight: 600;
 }
 
-/* Uniform var(--space-3) on every side, not the old mixed space-3/space-4 -
-   softer, tighter gutter now that there's no separate top bar eating into
-   the vertical rhythm above this row. */
+/* 8px outer edge, 6px between panels - an exact spec, not the space-*
+   scale (no existing token lands on 6px), matching the precise-px pattern
+   the sidebar rebuild below already uses. Tighter than the old uniform
+   var(--space-3) pairing so the three panels (sidebar, content, AI panel)
+   read as closely-set columns rather than loosely-spaced blocks. */
 .storefront-body {
   flex: 1;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  gap: 6px;
+  padding: 8px;
 }
 
 /* 240px/16px-top-12px-elsewhere/no shared gap - an exact spec (down to
@@ -804,7 +806,7 @@ h1:focus-visible {
      taller page (e.g. a long order list) should push it taller too, not
      clip/scroll independently. No top-bar height to subtract anymore - the
      brand now lives inside the sidebar itself instead of above it. */
-  min-height: calc(100vh - 2 * var(--space-3));
+  min-height: calc(100vh - 16px);
 }
 .storefront-sidebar .brand { min-height: 40px; gap: 10px; margin-bottom: 24px; }
 .storefront-shop-now {
@@ -1085,7 +1087,7 @@ h1:focus-visible {
   width: 320px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 2 * var(--space-3));
+  min-height: calc(100vh - 16px);
   padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
