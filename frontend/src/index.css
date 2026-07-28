@@ -86,13 +86,11 @@
      steps only. Deliberately the same hex in both themes, not a light/
      dark pair like the chip accent above - the point is a single
      unmistakable landmark color, not one that itself shifts with the
-     theme. --color-progress-accent-text is a fixed white (not
-     var(--color-primary-text), which flips to near-black in dark mode)
-     since the icon glyph/pulse always sits on this same blue fill
-     regardless of theme - a dark glyph on blue would lose contrast in
-     dark mode. */
+     theme. Outlined nodes (border + glyph, transparent center), not
+     filled ones, so there's no separate "text on fill" contrast color to
+     carry - the accent itself is legible straight on this app's own
+     --color-bg in both themes. */
   --color-progress-accent: #3b82f6;
-  --color-progress-accent-text: #ffffff;
   --color-progress-accent-glow: rgba(59, 130, 246, 0.35);
 
   --radius-sm: 6px;
@@ -1439,19 +1437,18 @@ h1:focus-visible {
   height: 2px;
   background: var(--color-border);
 }
-/* Two of the three states get the same solid fill (completed's checkmark
+/* Two of the three states get the same treatment (completed's checkmark
    and current's node both read as "reached"); .icon-ring is deliberately
    left unstyled here since the base .order-progress-icon rule above
    already is an empty muted ring - a future step needs no override.
-   --color-progress-accent, not --color-solid-bg - a single vibrant
-   landmark color for "reached/current" instead of this app's usual
-   monochrome active-state tone, so the eye lands on where the order
-   actually is instead of reading it off the labels. */
+   Outlined, not filled - only the border and glyph switch to
+   --color-progress-accent, the background stays the same var(--color-bg)
+   every step already sits on, so completed/current read as "the same
+   ring, now lit up" rather than a different shape taking over. */
 .order-progress-icon.icon-check,
 .order-progress-icon.icon-dot {
   border-color: var(--color-progress-accent);
-  background: var(--color-progress-accent);
-  color: var(--color-progress-accent-text);
+  color: var(--color-progress-accent);
 }
 .order-progress-icon.icon-check svg { width: 15px; height: 15px; }
 /* The current step gets a plain filled dot, not a checkmark - a checkmark
@@ -1461,7 +1458,7 @@ h1:focus-visible {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--color-progress-accent-text);
+  background: var(--color-progress-accent);
 }
 .order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-progress-accent); }
 .order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
@@ -1716,12 +1713,25 @@ h1:focus-visible {
   color: var(--color-text-muted);
   font-size: 0.9rem;
 }
+/* An outlined ring, not a filled dot - matches .order-progress-icon's own
+   outlined treatment above so the two steppers read as the same signal.
+   A small inner dot (::after), not a checkmark glyph, marks "reached" -
+   there's no room for a legible check at 10px. */
 .status-timeline-marker {
+  position: relative;
   flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-border);
+  border: 2px solid var(--color-border);
+}
+.status-timeline-marker::after {
+  content: '';
+  position: absolute;
+  inset: 2.5px;
+  border-radius: 50%;
+  background: var(--color-progress-accent);
+  opacity: 0;
 }
 /* The connecting line is a pseudo-element on each non-last step, not a
    separate element - anchored to the marker's own horizontal center
@@ -1738,11 +1748,14 @@ h1:focus-visible {
 }
 .status-timeline-step.completed { color: var(--color-text); }
 /* var(--color-progress-accent), not --color-primary - same single
-   vibrant landmark color as .order-progress-icon's completed/current fill
+   vibrant landmark color as .order-progress-icon's completed/current ring
    above, so the two steppers (this vertical timeline and the order
    card's horizontal one) read as the same signal rather than one going
    monochrome and the other accented. */
-.status-timeline-step.completed .status-timeline-marker { background: var(--color-progress-accent); }
+.status-timeline-step.completed .status-timeline-marker,
+.status-timeline-step.current .status-timeline-marker { border-color: var(--color-progress-accent); }
+.status-timeline-step.completed .status-timeline-marker::after,
+.status-timeline-step.current .status-timeline-marker::after { opacity: 1; }
 /* :not(.current), not just .completed - a step's trailing line represents
    progress *into the next step*, which for the current step hasn't
    happened yet regardless of the current step's own dot being filled in.
