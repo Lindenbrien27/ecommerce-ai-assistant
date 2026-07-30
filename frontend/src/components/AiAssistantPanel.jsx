@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from './MessageBubble.jsx';
 import { useChatConversation, SUGGESTED_PROMPTS } from '../hooks/useChatConversation.js';
 import { useOrders } from '../context/OrdersContext.jsx';
-import { BrandMarkIcon, SendIcon } from './icons.jsx';
+import { SendIcon, SparkleIcon } from './icons.jsx';
 
 // The storefront's docked right-side panel - a real, working client for the
 // same /api/chat endpoint ChatPage.jsx talks to (via the shared
@@ -48,7 +48,7 @@ export function AiAssistantPanel() {
         aria-expanded={!minimized}
       >
         <span className="ai-panel-avatar" aria-hidden="true">
-          <BrandMarkIcon width="16" height="16" />
+          <SparkleIcon width="16" height="16" />
         </span>
         <span className="ai-panel-header-text">
           <span className="ai-panel-title">AI Assistant</span>
@@ -69,7 +69,7 @@ export function AiAssistantPanel() {
             aria-relevant="additions"
             aria-label="Conversation with the AI assistant"
             tabIndex="0"
-            className="ai-panel-log"
+            className="ai-panel-log slim-scroll"
           >
             {bubbles.length === 0 &&
               (orders === null ? (
@@ -88,7 +88,7 @@ export function AiAssistantPanel() {
                 <div className="ai-panel-greeting fade-in">
                   <div className="msg-row">
                     <span className="msg-avatar" aria-hidden="true">
-                      <BrandMarkIcon width="14" height="14" />
+                      <SparkleIcon width="14" height="14" />
                     </span>
                     <div className="msg assistant">
                       Hi! I can look up your orders, shipping status, and tracking. What do you need?

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { PRODUCT_ICONS } from './icons.jsx';
 
@@ -25,6 +25,22 @@ export function CategoryBadgesEditor() {
   const { selectedCategories, setSelectedCategories } = useOrders();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => new Set(selectedCategories));
+  const cardRef = useRef(null);
+  const [maxHeight, setMaxHeight] = useState(null);
+
+  // The sidebar this card lives in is now position: sticky (see
+  // index.css) - once stuck, the page can no longer be scrolled to bring
+  // an overflowing popover into view the way it could when the sidebar
+  // scrolled along with everything else. Measuring the real remaining
+  // viewport space below this card every time the popover opens - instead
+  // of the flat "min(420px, 70vh)" CSS ceiling alone - keeps the footer's
+  // own Save button reachable regardless of where the card sits or how
+  // short the window is.
+  useLayoutEffect(() => {
+    if (!open || !cardRef.current) return;
+    const { top } = cardRef.current.getBoundingClientRect();
+    setMaxHeight(Math.max(200, window.innerHeight - top - 16));
+  }, [open]);
 
   function openEditor() {
     setDraft(new Set(selectedCategories));
@@ -53,7 +69,7 @@ export function CategoryBadgesEditor() {
   const draftAvailable = CATEGORIES.filter((c) => !draft.has(c.key));
 
   return (
-    <div className="badges-card">
+    <div className="badges-card" ref={cardRef}>
       <div className="badges-card-head">
         <span className="badges-card-label">Category</span>
         <button type="button" className="badges-edit-btn" onClick={openEditor}>
@@ -82,14 +98,18 @@ export function CategoryBadgesEditor() {
           {/* Closes on outside click without saving - the same "discard,
               don't silently apply" behavior as the ✕ button. */}
           <div className="popover-catcher" onClick={() => setOpen(false)} />
-          <aside className="edit-popover open" aria-label="Edit category badges">
+          <aside
+            className="edit-popover open"
+            aria-label="Edit category badges"
+            style={maxHeight ? { maxHeight: `${maxHeight}px` } : undefined}
+          >
             <div className="popover-head">
               <h2>Edit Category Badges</h2>
               <button type="button" className="popover-close" onClick={() => setOpen(false)} aria-label="Close">
                 ✕
               </button>
             </div>
-            <div className="popover-body">
+            <div className="popover-body slim-scroll">
               <p className="popover-section-label">
                 Active Badges (<span>{draftActive.length}</span>)
               </p>

@@ -1,14 +1,14 @@
 import { Bouncy } from 'ldrs/react';
 import 'ldrs/react/Bouncy.css';
-import { BrandMarkIcon } from './icons.jsx';
+import { SparkleIcon } from './icons.jsx';
 
-// Same icon as the sidebar/verify-page brand mark (see icons.jsx) - the
-// assistant's identity here is "the app itself replying," not a separate
-// named persona, so it reuses that mark rather than a distinct one.
+// The assistant's own sparkle mark (see icons.jsx) - distinct from the
+// sidebar/verify-page brand mark, since the assistant replying is its own
+// identity, not "the app itself" talking.
 function AssistantAvatar() {
   return (
     <span className="msg-avatar" aria-hidden="true">
-      <BrandMarkIcon width="14" height="14" />
+      <SparkleIcon width="14" height="14" />
     </span>
   );
 }

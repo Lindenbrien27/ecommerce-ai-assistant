@@ -52,7 +52,10 @@ test.describe('authentication', () => {
     await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
 
-    await page.click('.storefront-logout');
+    // Sign Out now lives inside the account menu popover (see
+    // ProfileMenu.jsx), not a directly-visible button - open it first.
+    await page.click('.profile-menu-trigger');
+    await page.click('.profile-menu-signout');
     await expect(page).toHaveURL(/\/verify$/);
 
     await page.goto('/orders');

@@ -4,7 +4,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
-import { HeartIcon, TicketIcon } from './components/icons.jsx';
+import { CardIcon, HeartIcon, PinIcon, ShopIcon, TicketIcon } from './components/icons.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -53,6 +53,36 @@ export default function App() {
                       icon={HeartIcon}
                       title="Wishlist"
                       text="Products you save for later will show up here once this is built."
+                    />
+                  }
+                />
+                <Route
+                  path="/shop"
+                  element={
+                    <ComingSoonPage
+                      icon={ShopIcon}
+                      title="Shop"
+                      text="Browsing and buying new products will be available here once this is built."
+                    />
+                  }
+                />
+                <Route
+                  path="/address"
+                  element={
+                    <ComingSoonPage
+                      icon={PinIcon}
+                      title="Address"
+                      text="Saved shipping addresses will show up here once this is built."
+                    />
+                  }
+                />
+                <Route
+                  path="/payment"
+                  element={
+                    <ComingSoonPage
+                      icon={CardIcon}
+                      title="Payment Methods"
+                      text="Saved payment methods will show up here once this is built."
                     />
                   }
                 />

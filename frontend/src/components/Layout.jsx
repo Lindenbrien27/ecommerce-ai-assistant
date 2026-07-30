@@ -1,23 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
-import { useTheme } from '../hooks/useTheme.js';
 import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
-import {
-  ChatIcon,
-  ChevronDownIcon,
-  HeartIcon,
-  MoonIcon,
-  OrdersIcon,
-  LogoutIcon,
-  PlusIcon,
-  SearchIcon,
-  SunIcon,
-  TicketIcon,
-} from './icons.jsx';
+import { ProfileMenu } from './ProfileMenu.jsx';
+import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PinIcon, SearchIcon, ShopIcon, TicketIcon } from './icons.jsx';
 
 // The routed page's own title/icon, keyed by path - not each page rendering
 // its own <h1> anymore. The header row now needs the title on the same
@@ -41,6 +29,9 @@ const PAGE_HEADERS = {
   '/chat': { icon: ChatIcon, title: 'Order Support Assistant', docTitle: 'Chat' },
   '/coupons': { icon: TicketIcon, title: 'Coupons', docTitle: 'Coupons' },
   '/wishlist': { icon: HeartIcon, title: 'Wishlist', docTitle: 'Wishlist' },
+  '/shop': { icon: ShopIcon, title: 'Shop', docTitle: 'Shop' },
+  '/address': { icon: PinIcon, title: 'Address', docTitle: 'Address' },
+  '/payment': { icon: CardIcon, title: 'Payment Methods', docTitle: 'Payment Methods' },
 };
 
 function getPageHeader(pathname, params) {
@@ -68,15 +59,16 @@ function getDashboardNavIndex(pathname) {
   return -1;
 }
 
-// Most of this sidebar/content-header is intentionally inert - the search
-// bar and profile chip are plain <span>s, copying a reference design's
-// structure, since this app has no global-search/account-menu backend for
-// them to actually do something. Coupons/Wishlist are real NavLinks to real
-// routes now (see App.jsx), same as My Orders - they just land on
-// ComingSoonPage instead of a built-out feature, an honest "not built yet"
-// rather than a link that silently does nothing. My Orders' and Coupons'
-// counts are real numbers derived from the signed-in customer's own
-// orders, not placeholders - Wishlist has no backing data at all, so it
+// The search bar is still the one intentionally inert piece of this header -
+// a plain <span> copying a reference design's structure, since this app has
+// no global-search backend for it to actually do something. Everything else
+// here is real: the account menu (ProfileMenu.jsx) has working theme/sign-
+// out controls, and Shop Now/Coupons/Wishlist/Address/Payment Methods are
+// real NavLinks to real routes (see App.jsx), same as My Orders - they just
+// land on ComingSoonPage instead of a built-out feature, an honest "not
+// built yet" rather than a link that silently does nothing. My Orders' and
+// Coupons' counts are real numbers derived from the signed-in customer's
+// own orders, not placeholders - Wishlist has no backing data at all, so it
 // gets no number rather than a fabricated one.
 // OrdersProvider wraps LayoutInner (not the other way around) so this outer
 // component can stay the default export React Router renders for every
@@ -91,12 +83,9 @@ export function Layout() {
 }
 
 function LayoutInner() {
-  const { email, logout } = useAuth();
   const { orders } = useOrders();
-  const { theme, toggle } = useTheme();
   const location = useLocation();
   const params = useParams();
-  const initial = email ? email[0].toUpperCase() : '?';
   const orderCount = orders ? orders.length : null;
   const voucherCount = orders ? orders.filter((o) => o.voucher_cents > 0).length : null;
 
@@ -124,27 +113,31 @@ function LayoutInner() {
   return (
     <div className="storefront-shell">
       {/* No more full-width global top bar - the brand lives at the top of
-          the sidebar below, and the (decorative) search bar + real theme
-          toggle live in the main content card's own header instead, same
-          as the reference this shell is modeled on. */}
+          the sidebar below, and the (decorative) search bar lives in the
+          main content card's own header instead, same as the reference
+          this shell is modeled on. */}
       <div className="storefront-body">
         <aside className={`storefront-sidebar${sidebarCollapsed ? ' storefront-sidebar--collapsed' : ''}`}>
           <div className="storefront-sidebar-head">
-            <Brand size="sm" showLabel={!sidebarCollapsed} />
+            {/* The brand itself is the toggle now - no separate chevron
+                button. Clicking the logo/wordmark is the only way to
+                minimize/expand the sidebar. */}
             <button
               type="button"
-              className="storefront-icon-btn storefront-sidebar-toggle"
+              className="storefront-brand-button"
               onClick={() => setSidebarCollapsed((c) => !c)}
               aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-pressed={sidebarCollapsed}
             >
-              <ChevronDownIcon />
+              <Brand size="sm" showLabel={!sidebarCollapsed} />
             </button>
           </div>
 
-          <span className="storefront-shop-now" aria-hidden="true">
-            <PlusIcon /> <span>Shop Now</span>
-          </span>
+          {/* A real route now (see App.jsx's /shop), not a decorative span -
+              lands on the same honest ComingSoonPage as Coupons/Wishlist. */}
+          <NavLink to="/shop" className="storefront-shop-now">
+            <ShopIcon /> <span>Shop Now</span>
+          </NavLink>
 
           <nav className="storefront-sidenav">
             <p className="storefront-sidenav-heading">Dashboard</p>
@@ -181,23 +174,10 @@ function LayoutInner() {
             <CategoryBadgesEditor />
           </nav>
 
-          {/* Profile chip moved down here from the old top bar - decorative
-              (no account-menu backend behind the chevron), same as the
-              reference's own bottom-of-sidebar user chip. */}
-          <span className="storefront-profile-chip" aria-hidden="true">
-            <span className="storefront-avatar">{initial}</span>
-            <span className="storefront-profile-text">
-              <span className="storefront-profile-email">{email}</span>
-            </span>
-            <ChevronDownIcon />
-          </span>
-
-          {/* Kept working, unlike the rest of this sidebar - with no other
-              way to sign out, a decorative Logout would strand anyone
-              verified with the "wrong" test account. */}
-          <button type="button" className="storefront-logout" onClick={logout}>
-            <LogoutIcon /> <span>Logout</span>
-          </button>
+          {/* Real account menu (avatar, email, theme, Help & Support, Sign
+              Out) - see ProfileMenu.jsx. Replaces the old decorative chip +
+              separate always-visible Logout button below it. */}
+          <ProfileMenu />
         </aside>
 
         <main className="storefront-content">
@@ -209,19 +189,13 @@ function LayoutInner() {
               </h1>
             </div>
             <div className="page-header-actions">
+              {/* Theme control moved into ProfileMenu's theme trio - this
+                  row no longer needs its own toggle. */}
               <div className="storefront-search" aria-hidden="true">
                 <SearchIcon />
                 <span>Search for products, orders...</span>
                 <span className="storefront-search-kbd">⌘K</span>
               </div>
-              <button
-                type="button"
-                className="storefront-icon-btn"
-                onClick={toggle}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
-              </button>
             </div>
           </div>
           <Outlet />
