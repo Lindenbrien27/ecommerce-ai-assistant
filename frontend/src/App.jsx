@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
+import { HeartIcon, TicketIcon } from './components/icons.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -16,6 +17,9 @@ const OrderDetailPage = lazy(() =>
   import('./pages/OrderDetailPage.jsx').then((m) => ({ default: m.OrderDetailPage }))
 );
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
+const ComingSoonPage = lazy(() =>
+  import('./pages/ComingSoonPage.jsx').then((m) => ({ default: m.ComingSoonPage }))
+);
 
 export default function App() {
   return (
@@ -32,6 +36,26 @@ export default function App() {
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/orders/:orderNumber" element={<OrderDetailPage />} />
                 <Route path="/chat" element={<ChatPage />} />
+                <Route
+                  path="/coupons"
+                  element={
+                    <ComingSoonPage
+                      icon={TicketIcon}
+                      title="Coupons"
+                      text="Saved coupons and promo codes will show up here once this is built."
+                    />
+                  }
+                />
+                <Route
+                  path="/wishlist"
+                  element={
+                    <ComingSoonPage
+                      icon={HeartIcon}
+                      title="Wishlist"
+                      text="Products you save for later will show up here once this is built."
+                    />
+                  }
+                />
               </Route>
             </Route>
 

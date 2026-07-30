@@ -3,17 +3,6 @@ import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 
 const OrdersContext = createContext(null);
 
-// Keyed by product_icon (the same stable identifier ProductImage.jsx and
-// Layout.jsx's category chips already key off of), not by the chip's
-// display label - a Set of icon values is exactly what OrdersPage needs to
-// filter by, with no label<->icon lookup required on this side.
-function toggleInSet(set, value) {
-  const next = new Set(set);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
-  return next;
-}
-
 // Single shared fetch/pagination state for the signed-in customer's order
 // list - both OrdersPage (the full list) and Layout's sidebar (My
 // Orders/Coupons counts) need this same data now, and firing one fetch
@@ -27,11 +16,13 @@ export function OrdersProvider({ children }) {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  // Keyed by product_icon (the same stable identifier ProductImage.jsx and
+  // CategoryBadgesEditor.jsx already key off of) - a Set of icon values is
+  // exactly what OrdersPage needs to filter by, with no label<->icon
+  // lookup required on this side. Exposed as the raw setter, not a
+  // per-icon toggle - CategoryBadgesEditor stages edits in its own local
+  // draft Set and only ever replaces this whole Set at once, on Save.
   const [selectedCategories, setSelectedCategories] = useState(() => new Set());
-
-  function toggleCategory(icon) {
-    setSelectedCategories((prev) => toggleInSet(prev, icon));
-  }
 
   async function loadPage(cursor) {
     const url = cursor ? `/api/orders?cursor=${encodeURIComponent(cursor)}` : '/api/orders';
@@ -85,7 +76,7 @@ export function OrdersProvider({ children }) {
 
   return (
     <OrdersContext.Provider
-      value={{ orders, nextCursor, loadingMore, error, loadMore, selectedCategories, toggleCategory }}
+      value={{ orders, nextCursor, loadingMore, error, loadMore, selectedCategories, setSelectedCategories }}
     >
       {children}
     </OrdersContext.Provider>

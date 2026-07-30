@@ -37,6 +37,18 @@ export function EmptyOrdersIcon(props) {
   );
 }
 
+// Chat/AI-assistant send button - a filled glyph, unlike this file's other
+// stroke-based icons, since the button itself supplies the muted/solid
+// contrast (empty vs. has-text state) that a thin stroke wouldn't read
+// against once it's sitting on a solid circular background.
+export function SendIcon(props) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+    </svg>
+  );
+}
+
 export function ChatIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
