@@ -87,6 +87,14 @@
      --color-bg in both themes. */
   --color-progress-accent: #3b82f6;
   --color-progress-accent-glow: rgba(59, 130, 246, 0.35);
+  /* Same "one fixed hex in both themes" reasoning as --color-progress-accent
+     above - a notification badge needs to read as "attention" the same way
+     regardless of theme, not shift with it. Not --color-error-text/-surface
+     (that pair is a pale wash meant to sit *behind* text, tuned separately
+     per theme) - this is a small solid dot with white text on top of it, a
+     different enough job that reusing those would mean fixing contrast in
+     one theme by breaking it in the other. */
+  --color-badge-danger: #ef4444;
   /* The skeleton shimmer's own moving highlight (see .skeleton) - white at
      a light opacity here since it needs to lift above --color-surface's
      light gray; the dark-mode value further down is much dimmer, since a
@@ -1161,16 +1169,33 @@ h1:focus-visible {
    their own z-index 1 below) so hovering a different, not-yet-selected row
    still shows its own instant highlight on top of the gliding one. */
 .storefront-sidenav-indicator {
+  border-radius: 10px;
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+/* Scoped as ".storefront-sidenav .storefront-sidenav-indicator", not just
+   ".storefront-sidenav-indicator" - this is itself a <span> inside
+   .storefront-sidenav, so the shared ".storefront-sidenav span" rule
+   (class+type selector) is otherwise MORE specific than this single class
+   and was silently winning on every property they both set: position
+   (relative, not this rule's own absolute - the indicator was sitting in
+   normal flow, taking up its own 36px + the section's 4px gap and pushing
+   every row below it down by 40px, not just failing to show a fill) and
+   z-index (1, not 0 - would have painted the "sits behind the rows" comment
+   above backwards too). background was the one already fixed here, but the
+   layout bug it was quietly masking - found by comparing measured row
+   positions against the reference design, where the active Dashboard row's
+   fill sits directly behind that row's own text rather than one row-step
+   above it - needed the same fix applied to every property this shared
+   selector contests, not just the one that happened to be visible first. */
+.storefront-sidenav .storefront-sidenav-indicator {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 0;
   width: 100%;
   height: 36px;
-  border-radius: 10px;
   background: var(--color-surface);
-  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-  z-index: 0;
 }
 /* 13px/500/65% opacity, not uppercase-and-tracked - deliberately small and
    quiet enough to skim past rather than compete with the nav items below
@@ -1317,6 +1342,54 @@ h1:focus-visible {
   background: var(--color-nav-badge-bg);
 }
 
+/* Wraps just the icon (My Orders/Coupons) so the collapsed-only badge below
+   has something of the right size to anchor to - position: relative is the
+   only thing this needs, but it's still a <span> inside .storefront-sidenav,
+   so the shared ".storefront-sidenav span" rule's own box model (36px
+   height, 12px padding, flex "row" gap) has to be explicitly reset here too,
+   same reasoning as every other nested-span override in this section. */
+.storefront-sidenav .storefront-sidenav-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  height: auto;
+  padding: 0;
+  gap: 0;
+}
+/* Hidden in the expanded rail - the real count already has its own full
+   pill there (see .storefront-sidenav-count above); this is only meant to
+   stand in for that pill once the collapsed rail hides it along with every
+   other label (see .storefront-sidebar--collapsed below). Red/solid rather
+   than this app's usual monochrome or violet accents, on purpose - a
+   notification-style dot is meant to interrupt the palette, not blend into
+   it, the same way a real OS app badge does. */
+.storefront-sidenav .storefront-sidenav-badge {
+  display: none;
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-badge-danger);
+  /* Always white, not var(--color-primary-text) - that token flips to dark
+     in dark mode (it assumes it's sitting on --color-solid-bg, which flips
+     to near-white there), but this badge's own red fill doesn't flip with
+     the theme, so its text can't either. */
+  color: #fff;
+  border: 2px solid var(--color-bg);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.storefront-sidenav .storefront-sidenav-badge.skeleton {
+  padding: 0;
+  background: var(--color-nav-badge-bg);
+}
+
 /* Manual "minimize sidebar" toggle (click the brand/logo itself - see
    .storefront-brand-button above) - a narrow icon-only rail showing just
    Shop Now, the Dashboard nav icons, and the account menu's avatar,
@@ -1350,6 +1423,34 @@ h1:focus-visible {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+/* The icon-wrap/badge pair (see .storefront-sidenav-icon-wrap above) are
+   also <span>s, so the visually-hidden clip rule directly above would
+   otherwise clip the icon itself into invisibility along with the real
+   labels - these two need to opt back out of it explicitly (one class
+   more than the rule they're beating, same pattern as the rest of this
+   collapsed-rail section). The badge is what this rail is *for* showing
+   here, so it flips from display: none (see its own base rule) to a real
+   pill anchored on the icon's corner. */
+.storefront-sidebar--collapsed .storefront-sidenav .storefront-sidenav-icon-wrap {
+  position: relative;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+.storefront-sidebar--collapsed .storefront-sidenav .storefront-sidenav-badge {
+  display: flex;
+  position: absolute;
+  width: auto;
+  height: 14px;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: nowrap;
 }
 .storefront-sidebar--collapsed .profile-menu-trigger { justify-content: center; padding: 0.4rem; gap: 0; }
 .storefront-sidebar--collapsed .storefront-profile-text,
@@ -1717,6 +1818,11 @@ h1:focus-visible {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  /* Same idiom as .storefront-sidebar's own collapse - width is the one
+     property that actually changes between the two states (see
+     .ai-panel--minimized below), so a single transition on it is what
+     makes the whole panel read as gliding shut rather than snapping. */
+  transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 /* A real <button>, not a styled <div> - clicking it is the only way to
    minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
@@ -1763,12 +1869,12 @@ h1:focus-visible {
 .ai-panel-title { display: block; font-weight: 700; font-size: 0.95rem; }
 .ai-panel-subtitle { display: block; margin-top: 0.1rem; color: var(--color-text-muted); font-size: 0.78rem; }
 
-/* Collapsed to an icon rail - the header stays the toggle (now centered,
-   border/margin dropped since there's no content below it to separate
-   from), everything else (log, form) simply isn't rendered while
-   minimized rather than hidden via CSS. */
+/* Collapsed to an icon rail - a fixed px width (not the old width: auto),
+   since a width transition can't glide toward/from "auto" smoothly - this
+   is the same fixed footprint the header's own 32px avatar plus this rule's
+   own padding produce anyway, just made explicit so it's animatable. */
 .ai-panel--minimized {
-  width: auto;
+  width: 56px;
   padding: var(--space-2);
 }
 .ai-panel--minimized .ai-panel-header {
@@ -1777,6 +1883,53 @@ h1:focus-visible {
   border-bottom: none;
 }
 .ai-panel--minimized .ai-panel-header-text { display: none; }
+
+/* The glide itself - max-height is driven by inline style from
+   AiAssistantPanel.jsx's own effect (see its comment), not a fixed CSS
+   value: this box is flex: 1 1 auto so it stretches to fill whatever free
+   space .ai-panel has left below its header (the same free space
+   .ai-panel-form's margin-top: auto gets pushed into, pinning the input at
+   the very bottom of a short conversation) - a fixed max-height here would
+   cap that stretch on any viewport taller than the fixed number, so the
+   collapse/expand animation instead measures .ai-panel-body's real height
+   at the moment of each toggle and transitions to/from that exact pixel
+   value, then clears the inline override once fully expanded so this rule's
+   own unconstrained flex: 1 takes back over at rest. */
+.ai-panel-body-wrap {
+  /* display: flex is what makes .ai-panel-body's own flex: 1 below mean
+     anything - without a flex/grid container here, that child just falls
+     back to sizing itself to its own content (~600px), and margin-top:
+     auto on .ai-panel-form has nothing bigger to push against, landing the
+     input right after the suggestions instead of at the true bottom of a
+     short conversation. Found live: the input sat mid-panel after
+     re-expanding, not pinned to the bottom the way it was before this
+     glide was added. */
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  /* min-width: 0, not just min-height: 0 - a flex item's default min-width
+     is auto, which means "never shrink narrower than your content's own
+     intrinsic width" (the chat log/suggestion chips/input placeholder are
+     all sized for the full 320px panel) - without this, minimizing to 56px
+     left this box exactly as wide as that content and just let it overflow
+     the now-much-narrower .ai-panel sideways instead of clipping it, even
+     though overflow: hidden was already set. Found live: a sliver of the
+     input's placeholder text visibly bled past the panel's right edge. */
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ai-panel-body {
+  /* min-width: 0 for the same reason as .ai-panel-body-wrap's own comment
+     above - a flex item's own default min-width would otherwise refuse to
+     shrink this narrower than the log/input's intrinsic content width too. */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 
 /* Bounded height + its own scrollbar, not flex: 1 inside an unbounded
    column - the panel's own min-height is a floor (see above), not a
