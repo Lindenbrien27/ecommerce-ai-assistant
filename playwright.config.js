@@ -57,6 +57,26 @@ module.exports = defineConfig({
       RATE_LIMIT_AUTH_MAX: '100',
       RATE_LIMIT_ORDERS_MAX: '100',
       RATE_LIMIT_MAX: '100',
+      // Forced off regardless of what a local .env has configured for real
+      // Gmail/SMTP sending - every spec's login goes through the seeded
+      // demo accounts (jane.doe@example.com and friends), which aren't
+      // real inboxes and don't need to be emailed. Unset here (not just
+      // left to whatever .env has), since dotenv.config() inside server.js
+      // does not override a variable that's already present in
+      // process.env - these empty values win over .env's real ones for
+      // this spawned server specifically, restoring the devCode fallback
+      // every spec's verifyAs() helper relies on. Without this, a local
+      // .env with real SMTP credentials makes Nodemailer actually attempt
+      // to send to these fabricated addresses and silently succeed
+      // (Gmail accepts at submission time regardless of whether the
+      // recipient exists), which both stops devCode from ever appearing
+      // and has no business happening for demo-only addresses in the
+      // first place.
+      SMTP_HOST: '',
+      SMTP_PORT: '',
+      SMTP_USER: '',
+      SMTP_PASS: '',
+      EMAIL_FROM: '',
     },
   },
 });

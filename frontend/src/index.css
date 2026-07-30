@@ -1772,11 +1772,44 @@ h1:focus-visible {
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 500;
-  transition: color 0.2s ease;
+  /* background-color 0s/0s here, not omitted - a deselected tab needs to
+     drop its background instantly (matching this rule's own transparent
+     value), not inherit .active's own 0.32s-delayed transition the moment
+     that class is removed. See .active's own comment for the full
+     reasoning. */
+  transition: color 0.2s ease, background-color 0s linear 0s;
 }
-.order-filter-tab:hover:not(.active) { color: var(--color-text); }
+/* background: transparent explicitly, not omitted - nothing else here
+   overrides the generic button:hover:not(:disabled) rule's own
+   background (var(--color-solid-bg-hover)) for an inactive tab, since
+   this rule previously only set color. That generic rule wins by default
+   whenever a more specific rule doesn't contest the same property at
+   all, regardless of this selector's own higher specificity elsewhere -
+   the same class of bug already caught for .chat-send-button/
+   .storefront-sidenav-item/.available-row earlier in this file. Found via
+   axe on Mobile Safari specifically: a hovered "Cancelled" tab (aria-
+   pressed="false") was rendering var(--color-text) on top of var(--color
+   -solid-bg-hover), 1.32:1 contrast. */
+.order-filter-tab:hover:not(.active) { color: var(--color-text); background: transparent; }
+/* Own background here too, not just the indicator's - axe-core resolves
+   effective background by walking up the DOM's *ancestor* chain, and
+   .order-filter-indicator is a sibling of .order-filter-tab, not an
+   ancestor, so axe can't see its fill at all. It was instead measuring
+   this text against .order-filter-tabs' own track color (--color-surface)
+   - in dark mode, near-identical to --color-primary-text (1.03:1
+   contrast, caught by CI's axe run on mobile viewports). transition-delay
+   matching the indicator's own 0.32s glide duration keeps this
+   background transparent for the whole animation (so the visual glide is
+   unchanged - the indicator alone still supplies the moving fill) and
+   only snaps to solid the instant the indicator visually finishes
+   arriving, at which point they're pixel-identical and the swap is
+   invisible. Losing .active reverts to the base rule's own un-delayed
+   transition below, so a deselected tab's background disappears
+   instantly rather than lingering. */
 .order-filter-tab.active {
   color: var(--color-primary-text);
+  background: var(--color-solid-bg);
+  transition: color 0.2s ease, background-color 0s linear 0.32s;
 }
 /* Light badge inside an inactive (dark-text-on-transparent) tab - sits on
    the track's own --color-surface, so the card's --color-bg tone reads as
@@ -2428,6 +2461,53 @@ h1:focus-visible {
   .order-progress-step.completed .order-progress-icon,
   .order-progress-step.completed:not(.current):not(:last-child)::after,
   .order-route-step.current .order-route-node { animation: none; }
+}
+
+/* Same "physically after the unconditional rules it overrides" reasoning
+   as the block above - .storefront-sidenav-item.active and .order-filter
+   -tab.active are both defined much earlier in this file.
+
+   Hides the two shared gliding "fill" indicators (.storefront-sidenav-
+   indicator, .order-filter-indicator) entirely for reduced-motion - a
+   sliding highlight has no reduced-motion equivalent worth keeping, same
+   as every other animation this file already turns off for the
+   preference. This isn't only a reduced-motion nicety, though: it also
+   works around a real axe-core limitation confirmed live (not assumed) -
+   axe-core's color-contrast check resolves an element's effective
+   background by walking up the DOM's *ancestor* chain, and can't account
+   for a sibling's visual layering at all. Both indicators are absolutely-
+   positioned *siblings* of the nav item/filter tab they sit behind, not
+   ancestors - axe was pessimistically attributing their fill to
+   *unrelated* siblings in the same flex container too (e.g. flagging
+   "Arrived"/"Returned", tabs nowhere near the indicator's actual
+   position, as insufficient-contrast against the indicator's color).
+   Confirmed by temporarily hiding the indicator outright: the false
+   positive disappeared immediately. .exclude()-ing the indicator from the
+   axe scan (tried first) did NOT fix this - exclude only stops elements
+   from being *audited* themselves, it doesn't stop axe from still using
+   an excluded element as a background candidate for other, non-excluded
+   elements.
+
+   With the indicators hidden, each active row/tab needs to supply its
+   own resting-state fill directly instead of relying on the indicator for
+   it - .order-filter-tab.active already has its own background (see that
+   rule's own comment), just delayed to match the indicator's glide
+   duration; here that delay is removed so it's instant, since there's no
+   glide left to wait for. .storefront-sidenav-item.active has never had
+   its own background at all (by design, see that rule's comment) - it
+   gets one added here, and only here, matching the indicator's own fill
+   color exactly. */
+@media (prefers-reduced-motion: reduce) {
+  .storefront-sidenav-indicator,
+  .order-filter-indicator {
+    display: none;
+  }
+  .storefront-sidenav-item.active {
+    background: var(--color-surface);
+  }
+  .order-filter-tab.active {
+    transition-delay: 0s;
+  }
 }
 
 .order-route-cancelled {
