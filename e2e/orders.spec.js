@@ -23,7 +23,7 @@ test.describe('orders', () => {
     await expect(page).toHaveURL(/\/orders\/ORD-1001$/);
     await expect(page.locator('h1')).toHaveText('ORD-1001');
     await expect(page.locator('.order-product-name')).toHaveText('Wireless Noise-Cancelling Headphones');
-    await expect(page.locator('.order-detail')).toContainText('1Z999AA10123456784');
+    await expect(page.locator('.order-manifest')).toContainText('1Z999AA10123456784');
   });
 
   test('the browser back button returns to the order list (real history, not just state)', async ({
@@ -53,39 +53,68 @@ test.describe('orders', () => {
 
     await expect(page.locator('.verify-error')).toBeVisible();
     await expect(page.locator('.verify-error')).toHaveText('Order not found.');
-    await expect(page.locator('.order-detail')).toHaveCount(0);
+    await expect(page.locator('.order-label-card')).toHaveCount(0);
   });
 
-  test('the sidebar Category chips are a real multi-select filter, not decorative', async ({
+  test('the Category badges editor is a real multi-select filter, not decorative', async ({
     page,
   }, testInfo) => {
-    // The Category tag grid is dropped entirely below 700px (see the
+    // The Category badges card is dropped entirely below 700px (see the
     // comment on that breakpoint in index.css) - a cramped mobile icon row
-    // has no room for a 2-column filter grid, same precedent as the search
-    // bar being hidden below 900px. Both mobile projects render narrower
-    // than that, so the chips this test clicks don't exist there.
-    test.skip(testInfo.project.name.startsWith('Mobile'), 'category chips are hidden below 700px by design');
-
-    const audioChip = page.locator('.storefront-tag-list button', { hasText: 'Audio' });
-    const cablesChip = page.locator('.storefront-tag-list button', { hasText: 'Cables' });
+    // has no room for it, same precedent as the search bar being hidden
+    // below 900px. Both mobile projects render narrower than that, so the
+    // Edit button this test clicks doesn't exist there.
+    test.skip(testInfo.project.name.startsWith('Mobile'), 'the Category badges card is hidden below 700px by design');
 
     // ORD-1001 is headphones (Audio), ORD-1002 is a USB-C cable (Cables).
     await expect(page.locator('.order-card')).toHaveCount(2);
-    await expect(audioChip).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(0);
 
-    await audioChip.click();
-    await expect(audioChip).toHaveAttribute('aria-pressed', 'true');
+    // Edits are staged in the popover and only take effect on Save - one
+    // click each on the two "available" rows, then Save applies both at
+    // once (this is the multi-select part: additive, not a swap).
+    await page.click('.badges-edit-btn');
+    await page.click('.available-row:has-text("Audio")');
+    await page.click('.available-row:has-text("Cables")');
+    await page.click('.popover-save');
+
+    await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(2);
+    await expect(page.locator('.order-card')).toHaveCount(2);
+
+    // Removing just Cables (in a fresh edit pass) narrows down to Audio only.
+    await page.click('.badges-edit-btn');
+    await page.click('.badge-row [aria-label="Remove Cables"]');
+    await page.click('.popover-save');
+
+    await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(1);
     await expect(page.locator('.order-card')).toHaveCount(1);
     await expect(page.locator('.order-card-product')).toHaveText('Wireless Noise-Cancelling Headphones');
 
-    // Selecting a second category is additive (multi-select), not a swap.
-    await cablesChip.click();
+    // Removing every category goes back to "no filter", not "show nothing".
+    await page.click('.badges-edit-btn');
+    await page.click('.badge-row [aria-label="Remove Audio"]');
+    await page.click('.popover-save');
+
+    await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(0);
+    await expect(page.locator('.order-card')).toHaveCount(2);
+  });
+
+  test('closing the Category badges editor without saving discards the draft', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('Mobile'), 'the Category badges card is hidden below 700px by design');
+
+    await page.click('.badges-edit-btn');
+    await page.click('.available-row:has-text("Audio")');
+    await page.click('.popover-close');
+
+    // Nothing was saved, so the main view and the real filter are both
+    // untouched - reopening the editor should show a fresh draft too, not
+    // the discarded one.
+    await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(0);
     await expect(page.locator('.order-card')).toHaveCount(2);
 
-    // Deselecting every category goes back to "no filter", not "show nothing".
-    await audioChip.click();
-    await cablesChip.click();
-    await expect(audioChip).toHaveAttribute('aria-pressed', 'false');
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    await page.click('.badges-edit-btn');
+    await expect(page.locator('.popover-section-label').first()).toContainText('Active Badges (0)');
   });
 });

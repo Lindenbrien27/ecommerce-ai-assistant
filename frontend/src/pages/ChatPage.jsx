@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from '../components/MessageBubble.jsx';
 import { useChatConversation, SUGGESTED_PROMPTS } from '../hooks/useChatConversation.js';
+import { SendIcon } from '../components/icons.jsx';
 
 export function ChatPage() {
   const { bubbles, pending, sendMessage, clear } = useChatConversation();
@@ -100,8 +101,13 @@ export function ChatPage() {
           disabled={pending}
           onChange={(e) => setInput(e.target.value)}
         />
-        <button type="submit" disabled={pending}>
-          Send
+        <button
+          type="submit"
+          className={`chat-send-button${input.trim() ? ' chat-send-button--active' : ''}`}
+          disabled={pending}
+          aria-label="Send message"
+        >
+          <SendIcon />
         </button>
       </form>
     </>

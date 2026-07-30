@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageBubble, TypingIndicator } from './MessageBubble.jsx';
 import { useChatConversation, SUGGESTED_PROMPTS } from '../hooks/useChatConversation.js';
-import { BrandMarkIcon } from './icons.jsx';
+import { useOrders } from '../context/OrdersContext.jsx';
+import { BrandMarkIcon, SendIcon } from './icons.jsx';
 
 // The storefront's docked right-side panel - a real, working client for the
 // same /api/chat endpoint ChatPage.jsx talks to (via the shared
@@ -10,6 +11,14 @@ import { BrandMarkIcon } from './icons.jsx';
 // chat surface open at the same time as the full ChatPage.
 export function AiAssistantPanel() {
   const { bubbles, pending, sendMessage } = useChatConversation();
+  // This panel has no fetch of its own to gate on - the greeting/suggested-
+  // prompts placeholder below is skeleton'd purely so the sidebar, center
+  // page, and this panel all read as one app loading together and settle
+  // together (see Layout.jsx/OrdersPage.jsx's own skeletons), not because
+  // the AI assistant itself is waiting on the orders fetch. The input form
+  // stays real and usable throughout - there's no actual reason chatting
+  // has to wait for the order list.
+  const { orders } = useOrders();
   const [input, setInput] = useState('');
   const [minimized, setMinimized] = useState(false);
   const logRef = useRef(null);
@@ -62,32 +71,45 @@ export function AiAssistantPanel() {
             tabIndex="0"
             className="ai-panel-log"
           >
-            {bubbles.length === 0 && (
-              <div className="ai-panel-greeting">
-                <div className="msg-row">
-                  <span className="msg-avatar" aria-hidden="true">
-                    <BrandMarkIcon width="14" height="14" />
-                  </span>
-                  <div className="msg assistant">
-                    Hi! I can look up your orders, shipping status, and tracking. What do you need?
+            {bubbles.length === 0 &&
+              (orders === null ? (
+                <div className="ai-panel-greeting-skeleton" aria-hidden="true">
+                  <div className="msg-row">
+                    <span className="skeleton ai-panel-skeleton-avatar" />
+                    <span className="skeleton ai-panel-skeleton-line" />
+                  </div>
+                  <div className="ai-panel-skeleton-suggestions">
+                    <span className="skeleton ai-panel-skeleton-chip" />
+                    <span className="skeleton ai-panel-skeleton-chip" />
+                    <span className="skeleton ai-panel-skeleton-chip" />
                   </div>
                 </div>
-                <p className="ai-panel-suggested-label">Suggested</p>
-                <div className="ai-panel-suggestions">
-                  {SUGGESTED_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      className="chat-suggestion"
-                      onClick={() => sendMessage(prompt)}
-                      disabled={pending}
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+              ) : (
+                <div className="ai-panel-greeting fade-in">
+                  <div className="msg-row">
+                    <span className="msg-avatar" aria-hidden="true">
+                      <BrandMarkIcon width="14" height="14" />
+                    </span>
+                    <div className="msg assistant">
+                      Hi! I can look up your orders, shipping status, and tracking. What do you need?
+                    </div>
+                  </div>
+                  <p className="ai-panel-suggested-label">Suggested</p>
+                  <div className="ai-panel-suggestions">
+                    {SUGGESTED_PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        className="chat-suggestion"
+                        onClick={() => sendMessage(prompt)}
+                        disabled={pending}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
             {bubbles.map((b) =>
               b.variant === 'pending' ? (
                 <TypingIndicator key={b.id} />
@@ -111,8 +133,13 @@ export function AiAssistantPanel() {
               disabled={pending}
               onChange={(e) => setInput(e.target.value)}
             />
-            <button type="submit" disabled={pending}>
-              Send
+            <button
+              type="submit"
+              className={`chat-send-button${input.trim() ? ' chat-send-button--active' : ''}`}
+              disabled={pending}
+              aria-label="Send message"
+            >
+              <SendIcon />
             </button>
           </form>
         </>

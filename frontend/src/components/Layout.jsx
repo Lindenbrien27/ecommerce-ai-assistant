@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
+import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
 import {
   ChatIcon,
   ChevronDownIcon,
@@ -38,6 +39,8 @@ import {
 const PAGE_HEADERS = {
   '/orders': { icon: OrdersIcon, title: 'Your Orders', docTitle: 'Your Orders' },
   '/chat': { icon: ChatIcon, title: 'Order Support Assistant', docTitle: 'Chat' },
+  '/coupons': { icon: TicketIcon, title: 'Coupons', docTitle: 'Coupons' },
+  '/wishlist': { icon: HeartIcon, title: 'Wishlist', docTitle: 'Wishlist' },
 };
 
 function getPageHeader(pathname, params) {
@@ -45,34 +48,36 @@ function getPageHeader(pathname, params) {
   return PAGE_HEADERS[pathname] || { icon: null, title: '', docTitle: '' };
 }
 
-// Real multi-select filter chips now, not decorative labels - `icon` is
-// the order's own product_icon value (see PRODUCT_ICONS in icons.jsx),
-// which is what actually gets filtered on; `label` is just the chip's
-// display text. Matches this app's own 5 real products rather than the
-// clothing categories ("tshirt, pants") in the reference screenshot this
-// section is modeled on - this store doesn't sell clothes, and labeling a
-// filter with categories that don't match anything in the real catalog
-// would be a worse copy of the reference than adapting it to what's
-// actually here.
-const CATEGORY_TAGS = [
-  { label: 'Audio', icon: 'headphones' },
-  { label: 'Cables', icon: 'cable' },
-  { label: 'Peripherals', icon: 'keyboard' },
-  { label: 'Furniture', icon: 'chair' },
-  { label: 'Displays', icon: 'monitor' },
-];
+// Row height (36px, see .storefront-sidenav-item in index.css) + the
+// section's own 4px row gap - kept as one JS constant instead of measuring
+// the DOM, since every Dashboard row shares the exact same fixed height and
+// this is the one number the sliding indicator (.storefront-sidenav-
+// indicator) needs to glide to the right row.
+const NAV_ROW_STEP = 40;
+// All three Dashboard rows are real routes now (My Orders/Coupons/Wishlist
+// - Coupons and Wishlist land on ComingSoonPage rather than a built-out
+// feature, but that's still a real page, not a fake local-only highlight).
+// The indicator's position is derived straight from the URL, same as any
+// other active-nav-link styling - -1 means "none of these three match",
+// which hides the indicator (see its own style below) instead of leaving
+// it parked under whichever row was last real.
+function getDashboardNavIndex(pathname) {
+  if (pathname.startsWith('/orders')) return 0;
+  if (pathname.startsWith('/coupons')) return 1;
+  if (pathname.startsWith('/wishlist')) return 2;
+  return -1;
+}
 
-// Most of this sidebar/content-header is intentionally inert - plain
-// <span>s, not <button>s, copying a reference design's structure. This app
-// has no coupon/wishlist-editing/global-search backend for those items to
-// actually do something - a non-interactive element styled to look
-// clickable is more honest than a real control with no real behavior. My
-// Orders, Category (now a real multi-select filter, not just decoration),
-// Logout, the theme toggle, and the AI Assistant panel are the ones that
-// stay functional. My Orders' and Coupons' counts are real numbers derived
-// from the signed-in customer's own orders, not placeholders - Wishlist
-// has no backing data at all, so it gets no number rather than a
-// fabricated one.
+// Most of this sidebar/content-header is intentionally inert - the search
+// bar and profile chip are plain <span>s, copying a reference design's
+// structure, since this app has no global-search/account-menu backend for
+// them to actually do something. Coupons/Wishlist are real NavLinks to real
+// routes now (see App.jsx), same as My Orders - they just land on
+// ComingSoonPage instead of a built-out feature, an honest "not built yet"
+// rather than a link that silently does nothing. My Orders' and Coupons'
+// counts are real numbers derived from the signed-in customer's own
+// orders, not placeholders - Wishlist has no backing data at all, so it
+// gets no number rather than a fabricated one.
 // OrdersProvider wraps LayoutInner (not the other way around) so this outer
 // component can stay the default export React Router renders for every
 // authenticated route, while still giving LayoutInner - and, via Outlet,
@@ -87,7 +92,7 @@ export function Layout() {
 
 function LayoutInner() {
   const { email, logout } = useAuth();
-  const { orders, selectedCategories, toggleCategory } = useOrders();
+  const { orders } = useOrders();
   const { theme, toggle } = useTheme();
   const location = useLocation();
   const params = useParams();
@@ -96,6 +101,9 @@ function LayoutInner() {
   const voucherCount = orders ? orders.filter((o) => o.voucher_cents > 0).length : null;
 
   const showAiPanel = location.pathname !== '/chat';
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const navIndex = getDashboardNavIndex(location.pathname);
 
   const { icon: PageIcon, title: pageTitle, docTitle } = getPageHeader(location.pathname, params);
   const headingRef = useRef(null);
@@ -120,43 +128,57 @@ function LayoutInner() {
           toggle live in the main content card's own header instead, same
           as the reference this shell is modeled on. */}
       <div className="storefront-body">
-        <aside className="storefront-sidebar">
-          <Brand size="sm" />
+        <aside className={`storefront-sidebar${sidebarCollapsed ? ' storefront-sidebar--collapsed' : ''}`}>
+          <div className="storefront-sidebar-head">
+            <Brand size="sm" showLabel={!sidebarCollapsed} />
+            <button
+              type="button"
+              className="storefront-icon-btn storefront-sidebar-toggle"
+              onClick={() => setSidebarCollapsed((c) => !c)}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-pressed={sidebarCollapsed}
+            >
+              <ChevronDownIcon />
+            </button>
+          </div>
 
           <span className="storefront-shop-now" aria-hidden="true">
-            <PlusIcon /> Shop Now
+            <PlusIcon /> <span>Shop Now</span>
           </span>
 
           <nav className="storefront-sidenav">
             <p className="storefront-sidenav-heading">Dashboard</p>
             <div className="storefront-sidenav-section">
-              <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
+              <span
+                className="storefront-sidenav-indicator"
+                style={{
+                  transform: `translateY(${Math.max(navIndex, 0) * NAV_ROW_STEP}px)`,
+                  opacity: navIndex === -1 ? 0 : 1,
+                }}
+                aria-hidden="true"
+              />
+              <NavLink to="/orders" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
                 <OrdersIcon /> <span>My Orders</span>
-                {orderCount !== null && <span className="storefront-sidenav-count">{orderCount}</span>}
+                {orderCount === null ? (
+                  <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
+                ) : (
+                  <span className="storefront-sidenav-count fade-in">{orderCount}</span>
+                )}
               </NavLink>
-              <span aria-hidden="true">
+              <NavLink to="/coupons" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
                 <TicketIcon /> <span>Coupons</span>
-                {voucherCount !== null && <span className="storefront-sidenav-count">{voucherCount}</span>}
-              </span>
-              <span aria-hidden="true">
+                {voucherCount === null ? (
+                  <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
+                ) : (
+                  <span className="storefront-sidenav-count fade-in">{voucherCount}</span>
+                )}
+              </NavLink>
+              <NavLink to="/wishlist" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
                 <HeartIcon /> <span>Wishlist</span>
-              </span>
+              </NavLink>
             </div>
 
-            <p className="storefront-sidenav-heading">Category</p>
-            <div className="storefront-tag-list" role="group" aria-label="Filter orders by category">
-              {CATEGORY_TAGS.map(({ label, icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="storefront-tag"
-                  aria-pressed={selectedCategories.has(icon)}
-                  onClick={() => toggleCategory(icon)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <CategoryBadgesEditor />
           </nav>
 
           {/* Profile chip moved down here from the old top bar - decorative
@@ -174,7 +196,7 @@ function LayoutInner() {
               way to sign out, a decorative Logout would strand anyone
               verified with the "wrong" test account. */}
           <button type="button" className="storefront-logout" onClick={logout}>
-            <LogoutIcon /> Logout
+            <LogoutIcon /> <span>Logout</span>
           </button>
         </aside>
 

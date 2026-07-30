@@ -7,6 +7,30 @@ const { verifyAs } = require('./helpers');
 // catches real regressions on every push instead of relying on a one-time
 // manual read-through staying true forever.
 async function expectNoViolations(page) {
+  // networkidle first, then wait for animations - in that order, not just
+  // the latter alone. The skeleton-to-real-content .fade-in (OrdersPage/
+  // AiAssistantPanel) only starts once its data fetch resolves and React
+  // swaps the skeleton for real content; checking document.getAnimations()
+  // before that fetch finishes finds nothing in-flight yet (an empty list
+  // trivially "finishes" immediately), and the fade-in can then start and
+  // still be mid-transition while axe's own analyze() call - not
+  // instantaneous - is running. networkidle closes that gap by ensuring
+  // the fetch (and therefore the fade-in's start) has already happened
+  // before the animation-wait below even looks. Confirmed as a real flake
+  // by rerunning the un-networkidle'd version several times in a row.
+  await page.waitForLoadState('networkidle');
+  // Filtered to exclude infinite-iteration animations (the skeleton
+  // shimmer itself, the chat typing indicator) - their own .finished
+  // promise never resolves, so waiting on one unfiltered would hang this
+  // forever instead of settling.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect.getTiming().iterations !== Infinity)
+        .map((a) => a.finished)
+    )
+  );
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
 }
@@ -71,7 +95,7 @@ test.describe('accessibility', () => {
     await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/orders/ORD-1001');
-    await expect(page.locator('.order-detail')).toBeVisible();
+    await expect(page.locator('.order-label-card')).toBeVisible();
     await expectPageAnnounced(page, { heading: 'ORD-1001', titleContains: 'ORD-1001' });
     await expectNoViolations(page);
   });
@@ -81,7 +105,7 @@ test.describe('accessibility', () => {
     await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/orders/ORD-1001');
-    await expect(page.locator('.order-detail')).toBeVisible();
+    await expect(page.locator('.order-label-card')).toBeVisible();
     await expectNoViolations(page);
   });
 

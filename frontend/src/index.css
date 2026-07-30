@@ -67,15 +67,10 @@
      pair, same as --color-shadow itself. */
   --color-card-shadow: rgba(0, 0, 0, 0.06);
 
-  /* Two scoped accent hues in an otherwise monochrome app, each doing
-     exactly one job. Violet marks the category filter chip's selected
-     state (see .storefront-tag below); everything else in this file still
-     holds to the near-white/near-black scale above. --color-chip-text is a
-     stronger near-black than --color-text-muted on purpose: the given
-     spec calls for #222 specifically for an unselected chip's own label,
-     not this app's usual secondary-text muted tone. */
-  --color-chip-border: rgba(0, 0, 0, 0.15);
-  --color-chip-text: #222222;
+  /* One scoped accent hue in an otherwise monochrome app - violet marks an
+     active category badge (see .badge-pill) both in the sidebar's compact
+     summary and the popover's Active Badges list; everything else in this
+     file still holds to the near-white/near-black scale above. */
   --color-chip-selected-bg: rgba(124, 58, 237, 0.08);
   --color-chip-selected-border: #8b5cf6;
   --color-chip-selected-text: #5b21b6;
@@ -92,6 +87,20 @@
      --color-bg in both themes. */
   --color-progress-accent: #3b82f6;
   --color-progress-accent-glow: rgba(59, 130, 246, 0.35);
+  /* The skeleton shimmer's own moving highlight (see .skeleton) - white at
+     a light opacity here since it needs to lift above --color-surface's
+     light gray; the dark-mode value further down is much dimmer, since a
+     white sweep at this same opacity would blow out against an already-
+     near-black surface instead of reading as a subtle highlight. */
+  --color-skeleton-shimmer: rgba(255, 255, 255, 0.7);
+  /* The sidebar nav's hover wash (a row you haven't selected) - deliberately
+     much fainter than --color-surface itself (which the active row's own
+     indicator uses at full strength), so hover reads as a light preview
+     and active reads as the real, stronger commitment. A translucent black
+     over the light panel here; the dark-mode value further down is a
+     translucent white instead, same reasoning as --color-skeleton-shimmer
+     above. */
+  --color-surface-hover: rgba(0, 0, 0, 0.045);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -106,6 +115,12 @@
   --font-size-base: 1rem;
   --font-size-lg: 1.85rem;
   --font-size-sm: 0.9rem;
+  /* Scoped to the order detail page's order number/tracking number/carrier
+     code/route dates - the handful of things on that page that are codes,
+     not prose, the same way a physical shipping label always sets them in
+     a fixed-width face so they scan as data rather than a sentence.
+     Nowhere else in the app switches off the system font stack above. */
+  --font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', 'JetBrains Mono', monospace;
 
   --color-focus-ring: rgba(23, 23, 23, 0.18);
 }
@@ -154,11 +169,11 @@
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
     --color-focus-ring: rgba(251, 251, 251, 0.22);
-    --color-chip-border: rgba(255, 255, 255, 0.15);
-    --color-chip-text: rgba(255, 255, 255, 0.75);
     --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
     --color-chip-selected-border: #a78bfa;
     --color-chip-selected-text: #ddd6fe;
+    --color-skeleton-shimmer: rgba(255, 255, 255, 0.08);
+    --color-surface-hover: rgba(255, 255, 255, 0.055);
   }
 }
 
@@ -191,11 +206,11 @@
   --color-warning-surface: #2a2110;
   --color-warning-text: #fcd34d;
   --color-focus-ring: rgba(251, 251, 251, 0.22);
-  --color-chip-border: rgba(255, 255, 255, 0.15);
-  --color-chip-text: rgba(255, 255, 255, 0.75);
   --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
   --color-chip-selected-border: #a78bfa;
   --color-chip-selected-text: #ddd6fe;
+  --color-skeleton-shimmer: rgba(255, 255, 255, 0.08);
+  --color-surface-hover: rgba(255, 255, 255, 0.055);
 }
 
 * { box-sizing: border-box; }
@@ -213,6 +228,50 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Shared shimmer placeholder - a moving highlight sweep across a muted
+   base fill. One base class + one keyframe covers every loading state in
+   the app (sidebar nav counts, the orders list, the AI panel's greeting -
+   see each one's own markup for where it's applied) rather than a
+   bespoke skeleton per surface, so they all read as the same visual
+   language and settle at the same moment once real content is ready. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  color: transparent;
+  pointer-events: none;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--color-skeleton-shimmer), transparent);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
+/* Crossfades real content in once a skeleton above resolves - a brief
+   settle rather than a hard cut from placeholder to real content. Same
+   cubic-bezier ease-out signature as the sidebar/filter-tab glide
+   animations elsewhere in this file, not a new motion language. */
+.fade-in {
+  animation: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-in { animation: none; }
 }
 
 body {
@@ -485,10 +544,62 @@ p.subtitle {
 }
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
-/* Scoped to just Send, not the global button rule - the sidebar toggle,
-   logout, and suggestion-chip buttons already have their own tuned weight/
-   spacing, and this shouldn't quietly change those too. */
-#chat-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
+
+/* Pill-shaped chat input, shared by ChatPage's #chat-form and the docked
+   AiAssistantPanel's .ai-panel-form - the border/radius/padding live on the
+   form itself so the input and send button sit inside one continuous pill
+   instead of two separately-bordered controls side by side. */
+#chat-form,
+.ai-panel-form {
+  align-items: center;
+  padding: 0.3rem 0.3rem 0.3rem var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+}
+#chat-form:focus-within,
+.ai-panel-form:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+#chat-form input[type="text"],
+.ai-panel-form input[type="text"] {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.4rem 0;
+}
+#chat-form input[type="text"]:focus-visible,
+.ai-panel-form input[type="text"]:focus-visible {
+  outline: none;
+}
+
+/* Circular icon button replacing the old rectangular "Send" text button -
+   muted while the input is empty, solid once there's text to send (see
+   ChatPage.jsx/AiAssistantPanel.jsx's chat-send-button--active toggle),
+   matching the reference design's two states. */
+.chat-send-button {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+/* Without this, the generic button:hover:not(:disabled) rule (higher
+   specificity than the bare .chat-send-button class) would flip the muted,
+   empty-input state solid on hover - only the --active state should darken
+   further on hover. */
+.chat-send-button:hover:not(:disabled) { background: var(--color-surface); }
+.chat-send-button--active {
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.chat-send-button--active:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
 
 #verify-form,
 #otp-form {
@@ -819,8 +930,26 @@ h1:focus-visible {
      clip/scroll independently. No top-bar height to subtract anymore - the
      brand now lives inside the sidebar itself instead of above it. */
   min-height: calc(100vh - 16px);
+  /* The one property that actually changes between expanded/collapsed
+     (see .storefront-sidebar--collapsed below) - everything inside just
+     appears/disappears at its own width, so a single width transition on
+     the parent is what makes the whole rail read as sliding shut rather
+     than snapping. */
+  transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.storefront-sidebar .brand { min-height: 40px; gap: 10px; margin-bottom: 24px; }
+.storefront-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  margin-bottom: 24px;
+}
+.storefront-sidebar .brand { min-height: 40px; gap: 10px; margin-bottom: 0; }
+.storefront-sidebar-toggle svg {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: rotate(-90deg);
+}
+.storefront-sidebar--collapsed .storefront-sidebar-toggle svg { transform: rotate(90deg); }
 .storefront-shop-now {
   display: flex;
   align-items: center;
@@ -839,10 +968,32 @@ h1:focus-visible {
 .storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
 
 .storefront-sidenav { flex-shrink: 0; }
+/* position: relative so the Dashboard glide indicator (absolutely
+   positioned, see below) can sit behind these three rows. */
 .storefront-sidenav-section {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+/* The one element that actually glides between My Orders/Coupons/Wishlist -
+   translateY is computed in Layout.jsx from a fixed row-height + gap
+   (every row is the same 36px height), not measured, since all three rows
+   are always the same size - nothing here depends on label length the way
+   the order-filter-tabs indicator does. Sits behind the rows (z-index 0 vs.
+   their own z-index 1 below) so hovering a different, not-yet-selected row
+   still shows its own instant highlight on top of the gliding one. */
+.storefront-sidenav-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 0;
 }
 /* 13px/500/65% opacity, not uppercase-and-tracked - deliberately small and
    quiet enough to skim past rather than compete with the nav items below
@@ -856,28 +1007,29 @@ h1:focus-visible {
   font-size: 13px;
   font-weight: 500;
 }
-/* The "Category" label specifically: 32px above it (not the 12px every
-   label defaults to below itself), 16px below it to the tag grid (not
-   12px to a nav item) - two different label-to-content gaps in this
-   sidebar, not one shared rule. Matches only this label, since it's the
-   one immediately preceded by the Dashboard .storefront-sidenav-section. */
-.storefront-sidenav-section + .storefront-sidenav-heading { margin-top: 32px; margin-bottom: 16px; }
 .storefront-sidenav a,
-.storefront-sidenav span {
+.storefront-sidenav span,
+.storefront-sidenav-item {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
   height: 36px;
   padding: 0 12px;
+  border: none;
   border-radius: 10px;
+  background: transparent;
   color: var(--color-text-muted);
   text-decoration: none;
+  font: inherit;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
 }
 .storefront-sidenav a svg,
-.storefront-sidenav span svg { flex-shrink: 0; }
+.storefront-sidenav span svg,
+.storefront-sidenav-item svg { flex-shrink: 0; }
 /* The label text sits in its own nested <span> (see Layout.jsx - needed so
    the mobile breakpoint can hide just the label, not the icon), which the
    base ".storefront-sidenav span" rule above also matches directly, even
@@ -890,23 +1042,40 @@ h1:focus-visible {
    background. Both states now target the label span explicitly too. */
 .storefront-sidenav a:hover,
 .storefront-sidenav span:hover,
+/* :not(:disabled), not just :hover - the generic button:hover:not(:disabled)
+   rule (index.css's shared button reset) has one more pseudo-class than a
+   plain ".storefront-sidenav-item:hover" and was winning the specificity
+   tie, silently painting Coupons/Wishlist's hover state near-black (var(
+   --color-solid-bg-hover)) instead of this light var(--color-surface) -
+   the exact same class of bug already caught and fixed for .chat-send-
+   button earlier. Found live via a screenshot mid-click. */
+/* A faint wash, not the same solid fill .active uses below (see that
+   rule's own comment) - hovering a row you haven't selected is a preview,
+   not a commitment, so it gets a lighter, distinct treatment instead of
+   looking identical to the selected state. */
+.storefront-sidenav-item:hover:not(:disabled),
 .storefront-sidenav a:hover span,
-.storefront-sidenav span:hover span { color: var(--color-text); background: var(--color-surface); }
-/* Same var(--color-surface) as :hover above, not var(--color-solid-bg) -
-   active and hover now share one subtle background instead of active
-   being a bold inverted pill. color: var(--color-text), not var(--color-
-   primary-text) - that token assumes it's sitting on --color-solid-bg
-   (which flips to near-white in dark mode), so on this now much lighter/
-   subtler surface it would mean near-white-on-near-white in dark mode -
-   the same invisible-text mistake this file has already caught and fixed
-   twice elsewhere, worth calling out again since it'd be easy to
-   reintroduce by only changing the background and reusing the old text
-   color out of habit. */
+.storefront-sidenav span:hover span,
+.storefront-sidenav-item:hover span { color: var(--color-text); background: var(--color-surface-hover); }
+/* Still no background here - the three Dashboard rows (My Orders/Coupons/
+   Wishlist) share one gliding .storefront-sidenav-indicator behind them
+   (the full solid --color-surface fill, stronger than the hover wash
+   above so the two states read as distinct) instead of each row carrying
+   its own instant active fill; an .active row here just needs the text
+   treatment that fill implies. No bold weight either (per direct design
+   feedback) - the fill plus the color change already read as "selected"
+   on their own. color: var(--color-text), not var(--color-primary-text) -
+   that token assumes it's sitting on --color-solid-bg (which flips to
+   near-white in dark mode), so on this now much lighter/subtler surface
+   it would mean near-white-on-near-white in dark mode - the same
+   invisible-text mistake this file has already caught and fixed twice
+   elsewhere, worth calling out again since it'd be easy to reintroduce by
+   reusing the old text color out of habit. */
 .storefront-sidenav a.active,
-.storefront-sidenav a.active span {
-  background: var(--color-surface);
+.storefront-sidenav-item.active,
+.storefront-sidenav a.active span,
+.storefront-sidenav-item.active span {
   color: var(--color-text);
-  font-weight: 700;
 }
 
 /* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
@@ -941,6 +1110,16 @@ h1:focus-visible {
   font-weight: 700;
   text-align: center;
 }
+/* Same footprint as the real badge above (see .skeleton for the shared
+   shimmer itself) - sized in px rather than relying on padding/font-size
+   to produce it, since a skeleton has no text for those to size around. */
+.storefront-sidenav .storefront-sidenav-count.skeleton {
+  display: inline-block;
+  width: 18px;
+  height: 13px;
+  padding: 0;
+  border-radius: 999px;
+}
 /* .active/:hover on the row (above) both include a "…span" selector to
    reach the nested label text (see that rule's own comment), which also
    matches this badge - a second <span> nested in the same row - and wins
@@ -954,51 +1133,309 @@ h1:focus-visible {
    than what they're beating. */
 .storefront-sidenav a:hover .storefront-sidenav-count,
 .storefront-sidenav span:hover .storefront-sidenav-count,
-.storefront-sidenav a.active .storefront-sidenav-count {
+.storefront-sidenav-item:hover .storefront-sidenav-count,
+.storefront-sidenav a.active .storefront-sidenav-count,
+.storefront-sidenav-item.active .storefront-sidenav-count {
   background: var(--color-nav-badge-bg);
 }
 
-/* 2-column grid, not a wrapped inline-flex row - gives every chip the same
-   width and lines row 2 up under row 1, instead of pill widths falling
-   wherever their own text happens to end. */
-.storefront-tag-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  row-gap: 8px;
-  column-gap: 8px;
-  padding: 0 4px;
+/* Manual "minimize sidebar" toggle (Layout.jsx's storefront-sidebar-toggle
+   button) - a narrow icon-only rail showing just Shop Now, the Dashboard
+   nav icons, the profile avatar, and Logout, matching the <=700px
+   responsive collapse's own icon-only look but user-toggled at any
+   viewport width and kept in the vertical (not wrapped-row) layout. Text
+   labels use the same visually-hidden clip technique as that breakpoint
+   (see its own comment below) rather than display: none, wherever the
+   element behind them is a real control (My Orders/Coupons/Wishlist/
+   Logout) - Shop Now and the profile chip are already aria-hidden
+   decorative elements (see Layout.jsx), so display: none on their text is
+   fine there. */
+.storefront-sidebar--collapsed { width: 76px; padding: 16px 8px 12px; }
+.storefront-sidebar--collapsed .brand-name { display: none; }
+.storefront-sidebar--collapsed .storefront-shop-now { padding: 0; }
+.storefront-sidebar--collapsed .storefront-shop-now span { display: none; }
+.storefront-sidebar--collapsed .storefront-sidenav-heading,
+.storefront-sidebar--collapsed .badges-card {
+  display: none;
 }
-/* A real multi-select filter now (see Layout.jsx/OrdersPage.jsx), not a
-   decorative label - default/selected are both explicit states rather
-   than a plain badge with an implied color. Default: transparent
-   background, a low-opacity border, plain text - no tint, unlike the
-   colored-dot version this replaces. Selected: a soft violet wash
-   (background/border/text all shift together, not just the border), the
-   one deliberate accent color in this app, scoped to exactly this one
-   real interactive state (see --color-chip-* tokens for why). */
-.storefront-tag-list .storefront-tag {
-  display: inline-flex;
-  align-items: center;
+.storefront-sidebar--collapsed .storefront-sidenav a,
+.storefront-sidebar--collapsed .storefront-sidenav-item,
+.storefront-sidebar--collapsed .storefront-logout {
   justify-content: center;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: transparent;
-  border: 1px solid var(--color-chip-border);
-  color: var(--color-chip-text);
+  padding: 0;
+}
+.storefront-sidebar--collapsed .storefront-sidenav a span,
+.storefront-sidebar--collapsed .storefront-sidenav-item span,
+.storefront-sidebar--collapsed .storefront-logout span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.storefront-sidebar--collapsed .storefront-profile-chip { justify-content: center; padding: 0.4rem; gap: 0; }
+.storefront-sidebar--collapsed .storefront-profile-text,
+.storefront-sidebar--collapsed .storefront-profile-chip > svg { display: none; }
+
+/* CategoryBadgesEditor.jsx - the sidebar's Category filter. Replaces the
+   old always-all-5-visible multi-select chip grid: the main view only
+   shows which categories are active (see .badges-active-row/.badge-pill
+   below), with an "Edit" button opening a floating popover for actually
+   adding/removing them. 32px above, same as the old "Category" heading's
+   own top margin - it's still the thing that directly follows the
+   Dashboard .storefront-sidenav-section. */
+.storefront-sidenav-section + .badges-card { margin-top: 32px; }
+.badges-card {
+  position: relative;
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.8rem 0.85rem;
+}
+.badges-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+/* Scoped as ".storefront-sidenav .badges-card-label", not just
+   ".badges-card-label" - this is a <span> nested inside .storefront-
+   sidenav, so the shared ".storefront-sidenav span" rule (class+type
+   selector) is otherwise MORE specific than a single class alone and was
+   silently winning, leaving this label stuck at that rule's full box model
+   (display: flex, a forced 36px height, 12px side padding, cursor:
+   pointer) as well as its 0.9rem/muted-color text - found via axe
+   (insufficient contrast: the muted color at this rule's own opacity: 0.65
+   stacked on top of it faded below 4.5:1) and then, once that was fixed,
+   via a follow-up screenshot showing the box-model leftovers still
+   visible. display/height/padding/cursor all need explicit resets here,
+   not just color/font-size - the broad rule sets all four, and a rule
+   that out-specifies it for only *some* properties still loses the
+   others. The same class of bug as the nav count badge fix elsewhere in
+   this file. Every other span-based rule below this point in
+   CategoryBadgesEditor.jsx is scoped the same way for the same reason. */
+.storefront-sidenav .badges-card-label {
+  display: inline;
+  height: auto;
+  padding: 0;
+  cursor: default;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  opacity: 0.65;
+}
+.badges-edit-btn {
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-.storefront-tag-list .storefront-tag:hover { background: var(--color-surface); }
-.storefront-tag-list .storefront-tag[aria-pressed="true"] {
-  background: var(--color-chip-selected-bg);
-  border-color: var(--color-chip-selected-border);
-  color: var(--color-chip-selected-text);
   font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.storefront-tag-list .storefront-tag[aria-pressed="true"]:hover { filter: brightness(1.05); }
+/* :not(:disabled), not just :hover - the generic button:hover:not(:disabled)
+   rule has one more pseudo-class than a plain ":hover" and would otherwise
+   win the specificity tie, same bug already caught and fixed for
+   .chat-send-button/.storefront-sidenav-item earlier in this file. */
+.badges-edit-btn:hover:not(:disabled) { background: var(--color-surface); border-color: var(--color-text-muted); }
+.badges-active-row { display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 26px; }
+/* A soft violet wash, the one deliberate accent color in this app (see
+   --color-chip-* tokens) - kept from the old always-visible chip grid,
+   since these still mean the same thing (a category the order list is
+   currently filtered to), just surfaced as a read-only summary here
+   instead of a toggle. */
+.storefront-sidenav .badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 26px;
+  padding: 0 0.6rem 0 0.4rem;
+  border-radius: 999px;
+  background: var(--color-chip-selected-bg);
+  border: 1px solid var(--color-chip-selected-border);
+  color: var(--color-chip-selected-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  /* Not clickable - a read-only summary of what's active, editing only
+     happens in the popover (see its own comment) - the broad .storefront-
+     sidenav span rule this overrides sets cursor: pointer, which would
+     otherwise invite a click that does nothing. */
+  cursor: default;
+}
+.badge-pill svg { width: 13px; height: 13px; }
+.badges-empty-note { margin: 0; color: var(--color-text-muted); font-size: 0.8rem; padding: 0.2rem 0; }
+
+/* Floating editor popover - anchored to .badges-card (position: relative,
+   above), top-aligned with the card it edits (top: 0 here means "level
+   with the card's own top edge") so the two read as one unit, rather than
+   a full-height drawer sliding in from the edge of the screen. Pops in
+   with a quick scale+fade from its own top-left corner (where it meets
+   the card), not a slide - "floating next to the thing it edits" reads as
+   a popover, not a drawer. */
+.popover-catcher {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 40;
+}
+.edit-popover {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  width: min(280px, 84vw);
+  max-height: min(420px, 70vh);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  transform-origin: top left;
+  transform: scale(0.94);
+  opacity: 0;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+}
+.edit-popover.open { transform: scale(1); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .edit-popover { transition: none; }
+}
+.popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.popover-head h2 { margin: 0; font-size: 0.9rem; }
+.popover-close {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.popover-close:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text); }
+.popover-body { flex: 1; overflow-y: auto; padding: 0.85rem 0.9rem; }
+.popover-section-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+/* display/height/padding/cursor resets, not just font-variant-numeric -
+   without them this count number is a block-level flex box (the broad
+   .storefront-sidenav span rule's display: flex/36px-height/12px-padding),
+   which breaks the line before and after it - "Active Badges (0)" was
+   rendering as three separate lines instead of one. See
+   .badges-card-label's own comment above for the full explanation. */
+.storefront-sidenav .popover-section-label span {
+  display: inline;
+  height: auto;
+  padding: 0;
+  cursor: default;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.badge-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-border);
+  font: inherit;
+  text-align: left;
+}
+.storefront-sidenav .badge-row-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+.badge-row-icon svg { width: 12px; height: 12px; }
+/* height/padding/cursor resets - this one sits inside .badge-row's own
+   flex row, so the broad rule's display: flex doesn't break the layout
+   the way it did for the count span above (a flex item's own display
+   only governs its children, not how it participates in its parent), but
+   the forced 36px height/12px padding/pointer cursor were still visibly
+   wrong on a label that isn't itself a nav row. */
+.storefront-sidenav .badge-row-label {
+  display: inline;
+  height: auto;
+  padding: 0;
+  cursor: default;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+.badge-row-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: background-color 0.15s ease;
+}
+.badge-row-btn.remove { background: transparent; color: var(--color-text-muted); }
+.badge-row-btn.remove:hover { background: var(--color-error-surface); color: var(--color-error-text); }
+.available-row { cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+/* :not(:disabled) here matters for the same reason as .badges-edit-btn's
+   own hover rule above - without it, the generic button:hover:not(:disabled)
+   rule (one more pseudo-class = higher specificity) would paint this row
+   solid dark on hover instead of just darkening its border, since this
+   rule would otherwise be the only one setting a hover background at all. */
+.badge-row.available-row:hover:not(:disabled) { background: var(--color-panel-bg); border-color: var(--color-text-muted); }
+.badge-row-btn.add { background: var(--color-surface); color: var(--color-text); font-weight: 700; }
+.available-row:hover .badge-row-btn.add { background: var(--color-solid-bg); color: var(--color-primary-text); }
+.popover-divider { border: none; border-top: 1px dashed var(--color-border); margin: 1rem 0; }
+.popover-footer { padding: 0.8rem 0.9rem; border-top: 1px solid var(--color-border); flex-shrink: 0; }
+.popover-save {
+  width: 100%;
+  padding: 0.55rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.popover-save:hover { background: var(--color-solid-bg-hover); }
 
 .storefront-logout {
   flex-shrink: 0;
@@ -1192,14 +1629,23 @@ h1:focus-visible {
   margin-left: 30px;
 }
 .ai-panel-suggestions .chat-suggestion { flex: 0 1 auto; width: auto; }
+
+/* Loading placeholder for the greeting/suggestions block above (see
+   AiAssistantPanel.jsx) - not gated on this panel's own data (it has
+   none), just kept in step with the sidebar/center-page skeletons so all
+   three regions settle into real content at the same moment. */
+.ai-panel-greeting-skeleton { display: flex; flex-direction: column; gap: var(--space-3); }
+.ai-panel-skeleton-avatar { flex-shrink: 0; width: 24px; height: 24px; margin-top: 0.15rem; border-radius: 50%; }
+.ai-panel-skeleton-line { flex: 1; height: 2.6rem; border-radius: 16px; }
+.ai-panel-skeleton-suggestions { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: 30px; }
+.ai-panel-skeleton-chip { width: 120px; height: 2.3rem; border-radius: var(--radius-md); }
+/* Pushes the pill to the bottom of the panel's flex column - the pill's own
+   border/radius/padding come from the shared #chat-form/.ai-panel-form rule
+   above. */
 .ai-panel-form {
-  display: flex;
-  gap: var(--space-1);
   margin-top: auto;
-  padding-top: var(--space-2);
 }
 .ai-panel-form input { flex: 1; min-width: 0; }
-.ai-panel-form button[type="submit"] { font-weight: 600; letter-spacing: 0.01em; }
 
 @media (max-width: 1200px) {
   .ai-panel { display: none; }
@@ -1227,8 +1673,14 @@ h1:focus-visible {
      category filtering isn't reachable below this width for now (still
      resettable from a wider viewport if a filter was left selected). */
   .storefront-sidenav-section { display: contents; }
+  /* display: contents above means this absolutely-positioned indicator's
+     containing block would otherwise resolve to some ancestor further up
+     the tree that isn't actually positioned - hidden here rather than left
+     to reposition unpredictably, since this cramped icon row has no stable
+     per-row geometry for it to glide between anyway. */
+  .storefront-sidenav-indicator { display: none; }
   .storefront-sidenav-heading,
-  .storefront-tag-list { display: none; }
+  .badges-card { display: none; }
   .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
   /* Same .sr-only technique as the rule of that name near the top of this
      file, not display: none - a real <a> (My Orders) with display: none
@@ -1238,9 +1690,12 @@ h1:focus-visible {
      collapsible sidebar's icon-only rail - regressed it here by not
      reusing that pattern). Visually hidden, zero layout footprint (unlike
      opacity: 0, which would leave a space-consuming gap in an already
-     -cramped icon row), but still in the accessibility tree. */
+     -cramped icon row), but still in the accessibility tree. Also matches
+     .storefront-sidenav-item now (Coupons/Wishlist are real buttons here
+     too, see Layout.jsx), not just <a>/<span>. */
   .storefront-sidenav a span,
-  .storefront-sidenav span span {
+  .storefront-sidenav span span,
+  .storefront-sidenav-item span {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1278,6 +1733,7 @@ h1:focus-visible {
    sitting directly on the shared track instead of each having its own
    outline. */
 .order-filter-tabs {
+  position: relative;
   display: inline-flex;
   flex-wrap: wrap;
   gap: 2px;
@@ -1286,7 +1742,26 @@ h1:focus-visible {
   background: var(--color-surface);
   border-radius: 999px;
 }
+/* The one element that actually glides - sized/positioned in px by
+   OrdersPage.jsx (measured per tab, since label length and count digits
+   give every tab a different width; a flex-based layout has no CSS-only
+   way to know a sibling's box ahead of time). Sits behind the tabs
+   (z-index 0 vs. their own z-index 1) so its motion reads through
+   whichever tabs aren't the active one. */
+.order-filter-indicator {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  height: calc(100% - 6px);
+  border-radius: 999px;
+  background: var(--color-solid-bg);
+  box-shadow: 0 1px 3px var(--color-shadow);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
 .order-filter-tab {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -1297,12 +1772,11 @@ h1:focus-visible {
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 500;
+  transition: color 0.2s ease;
 }
 .order-filter-tab:hover:not(.active) { color: var(--color-text); }
 .order-filter-tab.active {
-  background: var(--color-solid-bg);
   color: var(--color-primary-text);
-  box-shadow: 0 1px 3px var(--color-shadow);
 }
 /* Light badge inside an inactive (dark-text-on-transparent) tab - sits on
    the track's own --color-surface, so the card's --color-bg tone reads as
@@ -1316,6 +1790,15 @@ h1:focus-visible {
   font-size: 0.72rem;
   font-weight: 700;
   text-align: center;
+}
+/* Same footprint as the real badge above, before it has a number to size
+   around - see .storefront-sidenav-count.skeleton for the same reasoning. */
+.order-filter-count.skeleton {
+  display: inline-block;
+  width: 20px;
+  height: 15px;
+  padding: 0;
+  border-radius: 999px;
 }
 .order-filter-tab.active .order-filter-count {
   /* Neutral gray, not white - see .storefront-sidenav-count above for why
@@ -1393,17 +1876,41 @@ h1:focus-visible {
 .order-card-headline { margin: var(--space-3) 0 0.15rem; font-weight: 700; }
 .order-card-subtext { margin: 0 0 var(--space-2); color: var(--color-text-muted); font-size: 0.9rem; }
 
+/* Content-shaped loading placeholder (see OrdersPage.jsx's OrderCardSkeleton)
+   - reuses .order-card's own padding/border/radius/shadow so only the
+   inside needs filling in; each piece below is sized to roughly match the
+   real element it stands in for (.product-image-lg, .order-card-product,
+   etc.) so the page doesn't visibly jump once the real cards replace it. */
+.order-card-skeleton .order-card-top { padding-right: 0; }
+.order-card-skeleton-image { width: 88px; height: 88px; border-radius: 16px; flex-shrink: 0; }
+.order-card-skeleton-line { display: block; border-radius: var(--radius-sm); }
+.order-card-skeleton-line--title { width: 55%; height: 1.1em; margin-bottom: 0.6rem; }
+.order-card-skeleton-line--meta { width: 40%; height: 0.8em; margin-bottom: 0.6rem; }
+.order-card-skeleton-pill { display: inline-block; width: 72px; height: 1.4rem; border-radius: 999px; }
+.order-card-skeleton-line--headline { width: 42%; height: 1.1em; margin: var(--space-3) 0 0.5rem; }
+.order-card-skeleton-line--subtext { width: 65%; height: 0.9em; margin-bottom: var(--space-2); }
+.order-card-skeleton-progress { display: block; width: 100%; height: 64px; border-radius: var(--radius-md); }
+
 /* Horizontal icon stepper - a different visual language from
-   OrderDetailPage's vertical dot timeline (.status-timeline), but the same
-   underlying rule about not implying progress that hasn't happened: a
+   OrderDetailPage's route line (.order-route), but the same underlying
+   rule about not implying progress that hasn't happened: a
    step's connecting line is only colored once that step is both completed
-   AND not the current one, same as .status-timeline-step's own fix. */
+   AND not the current one, same as .order-route-step's own fix. */
 .order-progress {
   list-style: none;
   margin: var(--space-2) 0 0;
   padding: 0;
   display: flex;
   align-items: flex-start;
+  /* Scoped here (not :root) since nothing outside this stepper uses them.
+     One step's worth of time for the connecting line to grow AND for the
+     icon at its far end to pop - see the fill/pop rules below for how
+     --step-i (set per <li> in OrdersPage.jsx) staggers both so the line
+     visibly "reaches" each icon before it pops, instead of every step
+     animating at once on mount. */
+  --progress-step-duration: 0.4s;
+  --ease-out-bezier: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .order-progress-step {
   position: relative;
@@ -1428,7 +1935,11 @@ h1:focus-visible {
   color: var(--color-text-muted);
 }
 .order-progress-label { font-size: 0.75rem; font-weight: 500; }
-.order-progress-step:not(:last-child)::after {
+/* The static muted track (::before), always present at full width - the
+   completed/accent portion (::after, below) now grows on top of it, so
+   this base layer has to exist independently rather than just being the
+   pre-animation state of the same pseudo-element. */
+.order-progress-step:not(:last-child)::before {
   content: '';
   position: absolute;
   top: 15px;
@@ -1460,21 +1971,69 @@ h1:focus-visible {
   border-radius: 50%;
   background: var(--color-progress-accent);
 }
-.order-progress-step.completed:not(.current):not(:last-child)::after { background: var(--color-progress-accent); }
+/* The animated fill - a second, initially-absent layer (::after) on top of
+   the static track above, not a recolor of the same pseudo-element, so it
+   can grow from nothing. transform-origin: left + scaleX(0 -> 1) rather
+   than animating width directly - a transform animates on the compositor
+   (smooth regardless of how many steps are animating at once), where a
+   width animation would trigger layout on every frame. --step-i (set per
+   <li>, not on this pseudo-element's own selector - see OrdersPage.jsx)
+   staggers each segment so they fill left-to-right in sequence on mount,
+   reading as one line drawing across rather than every segment growing
+   simultaneously. */
+.order-progress-step.completed:not(.current):not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--color-progress-accent);
+  transform-origin: left;
+  animation: order-progress-fill var(--progress-step-duration) var(--ease-out-bezier) both;
+  animation-delay: calc(var(--step-i, 0) * var(--progress-step-duration));
+}
+@keyframes order-progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
 .order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
-/* A one-shot pulse on the just-reached step, not a looping one - this is
-   an acknowledgment of a milestone the page loaded already at ("your
-   order has shipped"), not a live event arriving while watched, so it
-   plays once on mount and settles rather than drawing the eye
-   indefinitely. var(--color-progress-accent-glow), not --color-focus-ring -
-   the halo now echoes the accent it's pulsing around instead of this
-   app's neutral near-black/near-white ring, same reasoning as the icon
-   fill itself. See the reduced-motion override further down for why this
-   is opt-out, not opt-in. */
-.order-progress-step.current .order-progress-icon { animation: step-pulse 0.9s ease-out; }
+/* Every reached icon (completed or current) pops in with a spring
+   overshoot, timed via the same --step-i/--progress-step-duration pairing
+   as the fill above so an icon pops the instant the line growing into it
+   finishes - not before (nothing to reach it with yet) and not after
+   (looks laggy). animation-fill-mode: both holds it at scale(0.4) for the
+   whole delay beforehand, so an icon several steps out doesn't flash at
+   full size before shrinking down to wait its turn. */
+.order-progress-step.completed .order-progress-icon,
+.order-progress-step.current .order-progress-icon {
+  animation: order-progress-pop 0.35s var(--ease-spring) both;
+  animation-delay: calc(var(--step-i, 0) * var(--progress-step-duration));
+}
+@keyframes order-progress-pop {
+  from { transform: scale(0.4); }
+  to { transform: scale(1); }
+}
+/* The current step's own extra "just arrived" glow, chained to start right
+   as its own pop above finishes rather than firing the instant the page
+   loads. box-shadow only, deliberately not transform/scale anymore - two
+   animations both driving transform on the same element would have this
+   one (listed/starting second) win the property for its own animation-
+   delay via fill-mode: both, silently cancelling order-progress-pop's
+   scale-in for exactly the icon it's most important on. See the
+   reduced-motion override further down for why this is opt-out, not
+   opt-in. */
+.order-progress-step.current .order-progress-icon {
+  animation:
+    order-progress-pop 0.35s var(--ease-spring) both,
+    step-pulse 0.9s ease-out both;
+  animation-delay:
+    calc(var(--step-i, 0) * var(--progress-step-duration)),
+    calc(var(--step-i, 0) * var(--progress-step-duration) + 0.35s);
+}
 @keyframes step-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--color-progress-accent-glow); transform: scale(1); }
-  50% { box-shadow: 0 0 0 6px var(--color-progress-accent-glow); transform: scale(1.1); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--color-progress-accent-glow); }
+  50% { box-shadow: 0 0 0 6px var(--color-progress-accent-glow); }
 }
 
 .order-progress-cancelled {
@@ -1523,6 +2082,21 @@ h1:focus-visible {
 .orders-empty-primary:hover { background: var(--color-solid-bg-hover); }
 .orders-empty-secondary { background: none; border: 1px solid var(--color-border); color: var(--color-text); }
 .orders-empty-secondary:hover { background: var(--color-surface); }
+
+/* ComingSoonPage.jsx's "not built yet" state (Coupons/Wishlist) - same
+   centered icon/title/text recipe as .orders-empty-state above, just
+   without the actions row, since there's nothing to do here yet. */
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  padding: 3.5rem 1.5rem;
+}
+.coming-soon-icon { width: 48px; height: 48px; color: var(--color-text-muted); margin-bottom: 0.5rem; }
+.coming-soon-title { margin: 0; font-weight: 700; font-size: 1.05rem; }
+.coming-soon-text { margin: 0; max-width: 340px; color: var(--color-text-muted); font-size: 0.9rem; line-height: 1.5; }
 
 .orders-support-banner {
   display: flex;
@@ -1610,35 +2184,93 @@ h1:focus-visible {
 .order-status.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
 .order-status.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
 
-/* A real 2-column grid, not one narrow stacked column - the card is 800px
-   wide specifically so there's room for this; a single column left the
-   entire right half of the card empty regardless of how many real fields
-   there were to show. Each field is its own grid item (a <div> wrapping
-   one dt/dd pair - valid inside a <dl> since HTML5.1, still parsed
-   correctly by assistive tech) so dt/dd can be label-above-value *within*
-   a cell without that pairing needing to be flat siblings across the
-   whole list. */
-.order-detail {
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4) var(--space-5);
+/* The order detail page's product/status/route block - a single card
+   (same --color-bg-on-panel recipe as .order-card) rather than the flat,
+   un-cardded content this page used to be, since the perforation below
+   only reads as a waybill's own tear-line if there's a card edge for it
+   to interrupt. */
+.order-label-card {
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px var(--color-card-shadow);
 }
-.order-detail-field { display: flex; flex-direction: column; }
-.order-detail-field dt {
-  font-size: 0.75rem;
+.order-label-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.order-label-top .order-status { margin-top: 0.4rem; }
+
+/* The one literal "waybill" quotation on the page, used exactly once -
+   negative side margins pull it out to the card's own edges (matching
+   .order-label-card's padding) so it reads as a seam across the whole
+   card, not an indented rule. The two half-circle "punch-outs" are purely
+   decorative (aria-hidden via the empty div itself carrying no content)
+   and colored to the page background, not the card's, so they read as
+   holes rather than dots sitting on top of the card. */
+.order-perforation {
+  position: relative;
+  margin: var(--space-4) calc(var(--space-4) * -1) 0;
+  border-top: 1px dashed var(--color-border);
+}
+.order-perforation::before,
+.order-perforation::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-border);
+}
+.order-perforation::before { left: -9px; }
+.order-perforation::after { right: -9px; }
+
+/* Carrier/tracking number - the two "how it's being shipped" facts, kept
+   separate from the dates now living in .order-route below (a manifest
+   identifies the shipment; the route says when it moved). Same
+   --color-bg-card-on-panel recipe as .order-label-card/.order-card, so
+   the two read as siblings rather than one being a lesser element. */
+.order-manifest {
+  margin-top: var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px var(--color-card-shadow);
+  padding: 0 var(--space-4);
+}
+.order-manifest-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.order-manifest-field:last-child { border-bottom: none; }
+.order-manifest-field dt {
+  margin: 0;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
-.order-detail-field dd { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 500; }
-.order-detail-field dd a {
+.order-manifest-field dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  text-align: right;
+}
+.order-manifest-field dd a {
   color: var(--color-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.order-detail-field dd a:hover { text-decoration-thickness: 2px; }
+.order-manifest-field dd a:hover { text-decoration-thickness: 2px; }
 
 /* Real photo when ProductImage.jsx has one mapped (overflow: hidden clips
    it to this tile's own rounded corners, object-fit: cover fills the tile
@@ -1665,10 +2297,11 @@ h1:focus-visible {
 .product-image-lg svg { width: 44px; height: 44px; }
 
 .order-product-row {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin: var(--space-3) 0 var(--space-4);
 }
 .order-product-name { margin: 0; font-size: 1.15rem; font-weight: 600; }
 
@@ -1699,78 +2332,86 @@ h1:focus-visible {
   font-size: 0.9rem;
   font-weight: 600;
 }
-.status-timeline {
+/* The signature element: a single route line spanning the label card's
+   full width, replacing the old vertical dot timeline. Same underlying
+   completed/current/upcoming states and the same "outlined ring lights
+   up, only .order-progress-icon's own colors move" convention as the
+   order list's own stepper - .order-route-date is the
+   one real addition, since this app's order data has real dates for the
+   first and last steps (ordered on / estimated delivery) that the old
+   timeline never surfaced beside the step labels. */
+.order-route {
   list-style: none;
-  margin: 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
-}
-.status-timeline-step {
-  position: relative;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.4rem 0 0.4rem var(--space-1);
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
 }
-/* An outlined ring, not a filled dot - matches .order-progress-icon's own
-   outlined treatment above so the two steppers read as the same signal.
-   A small inner dot (::after), not a checkmark glyph, marks "reached" -
-   there's no room for a legible check at 10px. */
-.status-timeline-marker {
+.order-route-step {
   position: relative;
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.order-route-node {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   border: 2px solid var(--color-border);
+  background: var(--color-bg);
 }
-.status-timeline-marker::after {
+.order-route-node::after {
   content: '';
   position: absolute;
-  inset: 2.5px;
+  inset: 4px;
   border-radius: 50%;
   background: var(--color-progress-accent);
   opacity: 0;
 }
-/* The connecting line is a pseudo-element on each non-last step, not a
-   separate element - anchored to the marker's own horizontal center
-   (var(--space-1) inset + half the marker's 10px width) so it stays
-   aligned with the dots regardless of label text length/wrapping. */
-.status-timeline-step:not(:last-child)::before {
+.order-route-step.completed .order-route-node,
+.order-route-step.current .order-route-node { border-color: var(--color-progress-accent); }
+.order-route-step.completed .order-route-node::after,
+.order-route-step.current .order-route-node::after { opacity: 1; }
+/* Same trailing-pseudo-element line as .order-progress-step's own (top
+   offset = half the node's own height, minus 1px for the line's stroke),
+   anchored to each step rather than a separate element, so it stays
+   centered on the node regardless of label/date text length. */
+.order-route-step:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: calc(var(--space-1) + 4px);
-  top: calc(50% + 9px);
-  bottom: -0.4rem;
-  width: 2px;
+  top: 7px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
   background: var(--color-border);
 }
-.status-timeline-step.completed { color: var(--color-text); }
-/* var(--color-progress-accent), not --color-primary - same single
-   vibrant landmark color as .order-progress-icon's completed/current ring
-   above, so the two steppers (this vertical timeline and the order
-   card's horizontal one) read as the same signal rather than one going
-   monochrome and the other accented. */
-.status-timeline-step.completed .status-timeline-marker,
-.status-timeline-step.current .status-timeline-marker { border-color: var(--color-progress-accent); }
-.status-timeline-step.completed .status-timeline-marker::after,
-.status-timeline-step.current .status-timeline-marker::after { opacity: 1; }
-/* :not(.current), not just .completed - a step's trailing line represents
-   progress *into the next step*, which for the current step hasn't
-   happened yet regardless of the current step's own dot being filled in.
-   Coloring it the same accent as a completed line would imply delivery
-   was already in progress toward "Delivered" the moment an order went
-   "out for delivery," before that was actually true - caught by
-   literally looking at the rendered line, not from the class logic alone
-   reading correctly at a glance. */
-.status-timeline-step.completed:not(.current):not(:last-child)::before { background: var(--color-progress-accent); }
-.status-timeline-step.current .status-timeline-label { font-weight: 700; }
+.order-route-step.completed { color: var(--color-text); }
+/* :not(.current), not just .completed - same reasoning as
+   .order-progress-step's own equivalent rule: a step's trailing line is
+   progress *into the next step*, which hasn't happened yet for the
+   current step regardless of its own node being lit. */
+.order-route-step.completed:not(.current):not(:last-child)::after { background: var(--color-progress-accent); }
+.order-route-label { font-size: 0.78rem; font-weight: 500; }
+.order-route-step.current .order-route-label { color: var(--color-text); font-weight: 700; }
+/* Only .order-route-step.processing/.delivered ever get a date (see
+   OrderDetailPage.jsx's stepDate map) - the app's order data has no
+   per-step timestamp history for the two middle steps, so this only
+   needs to exist, not branch on which step it's in. */
+.order-route-date {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
 /* Same one-shot milestone pulse as .order-progress-icon's own (see its
    comment) - shared keyframes, since it's the same "acknowledge the step
-   this order is currently at" moment, just on the vertical timeline's dot
-   instead of the horizontal stepper's icon circle. */
-.status-timeline-step.current .status-timeline-marker { animation: step-pulse 0.9s ease-out; }
+   this order is currently at" moment, just on the route line's own node
+   instead of the order list's stepper icon. */
+.order-route-step.current .order-route-node { animation: step-pulse 0.9s ease-out; }
 
 /* A second prefers-reduced-motion block, not folded into the one near the
    top of this file - these two selectors have to physically come after
@@ -1784,11 +2425,13 @@ h1:focus-visible {
    none` rule that looked like it should have won). */
 @media (prefers-reduced-motion: reduce) {
   .order-progress-step.current .order-progress-icon,
-  .status-timeline-step.current .status-timeline-marker { animation: none; }
+  .order-progress-step.completed .order-progress-icon,
+  .order-progress-step.completed:not(.current):not(:last-child)::after,
+  .order-route-step.current .order-route-node { animation: none; }
 }
 
-.status-timeline-cancelled {
-  margin: 0;
+.order-route-cancelled {
+  margin: var(--space-4) 0 0;
   padding: var(--space-2) var(--space-3);
   background: var(--color-error-surface);
   color: var(--color-error-text);
@@ -1811,7 +2454,9 @@ h1:focus-visible {
   }
   #chat { height: min(420px, 55vh); padding: var(--space-2); }
   .msg { max-width: 90%; }
-  /* Two columns need real width to read as columns rather than cramped
-     half-lines - not available on an already-narrow phone viewport. */
-  .order-detail { grid-template-columns: 1fr; }
+  /* "Out for delivery" is this app's longest step label - at the route
+     line's full 4-across width on an already-narrow phone viewport, the
+     base 0.78rem size wraps it into a cramped 3-line stack that the
+     shorter labels either side of it don't need. */
+  .order-route-label { font-size: 0.68rem; }
 }

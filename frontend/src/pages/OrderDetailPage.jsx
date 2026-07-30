@@ -85,24 +85,38 @@ const STATUS_STEPS = [
   { key: 'delivered', label: 'Delivered' },
 ];
 
-function StatusTimeline({ status }) {
-  if (status === 'cancelled') {
-    return <p className="status-timeline-cancelled">This order was cancelled.</p>;
+// Only the first (processing) and last (delivered) steps have a real date
+// anywhere in this app's data model (order.created_at / .estimated_delivery)
+// - there's no per-step timestamp history for "shipped" or "out for
+// delivery" (see the `orders` table), so those two intentionally show no
+// date under the route rather than a fabricated one.
+function stepDates(order) {
+  return {
+    processing: formatDate(order.created_at),
+    delivered: order.estimated_delivery ? `Est. ${formatDate(order.estimated_delivery)}` : null,
+  };
+}
+
+function OrderRoute({ order }) {
+  if (order.status === 'cancelled') {
+    return <p className="order-route-cancelled">This order was cancelled.</p>;
   }
 
-  const currentIndex = STATUS_STEPS.findIndex((step) => step.key === status);
+  const currentIndex = STATUS_STEPS.findIndex((step) => step.key === order.status);
+  const dates = stepDates(order);
 
   return (
-    <ol className="status-timeline">
+    <ol className="order-route" aria-label={`Order progress: ${order.status.replace(/_/g, ' ')}`}>
       {STATUS_STEPS.map((step, i) => (
         <li
           key={step.key}
-          className={`status-timeline-step${i <= currentIndex ? ' completed' : ''}${
+          className={`order-route-step${i <= currentIndex ? ' completed' : ''}${
             i === currentIndex ? ' current' : ''
           }`}
         >
-          <span className="status-timeline-marker" aria-hidden="true" />
-          <span className="status-timeline-label">{step.label}</span>
+          <span className="order-route-node" aria-hidden="true" />
+          <span className="order-route-label">{step.label}</span>
+          {dates[step.key] && <span className="order-route-date">{dates[step.key]}</span>}
         </li>
       ))}
     </ol>
@@ -171,62 +185,53 @@ export function OrderDetailPage() {
 
       {order && (
         <>
-          <div className="order-product-row">
-            <ProductImage icon={order.product_icon} size="lg" />
-            <p className="order-product-name">{order.product_name}</p>
+          {/* The order detail page's content is real shipping data - an
+              order number, a carrier, a tracking number, a status, two
+              dates - the same information an actual shipping label
+              carries, not generic card content. This card + the perforated
+              divider + the route below lean into that directly instead of
+              treating it as one more flat status card. */}
+          <div className="order-label-card">
+            <div className="order-label-top">
+              <div className="order-product-row">
+                <ProductImage icon={order.product_icon} size="lg" />
+                <p className="order-product-name">{order.product_name}</p>
+              </div>
+              <span className={`order-status status-${order.status}`}>{order.status.replace(/_/g, ' ')}</span>
+            </div>
+
+            <div className="order-perforation" aria-hidden="true" />
+
+            <OrderRoute order={order} />
           </div>
 
-          {/* Grouped in pairs that actually relate to each other (its
-              state, then the two dates, then the two shipping specifics)
-              instead of one flat list - also what lets this use a real
-              2-column grid instead of a single narrow column leaving the
-              wider card's right half empty. */}
-          <dl className="order-detail">
-            <div className="order-detail-field">
-              <dt>Status</dt>
-              <dd>
-                <span className={`order-status status-${order.status}`}>{order.status.replace(/_/g, ' ')}</span>
-              </dd>
-            </div>
-
-            <div className="order-detail-field">
-              <dt>Ordered on</dt>
-              <dd>{formatDate(order.created_at)}</dd>
-            </div>
-            {order.estimated_delivery && (
-              <div className="order-detail-field">
-                <dt>Estimated delivery</dt>
-                <dd>{formatDate(order.estimated_delivery)}</dd>
-              </div>
-            )}
-
-            {order.carrier && (
-              <div className="order-detail-field">
-                <dt>Carrier</dt>
-                <dd>{order.carrier}</dd>
-              </div>
-            )}
-            {order.tracking_number && (
-              <div className="order-detail-field">
-                <dt>Tracking number</dt>
-                <dd>
-                  {trackingUrl(order.carrier, order.tracking_number) ? (
-                    <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">
-                      {order.tracking_number}
-                    </a>
-                  ) : (
-                    order.tracking_number
-                  )}
-                </dd>
-              </div>
-            )}
-          </dl>
+          {(order.carrier || order.tracking_number) && (
+            <dl className="order-manifest">
+              {order.carrier && (
+                <div className="order-manifest-field">
+                  <dt>Carrier</dt>
+                  <dd>{order.carrier}</dd>
+                </div>
+              )}
+              {order.tracking_number && (
+                <div className="order-manifest-field">
+                  <dt>Tracking no.</dt>
+                  <dd>
+                    {trackingUrl(order.carrier, order.tracking_number) ? (
+                      <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">
+                        {order.tracking_number}
+                      </a>
+                    ) : (
+                      order.tracking_number
+                    )}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
 
           <h2 className="section-heading">Order summary</h2>
           <OrderSummary order={order} />
-
-          <h2 className="section-heading">Order progress</h2>
-          <StatusTimeline status={order.status} />
         </>
       )}
     </>
