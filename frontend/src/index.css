@@ -274,6 +274,29 @@
   .fade-in { animation: none; }
 }
 
+/* Shared slim-scrollbar utility - applied to every scrollable region that
+   used to show the browser's full-width default scrollbar once its content
+   overflowed (the AI assistant's conversation log, the category badges
+   popover's Active/Available lists, and the order-cards list - see
+   .ai-panel-log/.popover-body/.order-cards-scroll). Firefox's own
+   scrollbar-width/scrollbar-color properties handle that engine directly;
+   Chrome/Safari have no equivalent standard property, so they get the
+   ::-webkit-scrollbar* pseudo-elements instead - both are needed, one is
+   not a fallback for the other. Track is transparent (the panel's own
+   background shows through) so only the thumb itself reads as a scrollbar,
+   not a whole second column running down the panel. */
+.slim-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.slim-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.slim-scroll::-webkit-scrollbar-track { background: transparent; }
+.slim-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+.slim-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: var(--font-size-base);
@@ -533,9 +556,10 @@ p.subtitle {
   font-size: 0.9rem;
   font-weight: 500;
   text-align: left;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
 }
 .chat-suggestion:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-bg); }
+.chat-suggestion:active { background: var(--color-surface); transform: scale(0.98); }
 
 .field-hint {
   margin: 0.35rem 0 0;
@@ -589,12 +613,14 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
   justify-content: center;
   background: var(--color-surface);
   color: var(--color-text-muted);
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 /* Without this, the generic button:hover:not(:disabled) rule (higher
    specificity than the bare .chat-send-button class) would flip the muted,
    empty-input state solid on hover - only the --active state should darken
    further on hover. */
 .chat-send-button:hover:not(:disabled) { background: var(--color-surface); }
+.chat-send-button:active:not(:disabled) { transform: scale(0.9); }
 .chat-send-button--active {
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
@@ -662,6 +688,11 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
   cursor: pointer;
 }
 .link-button:hover:not(:disabled) { color: var(--color-text); }
+/* No background to darken on a plain underlined text button - opacity is
+   the press cue instead, distinct from :hover's own full-opacity color
+   change and from :disabled's similar-looking (but permanent, not
+   momentary) 0.6. */
+.link-button:active:not(:disabled) { opacity: 0.7; }
 .link-button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 .verify-error {
@@ -784,34 +815,8 @@ h1:focus-visible {
   align-items: stretch;
 }
 
-/* The real <button> theme toggle's reset - border/background/padding are
-   no-ops for nothing else using this class anymore (the old decorative
-   bell/cart icon-buttons and the full-width top bar they lived in are
-   gone; the brand moved to the top of the sidebar, search + the toggle
-   moved into the content card's own header below). */
-/* 32px, not 36px - sized to match .page-header's own target height (see
-   its comment) now that this button lives in that row; it isn't used
-   anywhere else in the app. */
-.storefront-icon-btn {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  padding: 0;
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  cursor: pointer;
-}
-.storefront-icon-btn:hover { background: var(--color-surface); }
-
-/* .page-header-actions holds this + the theme toggle, right side of the
-   shared page-header row (see Layout.jsx) - a styled span, not a real
+/* .page-header-actions holds just the search bar now (the theme toggle
+   moved into ProfileMenu's theme trio) - a styled span, not a real
    <input>, since a text field that visibly invites typing but silently
    does nothing on keystroke is a worse trap than a button that does
    nothing on click; this can't be mistaken for something that accepts
@@ -851,27 +856,48 @@ h1:focus-visible {
 }
 
 /* Full-width row in the sidebar now, not a shrink-to-fit pill in a top bar
-   - matches the reference's own bottom-of-sidebar user chip, and sits
-   right above the real Logout button (see Layout.jsx). */
-/* margin-top: auto is the whole mechanism that keeps this pinned to the
-   sidebar's own floor (see .storefront-sidebar's own comment) - .storefront-
-   sidenav no longer grows to fill the remaining height itself; this row
-   consumes whatever's left instead, the same "lots of empty space, on
-   purpose" rhythm a later design pass (the Quiet Workspace exploration)
-   argued for. */
-.storefront-profile-chip {
+   - matches the reference's own bottom-of-sidebar user chip. Now a real
+   account menu (ProfileMenu.jsx) instead of a decorative chip + separate
+   Logout button: .profile-menu is the position:relative anchor the popover
+   below floats against, .profile-menu-trigger is the real <button> (needs
+   its own background/color/border/font reset - the base `button` rule
+   otherwise wins, same class of bug already caught for .badges-edit-btn/
+   .order-filter-tab elsewhere in this file). margin-top: auto (now on the
+   wrapper, not the trigger itself) is still the whole mechanism that pins
+   this to the sidebar's own floor (see .storefront-sidebar's own comment) -
+   .storefront-sidenav no longer grows to fill the remaining height itself;
+   this row consumes whatever's left instead, the same "lots of empty
+   space, on purpose" rhythm a later design pass (the Quiet Workspace
+   exploration) argued for. */
+.profile-menu {
+  position: relative;
   width: 100%;
   flex-shrink: 0;
   margin-top: auto;
+}
+.profile-menu-trigger {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
   height: 48px;
   padding: 0 8px;
+  border: none;
   border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
-.storefront-profile-chip:hover { background: var(--color-surface); }
+.profile-menu-trigger:hover:not(:disabled) { background: var(--color-surface); }
+.profile-menu-trigger:active { background: var(--color-surface-hover); }
+/* transition/rotate on the dropdown chevron itself - a static arrow reads
+   as decoration; rotating it 180deg while the menu is open (same idiom
+   Order Volume's own header/Show more chevrons use) makes it read as a
+   real, stateful dropdown indicator instead. */
+.profile-menu-trigger svg { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease; }
+.profile-menu-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
 .storefront-avatar {
   flex-shrink: 0;
   width: 32px;
@@ -893,6 +919,119 @@ h1:focus-visible {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* The account menu's own floating popover - anchored to .profile-menu
+   (position: relative, above) and opening *upward* from the trigger
+   (bottom: calc(100% + 8px), transform-origin: bottom left), not downward
+   like CategoryBadgesEditor's edit-popover - this trigger sits at the very
+   bottom of the sidebar, so a downward popover would run off the viewport.
+   Same scale+fade-from-the-corner-it-meets-its-trigger motion as that other
+   popover otherwise, including the same reduced-motion opt-out. */
+.profile-menu-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(260px, 88vw);
+  padding: 0.6rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  transform-origin: bottom left;
+  transform: scale(0.94);
+  opacity: 0;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+  z-index: 41;
+}
+.profile-menu-popover.open { transform: scale(1); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .profile-menu-popover { transition: none; }
+}
+.profile-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.3rem 0.7rem;
+}
+.profile-menu-email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.profile-menu-section-label {
+  margin: 0.2rem 0.3rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+/* Same segmented-track idiom as .order-filter-tabs (a shared background
+   track, borderless items, the active one gets its own elevated fill) -
+   3 items is few enough and each mode change instant enough that a plain
+   per-button active state reads just as clearly as a gliding indicator
+   would, without needing one more measured/positioned element. */
+.profile-menu-theme-row {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0.3rem 0.7rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+.profile-menu-theme-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.2rem;
+  border: none;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.profile-menu-theme-btn:hover:not(.active) { color: var(--color-text); }
+.profile-menu-theme-btn:active { transform: scale(0.88); }
+.profile-menu-theme-btn.active {
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 1px 3px var(--color-shadow);
+}
+/* Help & Support (a real <Link>) and Sign Out (a real <button>) share this
+   class - both need the same anchor/button resets (no underline, no solid
+   button background) so they read as one consistent list of rows. */
+.profile-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.profile-menu-item:hover:not(:disabled) { background: var(--color-surface); }
+.profile-menu-item:active { background: var(--color-surface-hover); }
+.profile-menu-item svg { flex-shrink: 0; color: var(--color-text-muted); }
+.profile-menu-signout { color: var(--color-error-text); }
+.profile-menu-signout svg { color: var(--color-error-text); }
+.profile-menu-signout:hover:not(:disabled) { background: var(--color-error-surface); }
+.profile-menu-signout:active { background: var(--color-error-surface); filter: brightness(0.95); }
 
 /* 8px outer edge, 6px between panels - an exact spec, not the space-*
    scale (no existing token lands on 6px), matching the precise-px pattern
@@ -930,6 +1069,28 @@ h1:focus-visible {
      clip/scroll independently. No top-bar height to subtract anymore - the
      brand now lives inside the sidebar itself instead of above it. */
   min-height: calc(100vh - 16px);
+  /* Sticky, not static - once the center column (Order Volume + filter
+     tabs + the order list) pushes the page taller than the viewport, the
+     sidebar should stay put while that column scrolls past it, not
+     scroll away with it. top: 8px matches .storefront-body's own outer
+     edge padding, so a stuck sidebar rests at the exact same inset it
+     started at. It un-sticks naturally once its own parent's bottom edge
+     is reached (the standard position: sticky behavior), so this doesn't
+     fight the min-height rule above - a short page never triggers it at
+     all. */
+  position: sticky;
+  top: 8px;
+  /* position: sticky always creates its own stacking context (unlike
+     position: relative, which only does with a real z-index) - without an
+     explicit z-index here, that new context's default paint order just
+     follows DOM order, and .storefront-content (later in the DOM, its own
+     z-index: auto) would silently paint *over* the entire sidebar
+     including any popover anchored inside it (see CategoryBadgesEditor's
+     .edit-popover, which visually escapes the sidebar's own box to the
+     right) - found via a real click failure: axe/Playwright reported
+     .order-card elements "intercepting pointer events" for a popover row
+     that was visually on top of them. */
+  z-index: 2;
   /* The one property that actually changes between expanded/collapsed
      (see .storefront-sidebar--collapsed below) - everything inside just
      appears/disappears at its own width, so a single width transition on
@@ -940,16 +1101,29 @@ h1:focus-visible {
 .storefront-sidebar-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-1);
   margin-bottom: 24px;
 }
 .storefront-sidebar .brand { min-height: 40px; gap: 10px; margin-bottom: 0; }
-.storefront-sidebar-toggle svg {
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  transform: rotate(-90deg);
+/* The brand itself is the sidebar minimize/maximize toggle now - no
+   separate chevron button. A real <button> wrapping <Brand>, so it needs
+   the base `button` rule's background/padding/font reset, same as
+   .profile-menu-trigger above - Brand's own layout (icon + wordmark)
+   otherwise supplies the whole look, this just makes it clickable and
+   full-width without looking like a button. */
+.storefront-brand-button {
+  width: 100%;
+  display: flex;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.storefront-sidebar--collapsed .storefront-sidebar-toggle svg { transform: rotate(90deg); }
+.storefront-brand-button:hover:not(:disabled) { background: transparent; }
+.storefront-brand-button:hover .brand-mark { box-shadow: 0 4px 12px var(--color-shadow); }
+.storefront-brand-button:active { background: var(--color-surface-hover); }
 .storefront-shop-now {
   display: flex;
   align-items: center;
@@ -961,11 +1135,14 @@ h1:focus-visible {
   border-radius: 10px;
   background: var(--color-solid-bg);
   color: var(--color-primary-text);
+  text-decoration: none;
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 .storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
+.storefront-shop-now:active { transform: scale(0.98); }
 
 .storefront-sidenav { flex-shrink: 0; }
 /* position: relative so the Dashboard glide indicator (absolutely
@@ -1057,6 +1234,7 @@ h1:focus-visible {
 .storefront-sidenav a:hover span,
 .storefront-sidenav span:hover span,
 .storefront-sidenav-item:hover span { color: var(--color-text); background: var(--color-surface-hover); }
+.storefront-sidenav-item:active:not(.active):not(:disabled) { background: var(--color-surface); }
 /* Still no background here - the three Dashboard rows (My Orders/Coupons/
    Wishlist) share one gliding .storefront-sidenav-indicator behind them
    (the full solid --color-surface fill, stronger than the hover wash
@@ -1139,17 +1317,15 @@ h1:focus-visible {
   background: var(--color-nav-badge-bg);
 }
 
-/* Manual "minimize sidebar" toggle (Layout.jsx's storefront-sidebar-toggle
-   button) - a narrow icon-only rail showing just Shop Now, the Dashboard
-   nav icons, the profile avatar, and Logout, matching the <=700px
-   responsive collapse's own icon-only look but user-toggled at any
-   viewport width and kept in the vertical (not wrapped-row) layout. Text
-   labels use the same visually-hidden clip technique as that breakpoint
-   (see its own comment below) rather than display: none, wherever the
-   element behind them is a real control (My Orders/Coupons/Wishlist/
-   Logout) - Shop Now and the profile chip are already aria-hidden
-   decorative elements (see Layout.jsx), so display: none on their text is
-   fine there. */
+/* Manual "minimize sidebar" toggle (click the brand/logo itself - see
+   .storefront-brand-button above) - a narrow icon-only rail showing just
+   Shop Now, the Dashboard nav icons, and the account menu's avatar,
+   matching the <=700px responsive collapse's own icon-only look but
+   user-toggled at any viewport width and kept in the vertical (not
+   wrapped-row) layout. Text labels use the same visually-hidden clip
+   technique as that breakpoint (see its own comment below) rather than
+   display: none, since the element behind them (My Orders/Coupons/
+   Wishlist/Shop Now) is a real control. */
 .storefront-sidebar--collapsed { width: 76px; padding: 16px 8px 12px; }
 .storefront-sidebar--collapsed .brand-name { display: none; }
 .storefront-sidebar--collapsed .storefront-shop-now { padding: 0; }
@@ -1159,14 +1335,12 @@ h1:focus-visible {
   display: none;
 }
 .storefront-sidebar--collapsed .storefront-sidenav a,
-.storefront-sidebar--collapsed .storefront-sidenav-item,
-.storefront-sidebar--collapsed .storefront-logout {
+.storefront-sidebar--collapsed .storefront-sidenav-item {
   justify-content: center;
   padding: 0;
 }
 .storefront-sidebar--collapsed .storefront-sidenav a span,
-.storefront-sidebar--collapsed .storefront-sidenav-item span,
-.storefront-sidebar--collapsed .storefront-logout span {
+.storefront-sidebar--collapsed .storefront-sidenav-item span {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1177,9 +1351,9 @@ h1:focus-visible {
   white-space: nowrap;
   border: 0;
 }
-.storefront-sidebar--collapsed .storefront-profile-chip { justify-content: center; padding: 0.4rem; gap: 0; }
+.storefront-sidebar--collapsed .profile-menu-trigger { justify-content: center; padding: 0.4rem; gap: 0; }
 .storefront-sidebar--collapsed .storefront-profile-text,
-.storefront-sidebar--collapsed .storefront-profile-chip > svg { display: none; }
+.storefront-sidebar--collapsed .profile-menu-trigger > svg { display: none; }
 
 /* CategoryBadgesEditor.jsx - the sidebar's Category filter. Replaces the
    old always-all-5-visible multi-select chip grid: the main view only
@@ -1233,13 +1407,14 @@ h1:focus-visible {
   background: var(--color-bg);
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 /* :not(:disabled), not just :hover - the generic button:hover:not(:disabled)
    rule has one more pseudo-class than a plain ":hover" and would otherwise
    win the specificity tie, same bug already caught and fixed for
    .chat-send-button/.storefront-sidenav-item earlier in this file. */
 .badges-edit-btn:hover:not(:disabled) { background: var(--color-surface); border-color: var(--color-text-muted); }
+.badges-edit-btn:active { transform: scale(0.95); }
 .badges-active-row { display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 26px; }
 /* A soft violet wash, the one deliberate accent color in this app (see
    --color-chip-* tokens) - kept from the old always-visible chip grid,
@@ -1324,8 +1499,10 @@ h1:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 .popover-close:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text); }
+.popover-close:active { background: var(--color-surface-hover); transform: scale(0.88); }
 .popover-body { flex: 1; overflow-y: auto; padding: 0.85rem 0.9rem; }
 .popover-section-label {
   margin: 0 0 0.5rem;
@@ -1407,11 +1584,13 @@ h1:focus-visible {
   justify-content: center;
   font-size: 0.85rem;
   line-height: 1;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 .badge-row-btn.remove { background: transparent; color: var(--color-text-muted); }
 .badge-row-btn.remove:hover { background: var(--color-error-surface); color: var(--color-error-text); }
+.badge-row-btn.remove:active { transform: scale(0.85); }
 .available-row { cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+.available-row:active { background: var(--color-surface); }
 /* :not(:disabled) here matters for the same reason as .badges-edit-btn's
    own hover rule above - without it, the generic button:hover:not(:disabled)
    rule (one more pseudo-class = higher specificity) would paint this row
@@ -1433,23 +1612,10 @@ h1:focus-visible {
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 .popover-save:hover { background: var(--color-solid-bg-hover); }
-
-.storefront-logout {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: 4px;
-  background: transparent;
-  color: var(--color-text-muted);
-  padding: 0.6rem 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-.storefront-logout:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface); }
+.popover-save:active { background: var(--color-solid-bg); transform: scale(0.99); }
 
 /* Its own boxed card now too, same recipe as .storefront-sidebar/.ai-panel
    (border, radius) - all three columns read as distinct cards resting on
@@ -1537,6 +1703,16 @@ h1:focus-visible {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 16px);
+  /* Sticky, same reasoning and same 8px top offset as .storefront-sidebar
+     just above - the assistant should stay reachable while a long order
+     list scrolls past it, not disappear off the top of the page. Same
+     z-index fix too, for the same stacking-context reason documented on
+     .storefront-sidebar - nothing in this panel currently escapes its own
+     box the way CategoryBadgesEditor's popover does, but both columns are
+     sticky siblings of .storefront-content now, so both need it. */
+  position: sticky;
+  top: 8px;
+  z-index: 2;
   padding: var(--space-3);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -1562,7 +1738,16 @@ h1:focus-visible {
   text-align: left;
   cursor: pointer;
 }
+/* Without this, the generic button:hover:not(:disabled) rule (higher
+   specificity than the bare .ai-panel-header class) would paint this
+   header solid dark on hover instead of leaving it transparent with just
+   the avatar's own shadow lift as feedback - the exact class of bug
+   already caught and fixed for .chat-send-button/.storefront-sidenav-item/
+   .available-row/.volume-head elsewhere in this file. Found in the same
+   audit pass that caught .volume-head's own incomplete hover treatment. */
+.ai-panel-header:hover:not(:disabled) { background: transparent; }
 .ai-panel-header:hover .ai-panel-avatar { box-shadow: 0 4px 12px var(--color-shadow); }
+.ai-panel-header:active { background: var(--color-surface-hover); }
 .ai-panel-avatar {
   flex-shrink: 0;
   width: 32px;
@@ -1710,11 +1895,11 @@ h1:focus-visible {
 @media (max-width: 480px) {
   .storefront-body { padding: var(--space-2); gap: var(--space-2); }
   /* The mobile sidebar wraps (see the 700px breakpoint above), but the
-     profile chip's own row still doesn't reliably have room for a full
-     email address at phone widths - the avatar + chevron alone still
+     account menu trigger's own row still doesn't reliably have room for a
+     full email address at phone widths - the avatar + chevron alone still
      identify "this is your account menu" without it. */
   .storefront-profile-email { display: none; }
-  .storefront-profile-chip { padding: 0.3rem; }
+  .profile-menu-trigger { padding: 0.3rem; }
 }
 
 .back-link {
@@ -1726,6 +1911,129 @@ h1:focus-visible {
 }
 .back-link:hover { color: var(--color-primary); }
 
+
+/* OrdersPage's own signature element (see OrderVolume) - replaces the
+   earlier "Shipment status" fleet bar entirely. That widget was a
+   real-time status breakdown, which the filter tabs and each order's own
+   stepper below already answer at two other zoom levels - Order Volume
+   answers a genuinely different, non-duplicate question instead: "how
+   many orders, over time," with a real Last Month/This Year/Last Year
+   switch and a Show more/Show less toggle for drilling into daily-or-
+   monthly detail. */
+.volume { margin: 0 0 var(--space-4); padding: 18px 20px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 1px 2px var(--color-card-shadow); }
+/* A real <button>, not a styled <div> - clicking anywhere in this row is
+   the only way to minimize/reopen the card, same "the header itself is
+   the toggle" pattern the AI panel's own header already uses. Needs the
+   base `button` rule's background/padding/font reset, same as
+   .storefront-brand-button/.profile-menu-trigger above. */
+.volume-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+/* background: transparent on hover is deliberate, not a bug - a full-width
+   filled hover here would make this read as a solid button sitting inside
+   the card, when it's really the card's own heading that happens to be
+   clickable (same "keep the toggle quiet, let its sub-elements carry the
+   feedback" choice .storefront-brand-button already makes for the exact
+   same reason). The icon square and chevron below are what actually move
+   on hover; :active gets a real, visible press instead. Without this
+   explicit background line, the generic button:hover:not(:disabled) rule
+   would otherwise paint it solid on hover - the same class of bug already
+   caught for .chat-send-button/.storefront-sidenav-item/.available-row
+   elsewhere in this file. */
+.volume-head:hover:not(:disabled) { background: transparent; }
+.volume-head:hover:not(:disabled) .volume-title-icon { box-shadow: 0 3px 10px var(--color-shadow); }
+.volume-head:hover:not(:disabled) .volume-head-chevron { color: var(--color-text); }
+.volume-head:active { background: var(--color-surface-hover); }
+/* Icon + label, same pairing every other heading on this page uses
+   (.page-header-title, each .storefront-sidenav-item, every order card's
+   own product tile). */
+.volume-title-group { display: flex; align-items: center; gap: 0.5rem; }
+.volume-title-icon {
+  display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 8px; background: var(--color-surface); color: var(--color-text);
+  transition: box-shadow 0.15s ease;
+}
+.volume-title { margin: 0; font-size: 0.85rem; font-weight: 700; }
+.volume-head-right { display: flex; align-items: center; gap: 0.5rem; }
+/* Small pill, matching the search kbd hint/sidenav count badge's own
+   "secondary number gets a quiet pill" convention elsewhere on this page. */
+.volume-total {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 0.55rem; border-radius: 999px;
+  background: var(--color-surface); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Rotates 180deg when expanded (the default state) - same rotate-on-open
+   idiom .volume-more-btn's own chevron and the profile menu's dropdown
+   arrow already use, reused here for a card-level minimize instead of a
+   bar-level reveal, not a third new convention. */
+.volume-head-chevron { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease, color 0.15s ease; }
+.volume-head[aria-expanded="true"] .volume-head-chevron { transform: rotate(180deg); }
+/* Collapsed to just the header row - padding shrinks to match (no empty
+   space left below a header with nothing under it), same idea as
+   .ai-panel--minimized. */
+.volume--minimized { padding: 14px 20px; }
+.volume--minimized .volume-head { margin-bottom: 0; }
+/* The period switch reuses .order-filter-tabs/.order-filter-tab/
+   .order-filter-indicator directly (see below) - same segmented-control
+   look, same glide, same hover/press/focus states, just a second
+   independent instance with a tighter bottom margin than the page-level
+   filter tabs need. */
+.volume-tabs { margin: 0 0 16px; }
+.volume-stat-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: 4px; }
+.volume-stat-main { display: flex; align-items: baseline; gap: 0.45rem; }
+.volume-stat-number { font-size: 1.85rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.volume-stat-unit { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500; }
+.volume-trend { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.volume-trend.is-up { background: var(--color-success-surface); color: var(--color-success-text); }
+.volume-trend.is-down { background: var(--color-error-surface); color: var(--color-error-text); }
+.volume-caption { margin: 0.35rem 0 16px; color: var(--color-text-muted); font-size: 0.8rem; }
+.volume-chart { display: flex; align-items: flex-end; gap: 5px; height: 78px; }
+.volume-bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 0.35rem; }
+.volume-bar-track { width: 100%; max-width: 24px; flex: 1; display: flex; align-items: flex-end; }
+.volume-bar {
+  display: block; width: 100%; border-radius: 3px 3px 1px 1px; background: var(--color-surface);
+  transform: scaleY(0); transform-origin: bottom; animation: volume-grow 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* The one bar that gets the strong "active" fill - same convention
+   .order-filter-tab.active/the profile menu's active theme option already
+   use for "this is the one that's true right now," not a new accent
+   color. Only This Year's chart ever has one (the current, still-in-
+   progress month) - Last Month and Last Year are both fully in the past,
+   so nothing in either range is "now." */
+.volume-bar-col.is-current .volume-bar { background: var(--color-solid-bg); }
+.volume-bar-col.is-current .volume-bar-label { color: var(--color-text); font-weight: 700; }
+@keyframes volume-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .volume-bar { animation: none; transform: scaleY(1); } }
+.volume-bar-label { font-size: 0.62rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Kept in the DOM (so every column's width stays equal) but visually
+   suppressed once there are too many bars for every label to fit - the
+   full per-bar figure is still available via each column's title
+   tooltip. */
+.volume-bar-label.is-hidden { visibility: hidden; }
+.volume-more-row { display: flex; justify-content: center; margin-top: 10px; }
+.volume-more-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem; font: inherit; font-size: 0.78rem; font-weight: 600;
+  color: var(--color-text-muted); background: none; border: none; padding: 0.35rem 0.7rem; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.volume-more-btn svg { transition: transform 0.2s ease; }
+.volume-more-btn:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text); }
+.volume-more-btn:active { background: var(--color-surface-hover); }
+.volume-more-btn.is-expanded svg { transform: rotate(180deg); }
+.volume-skeleton { display: block; width: 100%; height: 78px; border-radius: var(--radius-md); }
 
 /* A single connected segmented-control track (inline-flex + one shared
    background/radius), not individually-bordered pill buttons - the active
@@ -1791,6 +2099,7 @@ h1:focus-visible {
    pressed="false") was rendering var(--color-text) on top of var(--color
    -solid-bg-hover), 1.32:1 contrast. */
 .order-filter-tab:hover:not(.active) { color: var(--color-text); background: transparent; }
+.order-filter-tab:active:not(.active) { color: var(--color-text); }
 /* Own background here too, not just the indicator's - axe-core resolves
    effective background by walking up the DOM's *ancestor* chain, and
    .order-filter-indicator is a sibling of .order-filter-tab, not an
@@ -1811,6 +2120,8 @@ h1:focus-visible {
   background: var(--color-solid-bg);
   transition: color 0.2s ease, background-color 0s linear 0.32s;
 }
+.order-filter-tab.active:hover { background: var(--color-solid-bg-hover); }
+.order-filter-tab.active:active { background: var(--color-solid-bg); }
 /* Light badge inside an inactive (dark-text-on-transparent) tab - sits on
    the track's own --color-surface, so the card's --color-bg tone reads as
    distinctly lighter than its surroundings without needing its own hue. */
@@ -1840,6 +2151,17 @@ h1:focus-visible {
   color: var(--color-primary-text);
 }
 
+/* The list's own contained scroll region - bounded height + its own
+   scrollbar, not an unbounded column that just keeps growing the whole
+   page as more orders load (see .loadMore below, still inside this same
+   container). Same min(fixed px, vh%) idiom as .ai-panel-log/#chat, so all
+   three of the sidebar/AI-panel/order-list columns read as fixed-height
+   panels rather than this one alone growing the page taller. */
+.order-cards-scroll {
+  max-height: min(640px, 60vh);
+  overflow-y: auto;
+  padding-right: 2px;
+}
 .order-cards {
   list-style: none;
   margin: 0;
@@ -1848,6 +2170,7 @@ h1:focus-visible {
   flex-direction: column;
   gap: var(--space-3);
 }
+.order-cards-load-more { margin-top: var(--space-3); }
 /* background: var(--color-bg), not left transparent - .storefront-content
    (its parent) sits directly on the shell's ambient --color-page-bg now
    (see storefront-shell above), so each card needs its own explicit
@@ -1867,7 +2190,12 @@ h1:focus-visible {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: 0 1px 2px var(--color-card-shadow);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
+/* :has(), not a whole-card hover - only View Details is actually clickable
+   here, so the lift should read as "this card responds because you're
+   about to click something in it," not "the whole card is a link." */
+.order-card:has(.order-card-details-link:hover) { box-shadow: 0 4px 16px var(--color-card-shadow); border-color: var(--color-text-muted); }
 /* padding-right leaves room for .order-card-details-link, pinned to this
    same corner via absolute positioning below - without it, a long product
    name would run underneath the button instead of wrapping clear of it. */
@@ -1903,8 +2231,10 @@ h1:focus-visible {
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
-.order-card-details-link:hover { background: var(--color-surface); }
+.order-card-details-link:hover { background: var(--color-surface); border-color: var(--color-text-muted); }
+.order-card-details-link:active { background: var(--color-surface-hover); transform: scale(0.96); }
 
 .order-card-headline { margin: var(--space-3) 0 0.15rem; font-weight: 700; }
 .order-card-subtext { margin: 0 0 var(--space-2); color: var(--color-text-muted); font-size: 0.9rem; }
@@ -2110,11 +2440,22 @@ h1:focus-visible {
   cursor: pointer;
   text-decoration: none;
   font-family: inherit;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 .orders-empty-primary { background: var(--color-solid-bg); color: var(--color-primary-text); border: none; }
-.orders-empty-primary:hover { background: var(--color-solid-bg-hover); }
-.orders-empty-secondary { background: none; border: 1px solid var(--color-border); color: var(--color-text); }
-.orders-empty-secondary:hover { background: var(--color-surface); }
+.orders-empty-primary:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+.orders-empty-primary:active { background: var(--color-solid-bg); transform: scale(0.97); }
+/* :not(:disabled) matters here specifically (unlike .orders-empty-primary
+   just above, where it's harmless either way) - .orders-empty-secondary's
+   own intended hover fill (--color-surface, a light wash) differs from
+   what the generic button:hover:not(:disabled) rule would otherwise paint
+   (--color-solid-bg-hover, solid dark) once that rule's extra
+   :not(:disabled) pseudo-class out-specifies a plain :hover here. Same
+   class of bug already caught for .chat-send-button/.storefront-sidenav-
+   item/.available-row/.ai-panel-header/.volume-head elsewhere in this
+   file - found in the same audit pass that caught those. */
+.orders-empty-secondary:hover:not(:disabled) { background: var(--color-surface); }
+.orders-empty-secondary:active { background: var(--color-surface-hover); }
 
 /* ComingSoonPage.jsx's "not built yet" state (Coupons/Wishlist) - same
    centered icon/title/text recipe as .orders-empty-state above, just
@@ -2130,44 +2471,6 @@ h1:focus-visible {
 .coming-soon-icon { width: 48px; height: 48px; color: var(--color-text-muted); margin-bottom: 0.5rem; }
 .coming-soon-title { margin: 0; font-weight: 700; font-size: 1.05rem; }
 .coming-soon-text { margin: 0; max-width: 340px; color: var(--color-text-muted); font-size: 0.9rem; line-height: 1.5; }
-
-.orders-support-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-.orders-support-banner-title { margin: 0; font-weight: 700; }
-.orders-support-banner-text { margin: 0.15rem 0 0; color: var(--color-text-muted); font-size: 0.9rem; }
-.orders-support-banner-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.orders-support-banner-help {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.55rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.orders-support-banner-chat {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.55rem 1rem;
-  border-radius: var(--radius-sm);
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
-  text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-.orders-support-banner-chat:hover { background: var(--color-solid-bg-hover); }
 
 @media (max-width: 600px) {
   /* The absolute-positioned corner button needs a real, cleared spot to

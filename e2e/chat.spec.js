@@ -7,12 +7,13 @@ test.describe('chat', () => {
     await expect(page).toHaveURL(/\/orders$/);
   });
 
-  test('is reachable from the orders page support banner', async ({ page }) => {
-    // The sidebar no longer has its own link to /chat (the decorative
-    // Support Chat/FAQ's/Settings/Profile footer group was removed) - the
-    // orders-support-banner's own "Chat with Support" link is the real,
-    // working path now.
-    await page.click('.orders-support-banner-chat');
+  test('is reachable from the account menu\'s Help & Support link', async ({ page }) => {
+    // The orders page's own "Chat with Support" banner was removed once
+    // the AI Assistant panel became sticky (always in view, so a
+    // duplicate call-to-action right below it was redundant) - the
+    // account menu's "Help & Support" link is the real, working path now.
+    await page.click('.profile-menu-trigger');
+    await page.click('.profile-menu-item:has-text("Help & Support")');
     await expect(page).toHaveURL(/\/chat$/);
     await expect(page.locator('#chat-input')).toBeVisible();
   });

@@ -49,6 +49,21 @@ export function SendIcon(props) {
   );
 }
 
+// The AI assistant's own mark - filled, no stroke, same reasoning as
+// SendIcon (a thin outline reads poorly at this small a size once it's the
+// one thing identifying "the assistant" rather than "the app"). Previously
+// reused BrandMarkIcon (the app's own package-box logo) for this, but the
+// assistant talking back isn't "the app" the way the sidebar brand or a
+// logged-in user's own avatar is - it's its own distinct thing with its own
+// identity, so it gets its own glyph instead of borrowing the app's.
+export function SparkleIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.937A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+    </svg>
+  );
+}
+
 export function ChatIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -117,6 +132,31 @@ export function PersonIcon(props) {
   );
 }
 
+// OrdersPage's Order Volume widget (three ascending bars) - not reused
+// anywhere else, so it doesn't need the shared PRODUCT_ICONS treatment
+// below.
+export function BarChartIcon(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="12" y1="20" x2="12" y2="10" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="16" />
+    </svg>
+  );
+}
+
+// Order Volume's trend badge - one shared glyph, mirrored via `up` rather
+// than two separate hand-drawn arrow icons, since "more orders" and
+// "fewer orders" are the exact same diagonal arrow reflected across the
+// horizontal axis, not two different shapes.
+export function TrendArrowIcon({ up, ...props }) {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      {up ? <path d="M7 17 17 7M17 7H9M17 7v8" /> : <path d="M7 7l10 10M17 17H9M17 17V9" />}
+    </svg>
+  );
+}
+
 export function ChevronDownIcon(props) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -138,6 +178,18 @@ export function PinIcon(props) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+// Profile menu's Payment Methods row (Layout.jsx/App.jsx) - no other icon in
+// this file already reads as "a card", so this is a new one rather than a
+// reuse.
+export function CardIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <line x1="2" y1="10" x2="22" y2="10" />
     </svg>
   );
 }
@@ -199,15 +251,6 @@ export function CheckIcon(props) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M20 6L9 17l-5-5" />
-    </svg>
-  );
-}
-
-export function PlusIcon(props) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }
