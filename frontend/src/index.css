@@ -95,6 +95,12 @@
      different enough job that reusing those would mean fixing contrast in
      one theme by breaking it in the other. */
   --color-badge-danger: #ef4444;
+  /* The badge's own gradient partner (see .storefront-sidenav-badge) - same
+     "fixed in both themes" reasoning, just a second stop so the dot reads
+     with some depth instead of a flat fill, matching how .brand-mark/
+     .ai-panel-avatar already use a two-stop gradient rather than a solid
+     color for the same reason. */
+  --color-badge-danger-2: #dc2626;
   /* The skeleton shimmer's own moving highlight (see .skeleton) - white at
      a light opacity here since it needs to lift above --color-surface's
      light gray; the dark-mode value further down is much dimmer, since a
@@ -577,31 +583,60 @@ p.subtitle {
 
 form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
 
-/* Pill-shaped chat input, shared by ChatPage's #chat-form and the docked
-   AiAssistantPanel's .ai-panel-form - the border/radius/padding live on the
-   form itself so the input and send button sit inside one continuous pill
-   instead of two separately-bordered controls side by side. */
-#chat-form,
-.ai-panel-form {
+/* Pill-shaped chat input - ChatPage's own full-page #chat-form. The docked
+   AiAssistantPanel's .ai-panel-form used to share this exact rule too, but
+   now has its own taller "composer" look below (per a reference design),
+   so this block is scoped to #chat-form alone rather than both. */
+#chat-form {
   align-items: center;
   padding: 0.3rem 0.3rem 0.3rem var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-bg);
 }
-#chat-form:focus-within,
-.ai-panel-form:focus-within {
+#chat-form:focus-within {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
-#chat-form input[type="text"],
-.ai-panel-form input[type="text"] {
+#chat-form input[type="text"] {
   border: none;
   border-radius: 0;
   background: transparent;
   padding: 0.4rem 0;
 }
-#chat-form input[type="text"]:focus-visible,
+#chat-form input[type="text"]:focus-visible {
+  outline: none;
+}
+
+/* The docked AI assistant's own composer - a tall rounded-rect box with the
+   input pinned near its top-left and the send button anchored in its own
+   bottom-right corner, replacing the single-line pill above for this one
+   surface specifically (per a reference design). display: block (not the
+   shared form rule's flex row) is what lets the input sit at the box's top
+   instead of vertically centered in it; the button is taken out of that
+   flow entirely and positioned directly against the two edges it's meant
+   to hug. */
+.ai-panel-form {
+  position: relative;
+  display: block;
+  min-height: 84px;
+  padding: 14px 46px 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+.ai-panel-form:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+.ai-panel-form input[type="text"] {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
 .ai-panel-form input[type="text"]:focus-visible {
   outline: none;
 }
@@ -634,6 +669,16 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
   color: var(--color-primary-text);
 }
 .chat-send-button--active:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+/* Only inside the AI panel's own composer (see .ai-panel-form above) - a
+   rounded square pinned to the box's bottom-right corner, matching the
+   reference design, rather than the circular button sitting inline with
+   the input the way #chat-form's pill still does. */
+.ai-panel-form .chat-send-button {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border-radius: 10px;
+}
 
 #verify-form,
 #otp-form {
@@ -1281,18 +1326,13 @@ h1:focus-visible {
   color: var(--color-text);
 }
 
-/* Real counts (My Orders, Coupons - see Layout.jsx) get the same muted pill
-   treatment either way, so the UI doesn't visually distinguish "count I
-   bothered to compute" from "count that happens to be small" - nothing
-   here implies Coupons/Wishlist are bigger features than they are.
-   --color-nav-badge-bg, not --color-surface - a dedicated token (solid
-   white in light mode, #1a1a1a in dark) rather than reusing the same
-   gray the row itself now sits on for :hover/.active, so the badge still
-   reads as a distinct chip instead of blending into its own background.
-   No more active-specific override needed here - now that .active uses
-   the same subtle var(--color-surface) fill as :hover instead of an
-   inverted solid pill, the default badge styling already has enough
-   contrast against it without a special case.
+/* Real counts (My Orders, Coupons - see Layout.jsx) - the same red gradient
+   chip as the collapsed rail's own badge (see .storefront-sidenav-badge
+   below), so a count reads the same "this needs a look" way regardless of
+   whether the sidebar happens to be expanded or collapsed at the moment -
+   previously this pill was a neutral --color-nav-badge-bg tone while the
+   collapsed dot was red, an inconsistency between two views of the exact
+   same number.
    Scoped as ".storefront-sidenav .storefront-sidenav-count", not just
    ".storefront-sidenav-count" - this badge is itself a <span> inside
    .storefront-sidenav, so the shared ".storefront-sidenav span" rule
@@ -1304,42 +1344,49 @@ h1:focus-visible {
    sidenav-label and category-tag contrast fixes elsewhere in this file. */
 .storefront-sidenav .storefront-sidenav-count {
   margin-left: auto;
-  min-width: 18px;
-  padding: 0.05rem 0.35rem;
+  min-width: 20px;
+  padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: var(--color-nav-badge-bg);
-  color: var(--color-text-muted);
-  font-size: 0.62rem;
+  background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
+  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.35);
+  color: #fff;
+  font-size: 0.65rem;
   font-weight: 700;
   text-align: center;
 }
 /* Same footprint as the real badge above (see .skeleton for the shared
    shimmer itself) - sized in px rather than relying on padding/font-size
-   to produce it, since a skeleton has no text for those to size around. */
+   to produce it, since a skeleton has no text for those to size around.
+   background/box-shadow explicitly reset to the neutral shimmer tone - the
+   base rule's own red gradient above still has higher specificity than the
+   shared ".skeleton" class's --color-surface fill, so without this the
+   loading placeholder would show as a premature red pill before the real
+   count ever arrives. */
 .storefront-sidenav .storefront-sidenav-count.skeleton {
   display: inline-block;
   width: 18px;
   height: 13px;
   padding: 0;
   border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: none;
 }
 /* .active/:hover on the row (above) both include a "…span" selector to
    reach the nested label text (see that rule's own comment), which also
    matches this badge - a second <span> nested in the same row - and wins
    on specificity (extra "a"/":hover" pseudo-class beats this rule's own
-   two-class scope), silently pulling the badge's background back to
-   var(--color-surface) whenever the row is hovered or active. Found live
-   via computed styles again (badge still resolving to --color-surface's
-   rgb despite this file explicitly setting --color-nav-badge-bg) - these
-   two overrides just need to out-specify those two states individually,
-   each by including one more class (".storefront-sidenav-count" itself)
-   than what they're beating. */
+   two-class scope), silently pulling the badge's background back to plain
+   --color-nav-badge-bg whenever the row is hovered or active, losing the
+   red gradient right when a row is actively being looked at. These two
+   overrides just re-declare the same gradient to out-specify those two
+   states individually, each by including one more class
+   (".storefront-sidenav-count" itself) than what they're beating. */
 .storefront-sidenav a:hover .storefront-sidenav-count,
 .storefront-sidenav span:hover .storefront-sidenav-count,
 .storefront-sidenav-item:hover .storefront-sidenav-count,
 .storefront-sidenav a.active .storefront-sidenav-count,
 .storefront-sidenav-item.active .storefront-sidenav-count {
-  background: var(--color-nav-badge-bg);
+  background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
 }
 
 /* Wraps just the icon (My Orders/Coupons) so the collapsed-only badge below
@@ -1365,22 +1412,27 @@ h1:focus-visible {
 .storefront-sidenav .storefront-sidenav-badge {
   display: none;
   position: absolute;
-  top: -5px;
-  right: -7px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
+  top: -6px;
+  right: -8px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--color-badge-danger);
+  /* Two-stop gradient + a colored (not just black) drop shadow - the same
+     "gradient chip, not a flat fill" treatment .brand-mark/.ai-panel-avatar
+     already use, so this reads as a real raised badge rather than a plain
+     dot of color. */
+  background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
+  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.5);
   /* Always white, not var(--color-primary-text) - that token flips to dark
      in dark mode (it assumes it's sitting on --color-solid-bg, which flips
      to near-white there), but this badge's own red fill doesn't flip with
      the theme, so its text can't either. */
   color: #fff;
   border: 2px solid var(--color-bg);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
@@ -1388,6 +1440,7 @@ h1:focus-visible {
 .storefront-sidenav .storefront-sidenav-badge.skeleton {
   padding: 0;
   background: var(--color-nav-badge-bg);
+  box-shadow: none;
 }
 
 /* Manual "minimize sidebar" toggle (click the brand/logo itself - see
@@ -1401,8 +1454,51 @@ h1:focus-visible {
    Wishlist/Shop Now) is a real control. */
 .storefront-sidebar--collapsed { width: 76px; padding: 16px 8px 12px; }
 .storefront-sidebar--collapsed .brand-name { display: none; }
+/* .storefront-brand-button is a width: 100% flex row (see its own rule
+   above), but .brand itself never sets justify-content - a real, plain-flex-
+   row default of flex-start, which reads fine next to the wordmark in the
+   expanded rail but left the logo mark sitting ~15px off the collapsed
+   rail's own center once the wordmark's gone, while every row below it
+   (Shop Now, the Dashboard icons) already centers correctly. Found by
+   comparing measured centers: 31px vs. the rail's true center at 46px. */
+.storefront-sidebar--collapsed .storefront-brand-button {
+  justify-content: center;
+}
+/* .brand-sm's own margin-right (see its rule above) exists to space the
+   wordmark away from whatever sits next to it in the expanded rail - with
+   the wordmark gone here (Brand.jsx doesn't render it at all when
+   collapsed, not just hide it), that margin still counts as real occupied
+   space for justify-content: center's math, quietly shifting the logo
+   mark 6px left of true center instead of removing itself along with the
+   text it used to separate. Found by comparing measured centers again:
+   flex-centering a 32px box plus a 12px trailing margin against a 58px-wide
+   button lands the visible icon 6px off from centering the icon alone. */
+.storefront-sidebar--collapsed .brand-sm {
+  margin-right: 0;
+}
+/* Bigger + a bigger box to match, not just the SVG alone - a larger glyph
+   floating in the old 28px box would crowd its own corners instead of
+   keeping the same breathing room the smaller icon had. */
+.storefront-sidebar--collapsed .brand-mark {
+  width: 32px;
+  height: 32px;
+}
+.storefront-sidebar--collapsed .brand-mark svg {
+  width: 22px;
+  height: 22px;
+}
 .storefront-sidebar--collapsed .storefront-shop-now { padding: 0; }
 .storefront-sidebar--collapsed .storefront-shop-now span { display: none; }
+/* Every collapsed-rail glyph at one shared size - Shop Now's "+", My
+   Orders/Coupons/Wishlist - rather than each one keeping whatever size it
+   happens to render at inline next to a label (16-18px, inconsistent from
+   icon to icon). A uniform, larger size reads as one deliberate icon rail
+   instead of a row of mismatched leftovers from the expanded layout. */
+.storefront-sidebar--collapsed .storefront-shop-now svg,
+.storefront-sidebar--collapsed .storefront-sidenav-item svg {
+  width: 20px;
+  height: 20px;
+}
 .storefront-sidebar--collapsed .storefront-sidenav-heading,
 .storefront-sidebar--collapsed .badges-card {
   display: none;
@@ -1446,7 +1542,7 @@ h1:focus-visible {
   display: flex;
   position: absolute;
   width: auto;
-  height: 14px;
+  height: 17px;
   margin: 0;
   overflow: visible;
   clip: auto;
@@ -1977,13 +2073,11 @@ h1:focus-visible {
 .ai-panel-skeleton-line { flex: 1; height: 2.6rem; border-radius: 16px; }
 .ai-panel-skeleton-suggestions { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: 30px; }
 .ai-panel-skeleton-chip { width: 120px; height: 2.3rem; border-radius: var(--radius-md); }
-/* Pushes the pill to the bottom of the panel's flex column - the pill's own
-   border/radius/padding come from the shared #chat-form/.ai-panel-form rule
-   above. */
+/* Pushes the composer to the bottom of the panel's flex column - its own
+   box model/border/radius come from .ai-panel-form's own rule above. */
 .ai-panel-form {
   margin-top: auto;
 }
-.ai-panel-form input { flex: 1; min-width: 0; }
 
 @media (max-width: 1200px) {
   .ai-panel { display: none; }
