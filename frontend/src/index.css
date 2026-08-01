@@ -119,6 +119,12 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  /* The one border-radius value used more than any other in this file (16
+     separate literal "999px"s before this token existed) - a fully round
+     pill/circle, not really a step up from --radius-lg the way sm/md/lg
+     are steps from each other, so it gets its own name rather than an
+     -xl slot in that scale. */
+  --radius-pill: 999px;
 
   --space-1: 0.5rem;
   --space-2: 0.75rem;
@@ -136,8 +142,60 @@
      Nowhere else in the app switches off the system font stack above. */
   --font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', 'JetBrains Mono', monospace;
 
+  /* A shared icon-size scale - this session hit the same bug twice
+     (mismatched 16/18px icons sitting inline, a collapsed sidebar rail
+     that needed a uniform size to read as one deliberate row instead of
+     leftovers from the expanded layout) before either had a token to
+     reach for. New icon usage should pick one of these instead of an
+     ad hoc width/height; existing icons keep their current literal sizes
+     until they're next touched, rather than a blanket resize sweep here. */
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+
+  /* Elevation scale - named for the one job each shadow does in this file
+     (not generic sm/md/lg) since that's what actually varies: a resting
+     card needs barely any lift, a hovered icon needs to visibly rise, and
+     a popover needs to read as floating above everything else. Each name
+     maps to a shadow literal that already existed identically in multiple
+     places before this token did. */
+  --shadow-card-resting: 0 1px 2px var(--color-card-shadow);
+  --shadow-hover-lift: 0 4px 12px var(--color-shadow);
+  --shadow-popover: 0 16px 40px var(--color-shadow);
+  /* The red count badge's own glow (see .badge--danger) - previously two
+     near-identical rgba alphas (0.35 on the expanded pill, 0.5 on the
+     collapsed dot) that had just drifted apart from being hand-copied
+     separately; one shared value now that both shapes share one rule. */
+  --shadow-badge-danger: 0 2px 5px rgba(220, 38, 38, 0.45);
+
+  /* Motion - promoted from a redefinition local to .order-progress (see
+     that rule's own comment, since removed) once the same two curves and
+     the same 0.32s duration turned out to already be hand-copied as
+     literal strings across the sidebar collapse, AI panel glide, filter-
+     tab indicator, and Order Volume bars. One shared definition instead of
+     N identical copies that could silently drift apart. */
+  --ease-out-bezier: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 0.15s;
+  --duration-base: 0.32s;
+  --duration-slow: 0.4s;
+
+  /* The one opacity value this file happens to reach for twice for the
+     exact same job (a quiet section label/heading that shouldn't compete
+     with real content) - not a full opacity scale, since nothing else here
+     has enough real repetition to justify one yet. */
+  --opacity-muted: 0.65;
+
   --color-focus-ring: rgba(23, 23, 23, 0.18);
 }
+
+/* Breakpoints this file already uses, for reference - CSS custom
+   properties can't be substituted into an @media condition (no browser
+   supports that), so these can't be real tokens the way the values above
+   are. Listed here so a new responsive rule reuses one of these instead of
+   picking a 6th arbitrary width: 480px (single-column card), 600px, 700px
+   (sidebar/AI panel collapse to icon-only), 900px, 1200px (AI panel hides
+   entirely). */
 
 /* :not([data-theme="light"]), not plain :root - an explicit light override
    (see useTheme.js/the merged light rule above) needs to suppress this,
@@ -278,7 +336,7 @@
    cubic-bezier ease-out signature as the sidebar/filter-tab glide
    animations elsewhere in this file, not a new motion language. */
 .fade-in {
-  animation: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-in 0.25s var(--ease-out-bezier) both;
 }
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(2px); }
@@ -307,9 +365,110 @@
 .slim-scroll::-webkit-scrollbar-track { background: transparent; }
 .slim-scroll::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .slim-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ---------------------------------------------------------------------
+   Reusable component primitives
+
+   Four shapes that keep recurring across this page's ecosystem
+   (sidebar, AI panel, Order Volume, order cards, category popover) with
+   nearly-identical CSS hand-copied at each site. These give that shared
+   shape ONE definition; each concrete usage still keeps its own specific
+   selector for the properties that are genuinely its own (size, color,
+   position, interactive states) - grouped into the shared rule's own
+   selector list below rather than replaced by a single generic
+   classname, so no existing specificity (several of which this file has
+   already had to fix once - see .storefront-sidenav-count's own history)
+   silently shifts. New components can also reach for the bare class
+   (.surface-card/.icon-btn/.pill/.badge) directly instead of hand-
+   rolling the same shape again.
+   --------------------------------------------------------------------- */
+
+/* Boxed panel look shared by .storefront-sidebar, .ai-panel, .volume,
+   .order-card, and .badges-card (which swaps only its own background to
+   --color-panel-bg) - background/border/radius, not padding or shadow,
+   since those genuinely vary per card (a sidebar has no shadow at rest,
+   an order card does; padding ranges from 12px to 20px depending on what
+   the card holds). */
+.surface-card,
+.storefront-sidebar,
+.ai-panel,
+.badges-card,
+.volume,
+.order-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* Circular icon-only button shared by .chat-send-button, .popover-close,
+   and .badge-row-icon/.badge-row-btn - flex-centered, no border, pointer
+   cursor, the same background/transform transition every one of them
+   already hand-wrote separately. Color/background/font-size stay on each
+   specific selector (a send button and a remove button mean opposite
+   things and shouldn't look identical), and each keeps setting its own
+   width/height too - three real sizes exist (22/26/36px), not a scale
+   worth forcing into modifier classes for just three call sites. */
+.icon-btn,
+.chat-send-button,
+.popover-close,
+.badge-row-icon,
+.badge-row-btn {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, transform 0.1s ease;
+}
+
+/* Read-only rounded chip shared by .badge-pill (the sidebar's active-
+   category summary) - inline-flex so it sits in a row of text rather
+   than stretching to fill it, unlike the interactive .order-filter-tab
+   (a real tab with its own sliding-indicator choreography, deliberately
+   NOT folded into this shape even though it's also pill-radius - merging
+   an interactive tab and a read-only chip into one class would blur two
+   different components that only coincidentally share a corner radius). */
+.pill,
+.storefront-sidenav .badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+}
+
+/* Small solid count indicator shared by the expanded Dashboard rows'
+   count pill (.storefront-sidenav-count) and the collapsed rail's
+   corner dot (.storefront-sidenav-badge) - both show the exact same
+   number, just in two different shapes depending on whether the sidebar
+   is expanded or collapsed, so both get the same red gradient/shadow/
+   white-text treatment instead of one being neutral and the other red. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.badge--danger,
+.storefront-sidenav .storefront-sidenav-count,
+.storefront-sidenav .storefront-sidenav-badge {
+  background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
+  box-shadow: var(--shadow-badge-danger);
+  /* Always white, not var(--color-primary-text) - that token flips to dark
+     in dark mode (it assumes it's sitting on --color-solid-bg, which flips
+     to near-white there), but this badge's own red fill doesn't flip with
+     the theme, so its text can't either. */
+  color: #fff;
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -591,7 +750,7 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
   align-items: center;
   padding: 0.3rem 0.3rem 0.3rem var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-bg);
 }
 #chat-form:focus-within {
@@ -646,17 +805,13 @@ form { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
    ChatPage.jsx/AiAssistantPanel.jsx's chat-send-button--active toggle),
    matching the reference design's two states. */
 .chat-send-button {
-  flex-shrink: 0;
+  /* flex-shrink/padding/border/border-radius/display/align-items/
+     justify-content/cursor/transition come from the shared .icon-btn rule
+     near the top of this file (grouped with this exact selector). */
   width: 36px;
   height: 36px;
-  padding: 0;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--color-surface);
   color: var(--color-text-muted);
-  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 /* Without this, the generic button:hover:not(:disabled) rule (higher
    specificity than the bare .chat-send-button class) would flip the muted,
@@ -828,7 +983,7 @@ h1:focus-visible {
   border-radius: 8px;
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
-  box-shadow: 0 4px 12px var(--color-shadow);
+  box-shadow: var(--shadow-hover-lift);
 }
 .brand-name { font-weight: 700; letter-spacing: -0.01em; }
 .brand-sm { margin-right: var(--space-2); }
@@ -882,7 +1037,7 @@ h1:focus-visible {
   max-width: 260px;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--color-text-muted);
   font-size: 0.85rem;
   cursor: pointer;
@@ -989,11 +1144,11 @@ h1:focus-visible {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 40px var(--color-shadow);
+  box-shadow: var(--shadow-popover);
   transform-origin: bottom left;
   transform: scale(0.94);
   opacity: 0;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+  transition: transform 0.18s var(--ease-out-bezier), opacity 0.15s ease;
   z-index: 41;
 }
 .profile-menu-popover.open { transform: scale(1); opacity: 1; }
@@ -1112,9 +1267,8 @@ h1:focus-visible {
   display: flex;
   flex-direction: column;
   padding: 16px 12px 12px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  /* background/border/border-radius come from the shared .surface-card
+     rule near the top of this file (grouped with this exact selector). */
   /* min-height, not height - the sidebar should be at least as tall as the
      viewport minus .storefront-body's own padding, so it reads as a
      full-height panel even when the routed page content is short, but a
@@ -1149,7 +1303,7 @@ h1:focus-visible {
      appears/disappears at its own width, so a single width transition on
      the parent is what makes the whole rail read as sliding shut rather
      than snapping. */
-  transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width var(--duration-base) var(--ease-out-bezier);
 }
 .storefront-sidebar-head {
   display: flex;
@@ -1175,7 +1329,7 @@ h1:focus-visible {
   cursor: pointer;
 }
 .storefront-brand-button:hover:not(:disabled) { background: transparent; }
-.storefront-brand-button:hover .brand-mark { box-shadow: 0 4px 12px var(--color-shadow); }
+.storefront-brand-button:hover .brand-mark { box-shadow: var(--shadow-hover-lift); }
 .storefront-brand-button:active { background: var(--color-surface-hover); }
 .storefront-shop-now {
   display: flex;
@@ -1215,7 +1369,7 @@ h1:focus-visible {
    still shows its own instant highlight on top of the gliding one. */
 .storefront-sidenav-indicator {
   border-radius: 10px;
-  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--duration-base) var(--ease-out-bezier);
   pointer-events: none;
 }
 /* Scoped as ".storefront-sidenav .storefront-sidenav-indicator", not just
@@ -1250,7 +1404,7 @@ h1:focus-visible {
   margin: 0 0 12px;
   padding: 0 4px;
   color: var(--color-text);
-  opacity: 0.65;
+  opacity: var(--opacity-muted);
   font-size: 13px;
   font-weight: 500;
 }
@@ -1346,10 +1500,11 @@ h1:focus-visible {
   margin-left: auto;
   min-width: 20px;
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
-  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.35);
-  color: #fff;
+  border-radius: var(--radius-pill);
+  /* background/box-shadow/color come from the shared .badge--danger rule
+     near the top of this file - grouped there with this exact selector,
+     alongside the collapsed rail's own .storefront-sidenav-badge, so the
+     same number gets the same red treatment in both shapes. */
   font-size: 0.65rem;
   font-weight: 700;
   text-align: center;
@@ -1367,7 +1522,7 @@ h1:focus-visible {
   width: 18px;
   height: 13px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   box-shadow: none;
 }
@@ -1419,18 +1574,13 @@ h1:focus-visible {
   padding: 0 4px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  /* Two-stop gradient + a colored (not just black) drop shadow - the same
+  border-radius: var(--radius-pill);
+  /* background/box-shadow/color come from the shared .badge--danger rule
+     near the top of this file (see .storefront-sidenav-count's own
+     comment above) - a two-stop gradient + colored drop shadow, the same
      "gradient chip, not a flat fill" treatment .brand-mark/.ai-panel-avatar
      already use, so this reads as a real raised badge rather than a plain
      dot of color. */
-  background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
-  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.5);
-  /* Always white, not var(--color-primary-text) - that token flips to dark
-     in dark mode (it assumes it's sitting on --color-solid-bg, which flips
-     to near-white there), but this badge's own red fill doesn't flip with
-     the theme, so its text can't either. */
-  color: #fff;
   border: 2px solid var(--color-bg);
   font-size: 9px;
   font-weight: 700;
@@ -1562,9 +1712,12 @@ h1:focus-visible {
 .storefront-sidenav-section + .badges-card { margin-top: 32px; }
 .badges-card {
   position: relative;
+  /* border/border-radius come from the shared .surface-card rule near the
+     top of this file (grouped with this exact selector) - background is
+     its own override there too (--color-panel-bg, not that rule's own
+     --color-bg), redeclared here since it needs to differ from every
+     other card using this same shape. */
   background: var(--color-panel-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
   padding: 0.8rem 0.85rem;
 }
 .badges-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
@@ -1592,7 +1745,7 @@ h1:focus-visible {
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text);
-  opacity: 0.65;
+  opacity: var(--opacity-muted);
 }
 .badges-edit-btn {
   font: inherit;
@@ -1619,17 +1772,15 @@ h1:focus-visible {
    currently filtered to), just surfaced as a read-only summary here
    instead of a toggle. */
 .storefront-sidenav .badge-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  /* display/align-items/gap/border-radius/font-weight come from the shared
+     .pill rule near the top of this file (grouped with this exact
+     selector). */
   height: 26px;
   padding: 0 0.6rem 0 0.4rem;
-  border-radius: 999px;
   background: var(--color-chip-selected-bg);
   border: 1px solid var(--color-chip-selected-border);
   color: var(--color-chip-selected-text);
   font-size: 0.75rem;
-  font-weight: 600;
   /* Not clickable - a read-only summary of what's active, editing only
      happens in the popover (see its own comment) - the broad .storefront-
      sidenav span rule this overrides sets cursor: pointer, which would
@@ -1661,11 +1812,11 @@ h1:focus-visible {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 40px var(--color-shadow);
+  box-shadow: var(--shadow-popover);
   transform-origin: top left;
   transform: scale(0.94);
   opacity: 0;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+  transition: transform 0.18s var(--ease-out-bezier), opacity 0.15s ease;
   z-index: 41;
   display: flex;
   flex-direction: column;
@@ -1684,19 +1835,15 @@ h1:focus-visible {
 }
 .popover-head h2 { margin: 0; font-size: 0.9rem; }
 .popover-close {
+  /* border/border-radius/display/align-items/justify-content/cursor/
+     transition come from the shared .icon-btn rule near the top of this
+     file (grouped with this exact selector). */
   width: 26px;
   height: 26px;
-  border-radius: 50%;
-  border: none;
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.95rem;
   line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 .popover-close:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text); }
 .popover-close:active { background: var(--color-surface-hover); transform: scale(0.88); }
@@ -1739,14 +1886,14 @@ h1:focus-visible {
   text-align: left;
 }
 .storefront-sidenav .badge-row-icon {
-  flex-shrink: 0;
+  /* flex-shrink/padding/border-radius/display/align-items/justify-content
+     come from the shared .icon-btn rule near the top of this file
+     (grouped with the bare .badge-row-icon selector) - cursor: default
+     here (not that rule's own pointer) wins on specificity since this
+     selector has an extra class, correctly overriding it for what's a
+     static icon, not a button. */
   width: 22px;
   height: 22px;
-  padding: 0;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--color-surface);
   color: var(--color-text-muted);
   cursor: default;
@@ -1770,18 +1917,13 @@ h1:focus-visible {
   color: var(--color-text);
 }
 .badge-row-btn {
-  flex-shrink: 0;
+  /* flex-shrink/border/border-radius/display/align-items/justify-content/
+     cursor/transition come from the shared .icon-btn rule near the top
+     of this file (grouped with this exact selector). */
   width: 22px;
   height: 22px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 0.85rem;
   line-height: 1;
-  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 .badge-row-btn.remove { background: transparent; color: var(--color-text-muted); }
 .badge-row-btn.remove:hover { background: var(--color-error-surface); color: var(--color-error-text); }
@@ -1911,14 +2053,13 @@ h1:focus-visible {
   top: 8px;
   z-index: 2;
   padding: var(--space-3);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  /* background/border/border-radius come from the shared .surface-card
+     rule near the top of this file (grouped with this exact selector). */
   /* Same idiom as .storefront-sidebar's own collapse - width is the one
      property that actually changes between the two states (see
      .ai-panel--minimized below), so a single transition on it is what
      makes the whole panel read as gliding shut rather than snapping. */
-  transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width var(--duration-base) var(--ease-out-bezier);
 }
 /* A real <button>, not a styled <div> - clicking it is the only way to
    minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
@@ -1948,7 +2089,7 @@ h1:focus-visible {
    .available-row/.volume-head elsewhere in this file. Found in the same
    audit pass that caught .volume-head's own incomplete hover treatment. */
 .ai-panel-header:hover:not(:disabled) { background: transparent; }
-.ai-panel-header:hover .ai-panel-avatar { box-shadow: 0 4px 12px var(--color-shadow); }
+.ai-panel-header:hover .ai-panel-avatar { box-shadow: var(--shadow-hover-lift); }
 .ai-panel-header:active { background: var(--color-surface-hover); }
 .ai-panel-avatar {
   flex-shrink: 0;
@@ -2014,7 +2155,7 @@ h1:focus-visible {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: max-height var(--duration-base) var(--ease-out-bezier);
 }
 .ai-panel-body {
   /* min-width: 0 for the same reason as .ai-panel-body-wrap's own comment
@@ -2167,7 +2308,9 @@ h1:focus-visible {
    many orders, over time," with a real Last Month/This Year/Last Year
    switch and a Show more/Show less toggle for drilling into daily-or-
    monthly detail. */
-.volume { margin: 0 0 var(--space-4); padding: 18px 20px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 1px 2px var(--color-card-shadow); }
+/* background/border/border-radius come from the shared .surface-card rule
+   near the top of this file (grouped with this exact selector). */
+.volume { margin: 0 0 var(--space-4); padding: 18px 20px; box-shadow: var(--shadow-card-resting); }
 /* A real <button>, not a styled <div> - clicking anywhere in this row is
    the only way to minimize/reopen the card, same "the header itself is
    the toggle" pattern the AI panel's own header already uses. Needs the
@@ -2218,7 +2361,7 @@ h1:focus-visible {
 /* Small pill, matching the search kbd hint/sidenav count badge's own
    "secondary number gets a quiet pill" convention elsewhere on this page. */
 .volume-total {
-  display: inline-flex; align-items: center; height: 22px; padding: 0 0.55rem; border-radius: 999px;
+  display: inline-flex; align-items: center; height: 22px; padding: 0 0.55rem; border-radius: var(--radius-pill);
   background: var(--color-surface); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -2243,7 +2386,7 @@ h1:focus-visible {
 .volume-stat-main { display: flex; align-items: baseline; gap: 0.45rem; }
 .volume-stat-number { font-size: 1.85rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .volume-stat-unit { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500; }
-.volume-trend { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.volume-trend { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.15rem 0.5rem; border-radius: var(--radius-pill); font-size: 0.76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .volume-trend.is-up { background: var(--color-success-surface); color: var(--color-success-text); }
 .volume-trend.is-down { background: var(--color-error-surface); color: var(--color-error-text); }
 .volume-caption { margin: 0.35rem 0 16px; color: var(--color-text-muted); font-size: 0.8rem; }
@@ -2252,7 +2395,7 @@ h1:focus-visible {
 .volume-bar-track { width: 100%; max-width: 24px; flex: 1; display: flex; align-items: flex-end; }
 .volume-bar {
   display: block; width: 100%; border-radius: 3px 3px 1px 1px; background: var(--color-surface);
-  transform: scaleY(0); transform-origin: bottom; animation: volume-grow 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform: scaleY(0); transform-origin: bottom; animation: volume-grow var(--duration-slow) var(--ease-out-bezier) both;
 }
 /* The one bar that gets the strong "active" fill - same convention
    .order-filter-tab.active/the profile menu's active theme option already
@@ -2295,7 +2438,7 @@ h1:focus-visible {
   margin: var(--space-3) 0 var(--space-4);
   padding: 3px;
   background: var(--color-surface);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 /* The one element that actually glides - sized/positioned in px by
    OrdersPage.jsx (measured per tab, since label length and count digits
@@ -2308,10 +2451,10 @@ h1:focus-visible {
   top: 3px;
   left: 0;
   height: calc(100% - 6px);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-solid-bg);
   box-shadow: 0 1px 3px var(--color-shadow);
-  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--duration-base) var(--ease-out-bezier), width var(--duration-base) var(--ease-out-bezier);
   pointer-events: none;
 }
 .order-filter-tab {
@@ -2322,7 +2465,7 @@ h1:focus-visible {
   gap: 0.4rem;
   padding: 0.5rem 0.9rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.85rem;
@@ -2375,7 +2518,7 @@ h1:focus-visible {
 .order-filter-count {
   min-width: 20px;
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-bg);
   color: var(--color-text-muted);
   font-size: 0.72rem;
@@ -2389,7 +2532,7 @@ h1:focus-visible {
   width: 20px;
   height: 15px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .order-filter-tab.active .order-filter-count {
   /* Neutral gray, not white - see .storefront-sidenav-count above for why
@@ -2431,12 +2574,11 @@ h1:focus-visible {
    background, and a border alone read as flatter than an actually-raised
    card once the panel had a tone of its own to be raised above. */
 .order-card {
+  /* background/border/border-radius come from the shared .surface-card
+     rule near the top of this file (grouped with this exact selector). */
   position: relative;
   padding: 16px 20px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px var(--color-card-shadow);
+  box-shadow: var(--shadow-card-resting);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 /* :has(), not a whole-card hover - only View Details is actually clickable
@@ -2496,7 +2638,7 @@ h1:focus-visible {
 .order-card-skeleton-line { display: block; border-radius: var(--radius-sm); }
 .order-card-skeleton-line--title { width: 55%; height: 1.1em; margin-bottom: 0.6rem; }
 .order-card-skeleton-line--meta { width: 40%; height: 0.8em; margin-bottom: 0.6rem; }
-.order-card-skeleton-pill { display: inline-block; width: 72px; height: 1.4rem; border-radius: 999px; }
+.order-card-skeleton-pill { display: inline-block; width: 72px; height: 1.4rem; border-radius: var(--radius-pill); }
 .order-card-skeleton-line--headline { width: 42%; height: 1.1em; margin: var(--space-3) 0 0.5rem; }
 .order-card-skeleton-line--subtext { width: 65%; height: 0.9em; margin-bottom: var(--space-2); }
 .order-card-skeleton-progress { display: block; width: 100%; height: 64px; border-radius: var(--radius-md); }
@@ -2512,15 +2654,17 @@ h1:focus-visible {
   padding: 0;
   display: flex;
   align-items: flex-start;
-  /* Scoped here (not :root) since nothing outside this stepper uses them.
-     One step's worth of time for the connecting line to grow AND for the
-     icon at its far end to pop - see the fill/pop rules below for how
-     --step-i (set per <li> in OrdersPage.jsx) staggers both so the line
-     visibly "reaches" each icon before it pops, instead of every step
-     animating at once on mount. */
-  --progress-step-duration: 0.4s;
-  --ease-out-bezier: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* --ease-out-bezier/--ease-spring now come from :root (see its own
+     comment - they used to be redefined right here, identically, before
+     the same two curves turned out to be hand-copied as literal strings
+     all over this file). --progress-step-duration stays local under its
+     own descriptive name - one step's worth of time for the connecting
+     line to grow AND for the icon at its far end to pop (see the fill/pop
+     rules below for how --step-i, set per <li> in OrdersPage.jsx, staggers
+     both so the line visibly "reaches" each icon before it pops, instead
+     of every step animating at once on mount) - but now points at the
+     shared --duration-slow token rather than its own redundant literal. */
+  --progress-step-duration: var(--duration-slow);
 }
 .order-progress-step {
   position: relative;
@@ -2756,7 +2900,7 @@ h1:focus-visible {
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-surface-text);
   white-space: nowrap;
@@ -2777,7 +2921,7 @@ h1:focus-visible {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px var(--color-card-shadow);
+  box-shadow: var(--shadow-card-resting);
 }
 .order-label-top {
   display: flex;
@@ -2822,7 +2966,7 @@ h1:focus-visible {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px var(--color-card-shadow);
+  box-shadow: var(--shadow-card-resting);
   padding: 0 var(--space-4);
 }
 .order-manifest-field {
@@ -2871,7 +3015,7 @@ h1:focus-visible {
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
   color: var(--color-primary-text);
-  box-shadow: 0 4px 12px var(--color-shadow);
+  box-shadow: var(--shadow-hover-lift);
 }
 .product-image img { width: 100%; height: 100%; object-fit: cover; }
 .product-image-sm { width: 40px; height: 40px; }
