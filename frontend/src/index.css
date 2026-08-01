@@ -1464,24 +1464,37 @@ h1:focus-visible {
    actually reaching the visible text - it stayed pinned to the base muted
    color. Found by axe: 1.11:1 contrast, white-intended text still
    computing as --color-text-muted against the solid blue active
-   background. Both states now target the label span explicitly too. */
-.storefront-sidenav a:hover,
-.storefront-sidenav span:hover,
-/* :not(:disabled), not just :hover - the generic button:hover:not(:disabled)
+   background. Both states now target the label span explicitly too.
+   :not(:disabled), not just :hover - the generic button:hover:not(:disabled)
    rule (index.css's shared button reset) has one more pseudo-class than a
    plain ".storefront-sidenav-item:hover" and was winning the specificity
    tie, silently painting Coupons/Wishlist's hover state near-black (var(
    --color-solid-bg-hover)) instead of this light var(--color-surface) -
    the exact same class of bug already caught and fixed for .chat-send-
-   button earlier. Found live via a screenshot mid-click. */
-/* A faint wash, not the same solid fill .active uses below (see that
+   button earlier. Found live via a screenshot mid-click.
+   A faint wash, not the same solid fill .active uses below (see that
    rule's own comment) - hovering a row you haven't selected is a preview,
    not a commitment, so it gets a lighter, distinct treatment instead of
-   looking identical to the selected state. */
-.storefront-sidenav-item:hover:not(:disabled),
+   looking identical to the selected state. Only the row itself
+   (.storefront-sidenav-item) paints that wash - deliberately not also
+   ".storefront-sidenav a:hover"/"span:hover" (an earlier version of this
+   rule included both) - those match the anchor/span directly, which is
+   redundant with .storefront-sidenav-item (the anchor already carries
+   that class) for the anchor, and actively wrong for the span: hovering
+   directly over the label text repainted the exact same translucent wash
+   a second time on top of the row's own already-correct background,
+   stacking two overlapping alphas (0.043 + 0.043 ≈ 0.086) into a
+   visibly darker patch under the label than the rest of the row - found
+   live by comparing a hovered row's background at a point behind the
+   label against a point behind the count badge, not by eyeballing a
+   screenshot. The nested icon-wrap/label spans only ever need the color
+   change below (same "inherited color loses to a same-specificity rule
+   matching the element directly" reasoning as .active), never their own
+   copy of the row's background. */
+.storefront-sidenav-item:hover:not(:disabled) { color: var(--color-text); background: var(--color-surface-hover); }
 .storefront-sidenav a:hover span,
 .storefront-sidenav span:hover span,
-.storefront-sidenav-item:hover span { color: var(--color-text); background: var(--color-surface-hover); }
+.storefront-sidenav-item:hover span { color: var(--color-text); }
 /* transform: scale, not just the background swap this used to be - every
    other pressable control in this sidebar already compressed on press;
    this row (and .active, just below) were the one exception, approved to
@@ -1572,13 +1585,29 @@ h1:focus-visible {
    red gradient right when a row is actively being looked at. These two
    overrides just re-declare the same gradient to out-specify those two
    states individually, each by including one more class
-   (".storefront-sidenav-count" itself) than what they're beating. */
+   (".storefront-sidenav-count" itself) than what they're beating.
+   color: #fff re-declared here too - the same hover-span selector also
+   sets color: var(--color-text) on every nested span, which was silently
+   turning this badge's white "20"/"1" to near-black on hover, sitting on
+   top of the same red gradient. Found live via computed styles (white
+   before hover, rgb(23,23,23) during it), not visible at a glance in a
+   screenshot since the badge is small, but a real contrast failure. */
 .storefront-sidenav a:hover .storefront-sidenav-count,
 .storefront-sidenav span:hover .storefront-sidenav-count,
 .storefront-sidenav-item:hover .storefront-sidenav-count,
 .storefront-sidenav a.active .storefront-sidenav-count,
-.storefront-sidenav-item.active .storefront-sidenav-count {
+.storefront-sidenav-item.active .storefront-sidenav-count,
+/* The collapsed rail's own corner dot is the exact same badge, just a
+   different shape (see .storefront-sidenav-badge's own rule) - it's
+   nested inside the same hovered/active <a> as the count pill, so it
+   needs the identical fix for both states. */
+.storefront-sidenav a:hover .storefront-sidenav-badge,
+.storefront-sidenav span:hover .storefront-sidenav-badge,
+.storefront-sidenav-item:hover .storefront-sidenav-badge,
+.storefront-sidenav a.active .storefront-sidenav-badge,
+.storefront-sidenav-item.active .storefront-sidenav-badge {
   background: linear-gradient(135deg, var(--color-badge-danger), var(--color-badge-danger-2));
+  color: #fff;
 }
 
 /* Wraps just the icon (My Orders/Coupons) so the collapsed-only badge below
