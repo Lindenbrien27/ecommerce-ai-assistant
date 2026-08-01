@@ -195,6 +195,19 @@
   --opacity-muted: 0.65;
 
   --color-focus-ring: rgba(23, 23, 23, 0.18);
+  /* A plain black shadow only reads as elevation where it has a lighter
+     surface to darken - the orders page's static header (see
+     .orders-header) sits on --color-panel-bg, which in dark mode is
+     already near-black, so the same rgba(0,0,0,…) this token would give
+     it has nothing left to darken and all but disappears there (visible
+     in light mode, essentially flat in dark - confirmed by screenshotting
+     the header's own edge in both themes). Dark mode's own value below
+     flips to a translucent white lift instead, the same light/dark
+     inversion --color-surface-hover already needs for the same reason,
+     so the header casts an equally legible edge over the list in either
+     theme instead of one theme getting a shadow and the other getting
+     nothing. */
+  --color-header-shadow: rgba(0, 0, 0, 0.16);
 }
 
 /* Breakpoints this file already uses, for reference - CSS custom
@@ -255,6 +268,7 @@
     --color-chip-selected-text: #ddd6fe;
     --color-skeleton-shimmer: rgba(255, 255, 255, 0.08);
     --color-surface-hover: rgba(255, 255, 255, 0.055);
+    --color-header-shadow: rgba(255, 255, 255, 0.07);
   }
 }
 
@@ -293,6 +307,7 @@
   --color-chip-selected-text: #ddd6fe;
   --color-skeleton-shimmer: rgba(255, 255, 255, 0.08);
   --color-surface-hover: rgba(255, 255, 255, 0.055);
+  --color-header-shadow: rgba(255, 255, 255, 0.07);
 }
 
 * { box-sizing: border-box; }
@@ -1015,9 +1030,17 @@ h1:focus-visible {
    background with real gaps between them, matching the reference's
    floating-panel layout instead of edge-to-edge columns separated by a
    single 1px border. */
+/* height: 100%, not min-height: 100vh - the whole point of this shell is
+   that it no longer scrolls as a page; it fills exactly the fixed 100vh
+   region #root/body now reserve for it (see those rules just below) and
+   clips its own overflow, so nothing inside can ever push the page taller
+   than the viewport. Only the sidebar/AI panel columns and the order
+   list/chat log get their own internal scroll from here on - see
+   .storefront-sidebar, .ai-panel, .order-cards-scroll, .page-body. */
 .storefront-shell {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--color-page-bg);
@@ -1027,10 +1050,22 @@ h1:focus-visible {
    tuned for the narrow centered .app-shell card VerifyPage still uses - a
    storefront shell wants true edge-to-edge width instead. :has() scopes
    this to exactly that case rather than changing #root's shared rule,
-   which would also strip Verify's intentional padding. */
+   which would also strip Verify's intentional padding.
+   height: 100vh/overflow: hidden here (and on body below) are what
+   actually lock the page - #root/body's own shared rules use min-height:
+   100vh, which lets the page grow taller and scroll when content
+   overflows (still the right default for Verify's own narrow card). The
+   storefront shell wants the opposite: a fixed-height region it fills
+   exactly, with all scrolling happening in bounded panes inside it. */
 #root:has(> .storefront-shell) {
   padding: 0;
   align-items: stretch;
+  height: 100vh;
+  overflow: hidden;
+}
+body:has(.storefront-shell) {
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* .page-header-actions holds just the search bar now (the theme toggle
@@ -1260,57 +1295,52 @@ h1:focus-visible {
    the sidebar rebuild below already uses. Tighter than the old uniform
    var(--space-3) pairing so the three panels (sidebar, content, AI panel)
    read as closely-set columns rather than loosely-spaced blocks. */
+/* align-items: stretch (the flex default, so no longer overridden to
+   flex-start) - the three columns now need to fill this row's full
+   height so each one's own internal scroll pane has a real, bounded
+   height to be bounded by, not just grow to its own content's height the
+   way flex-start let them. min-height: 0 is what lets a flex child
+   actually shrink to fit within .storefront-shell's own locked height
+   instead of a flex row's default min-height: auto quietly forcing this
+   taller than its parent whenever any column's content is tall. */
 .storefront-body {
   flex: 1;
   display: flex;
-  align-items: flex-start;
   gap: 6px;
   padding: 8px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 240px/16px-top-12px-elsewhere/no shared gap - an exact spec (down to
    each individual transition's own margin below) replacing what used to
-   be one uniform var(--space-3) gap between every child. display:flex/
-   column/no explicit height needed for the margin-top: auto trick above
-   to work - .storefront-body's own align-items: flex-start would
-   otherwise shrink this to its content height, but min-height below
-   already keeps it full-height regardless. */
+   be one uniform var(--space-3) gap between every child.
+   height: 100%, not the old min-height: calc(100vh - 16px) + position:
+   sticky - .storefront-body now stretches every column to the row's full
+   height (see its own align-items comment), and .storefront-shell no
+   longer allows outer page scroll at all, so there's nothing left for a
+   sticky sidebar to stay stuck against; it just fills its share of the
+   already-fixed row. overflow-y: auto is a safety net, not the expected
+   case - a short viewport with a long Category list is the one way this
+   column's own content could still exceed the row's height now that nothing
+   scrolls around it. */
 .storefront-sidebar {
   flex-shrink: 0;
   width: 240px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   padding: 16px 12px 12px;
+  overflow-y: auto;
   /* background/border/border-radius come from the shared .surface-card
      rule near the top of this file (grouped with this exact selector). */
-  /* min-height, not height - the sidebar should be at least as tall as the
-     viewport minus .storefront-body's own padding, so it reads as a
-     full-height panel even when the routed page content is short, but a
-     taller page (e.g. a long order list) should push it taller too, not
-     clip/scroll independently. No top-bar height to subtract anymore - the
-     brand now lives inside the sidebar itself instead of above it. */
-  min-height: calc(100vh - 16px);
-  /* Sticky, not static - once the center column (Order Volume + filter
-     tabs + the order list) pushes the page taller than the viewport, the
-     sidebar should stay put while that column scrolls past it, not
-     scroll away with it. top: 8px matches .storefront-body's own outer
-     edge padding, so a stuck sidebar rests at the exact same inset it
-     started at. It un-sticks naturally once its own parent's bottom edge
-     is reached (the standard position: sticky behavior), so this doesn't
-     fight the min-height rule above - a short page never triggers it at
-     all. */
-  position: sticky;
-  top: 8px;
-  /* position: sticky always creates its own stacking context (unlike
-     position: relative, which only does with a real z-index) - without an
-     explicit z-index here, that new context's default paint order just
-     follows DOM order, and .storefront-content (later in the DOM, its own
-     z-index: auto) would silently paint *over* the entire sidebar
-     including any popover anchored inside it (see CategoryBadgesEditor's
-     .edit-popover, which visually escapes the sidebar's own box to the
-     right) - found via a real click failure: axe/Playwright reported
-     .order-card elements "intercepting pointer events" for a popover row
-     that was visually on top of them. */
+  /* position: relative + z-index: 2, not position: sticky's own implicit
+     stacking context - CategoryBadgesEditor's own popover still needs to
+     paint above .storefront-content (later in the DOM, its own z-index:
+     auto) to visually escape this column's box to the right, the same
+     reasoning as before, just without the sticky positioning that used to
+     supply the stacking context for free. */
+  position: relative;
   z-index: 2;
   /* The one property that actually changes between expanded/collapsed
      (see .storefront-sidebar--collapsed below) - everything inside just
@@ -2032,13 +2062,38 @@ h1:focus-visible {
    own top padding exactly (see .page-header below for why that's what
    actually keeps "Your Orders" level with the sidebar's own first row) -
    only the other three sides go to 24px.  */
+/* height: 100%/overflow: hidden/display: flex column - this column no
+   longer scrolls itself; .page-header (below) stays a fixed-height row at
+   the top and .page-body (further below) is the one part of it that
+   scrolls, bounded to whatever height is actually left. Bottom padding
+   moved off this rule and onto .page-body instead (top/sides stay here) -
+   padding on a non-scrolling ancestor isn't reachable by scrolling past
+   the last item the way padding on the scrolling element itself is. */
 .storefront-content {
   flex: 1;
   min-width: 0;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) var(--space-4) 0;
   background: var(--color-panel-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+}
+/* The generic scroll pane wrapping <Outlet/> (see Layout.jsx) - the right
+   default for any page that doesn't manage its own internal scroll
+   (OrderDetailPage, ComingSoonPage, ChatPage). OrdersPage is the one
+   exception: its own root fills this exactly and handles overflow itself
+   (a static Spotlight/filter header, then its own scrolling card list -
+   see .orders-page-root), so this rule's own overflow-y: auto simply
+   never triggers there - .page-body's content never exceeds its own
+   height in that case, it just never gets the chance to scroll. */
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--space-4);
 }
 /* The routed page's own icon+title (left) and the search bar/theme toggle
    (right) on one row - previously just the search/toggle on their own row,
@@ -2096,41 +2151,78 @@ h1:focus-visible {
   align-items: center;
   gap: var(--space-2);
 }
+/* The single trigger for the AI drawer (see Layout.jsx/AiAssistantPanel.jsx) -
+   .on marks it open, matching the filled/solid treatment this app's other
+   active-state controls already use (.order-filter-tab.active, .pill.active),
+   not a separate "active" class name for what's the same idea. */
+.ai-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.ai-toggle:hover:not(:disabled) { background: var(--color-surface-hover); }
+.ai-toggle:active { transform: scale(0.95); }
+.ai-toggle.on {
+  background: var(--color-solid-bg);
+  border-color: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.ai-toggle.on:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
 
-/* The docked AI Assistant panel (see AiAssistantPanel.jsx) - a third boxed
-   column matching .storefront-sidebar's own card treatment (background,
-   border, radius), separated from it and from .storefront-content by
-   .storefront-body's gap instead of a shared 1px border between
-   edge-to-edge columns. */
-.ai-panel {
+/* The docked AI Assistant panel (see AiAssistantPanel.jsx) is a drawer now,
+   not a self-minimizing column: .ai-drawer is the flex item that actually
+   sits in .storefront-body, and its width is the one thing that animates
+   between open (320px) and closed (0) - the same "a single width
+   transition on the parent reads as gliding shut" idiom
+   .storefront-sidebar's own collapse already uses. overflow: hidden here
+   is what clips the panel out of view as the drawer's width collapses. */
+.ai-drawer {
   flex-shrink: 0;
   width: 320px;
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 16px);
-  /* Sticky, same reasoning and same 8px top offset as .storefront-sidebar
-     just above - the assistant should stay reachable while a long order
-     list scrolls past it, not disappear off the top of the page. Same
-     z-index fix too, for the same stacking-context reason documented on
-     .storefront-sidebar - nothing in this panel currently escapes its own
-     box the way CategoryBadgesEditor's popover does, but both columns are
-     sticky siblings of .storefront-content now, so both need it. */
-  position: sticky;
-  top: 8px;
-  z-index: 2;
-  padding: var(--space-3);
-  /* background/border/border-radius come from the shared .surface-card
-     rule near the top of this file (grouped with this exact selector). */
-  /* Same idiom as .storefront-sidebar's own collapse - width is the one
-     property that actually changes between the two states (see
-     .ai-panel--minimized below), so a single transition on it is what
-     makes the whole panel read as gliding shut rather than snapping. */
+  height: 100%;
+  overflow: hidden;
   transition: width var(--duration-base) var(--ease-out-bezier);
 }
-/* A real <button>, not a styled <div> - clicking it is the only way to
-   minimize/reopen the panel (see AiAssistantPanel.jsx), so it needs real
-   interactive semantics, not just the look of one. Reset to plain block
-   layout instead of default button styling (border, centered text, etc.). */
+.ai-drawer.closed { width: 0; }
+/* The actual panel keeps a fixed 320px width of its own regardless of the
+   drawer's - a width transition on .ai-drawer can't also be the thing
+   that sizes this panel's content, or the log/input would visibly reflow
+   narrower as it closes instead of just sliding off. transform:
+   translateX is what makes it look like it exits stage right rather than
+   getting squeezed - paired with the drawer's own width: 0, the panel is
+   simultaneously clipped out of its parent's box AND visually pushed past
+   its own right edge, which is what sells "slid away" instead of "clipped
+   mid-word". position: relative + z-index: 2, the same reasoning as
+   .storefront-sidebar's own (no popover escapes this panel's box today,
+   but nothing about a drawer sliding past its neighbor's edge should
+   depend on paint order being left to chance). */
+.ai-panel {
+  width: 320px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  position: relative;
+  z-index: 2;
+  transform: translateX(0);
+  transition: transform var(--duration-base) var(--ease-out-bezier);
+  /* background/border/border-radius come from the shared .surface-card
+     rule near the top of this file (grouped with this exact selector). */
+}
+.ai-drawer.closed .ai-panel { transform: translateX(100%); }
+/* A plain header now, not a button - the drawer's own trigger (the AI
+   toggle in .page-header-actions, see Layout.jsx) is the only way to open
+   or close it, so this no longer needs interactive semantics or a hover/
+   active treatment of its own. */
 .ai-panel-header {
   width: 100%;
   display: flex;
@@ -2138,25 +2230,8 @@ h1:focus-visible {
   gap: var(--space-2);
   padding: 0 0 var(--space-2);
   margin-bottom: var(--space-2);
-  border: none;
   border-bottom: 1px solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
-/* Without this, the generic button:hover:not(:disabled) rule (higher
-   specificity than the bare .ai-panel-header class) would paint this
-   header solid dark on hover instead of leaving it transparent with just
-   the avatar's own shadow lift as feedback - the exact class of bug
-   already caught and fixed for .chat-send-button/.storefront-sidenav-item/
-   .available-row/.volume-head elsewhere in this file. Found in the same
-   audit pass that caught .volume-head's own incomplete hover treatment. */
-.ai-panel-header:hover:not(:disabled) { background: transparent; }
-.ai-panel-header:hover .ai-panel-avatar { box-shadow: var(--shadow-hover-lift); }
-.ai-panel-header:active { background: var(--color-surface-hover); }
 .ai-panel-avatar {
   flex-shrink: 0;
   width: 32px;
@@ -2172,75 +2247,38 @@ h1:focus-visible {
 .ai-panel-title { display: block; font-weight: 700; font-size: 0.95rem; }
 .ai-panel-subtitle { display: block; margin-top: 0.1rem; color: var(--color-text-muted); font-size: 0.78rem; }
 
-/* Collapsed to an icon rail - a fixed px width (not the old width: auto),
-   since a width transition can't glide toward/from "auto" smoothly - this
-   is the same fixed footprint the header's own 32px avatar plus this rule's
-   own padding produce anyway, just made explicit so it's animatable. */
-.ai-panel--minimized {
-  width: 56px;
-  padding: var(--space-2);
-}
-.ai-panel--minimized .ai-panel-header {
-  padding: 0;
-  margin-bottom: 0;
-  border-bottom: none;
-}
-.ai-panel--minimized .ai-panel-header-text { display: none; }
-
-/* The glide itself - max-height is driven by inline style from
-   AiAssistantPanel.jsx's own effect (see its comment), not a fixed CSS
-   value: this box is flex: 1 1 auto so it stretches to fill whatever free
-   space .ai-panel has left below its header (the same free space
-   .ai-panel-form's margin-top: auto gets pushed into, pinning the input at
-   the very bottom of a short conversation) - a fixed max-height here would
-   cap that stretch on any viewport taller than the fixed number, so the
-   collapse/expand animation instead measures .ai-panel-body's real height
-   at the moment of each toggle and transitions to/from that exact pixel
-   value, then clears the inline override once fully expanded so this rule's
-   own unconstrained flex: 1 takes back over at rest. */
-.ai-panel-body-wrap {
-  /* display: flex is what makes .ai-panel-body's own flex: 1 below mean
-     anything - without a flex/grid container here, that child just falls
-     back to sizing itself to its own content (~600px), and margin-top:
-     auto on .ai-panel-form has nothing bigger to push against, landing the
-     input right after the suggestions instead of at the true bottom of a
-     short conversation. Found live: the input sat mid-panel after
-     re-expanding, not pinned to the bottom the way it was before this
-     glide was added. */
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  /* min-width: 0, not just min-height: 0 - a flex item's default min-width
-     is auto, which means "never shrink narrower than your content's own
-     intrinsic width" (the chat log/suggestion chips/input placeholder are
-     all sized for the full 320px panel) - without this, minimizing to 56px
-     left this box exactly as wide as that content and just let it overflow
-     the now-much-narrower .ai-panel sideways instead of clipping it, even
-     though overflow: hidden was already set. Found live: a sliver of the
-     input's placeholder text visibly bled past the panel's right edge. */
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  transition: max-height var(--duration-base) var(--ease-out-bezier);
-}
+/* Fills whatever's left below the header - no JS-measured height glide
+   needed anymore (that machinery existed only to animate the old minimize-
+   to-a-rail collapse, which the drawer's own width/transform transition
+   above has fully replaced). min-width: 0 for the same reason .ai-panel-
+   body-wrap used to need it: a flex item's default min-width is auto,
+   which would otherwise refuse to let this shrink narrower than the log/
+   input's intrinsic content width while the drawer is mid-close. */
+/* gap: 8px is the strict, explicit separation between the scrolling log
+   and the input row below it - not left to whatever space happens to be
+   left over, so it holds even when the log is scrolled all the way to
+   its own last message. */
 .ai-panel-body {
-  /* min-width: 0 for the same reason as .ai-panel-body-wrap's own comment
-     above - a flex item's own default min-width would otherwise refuse to
-     shrink this narrower than the log/input's intrinsic content width too. */
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 8px;
   flex: 1;
   min-height: 0;
 }
 
-/* Bounded height + its own scrollbar, not flex: 1 inside an unbounded
-   column - the panel's own min-height is a floor (see above), not a
-   ceiling, so an intrinsically-sized flex child would just keep growing
-   the whole column (and page) taller as a conversation gets longer instead
-   of staying docked. Mirrors #chat's own min(…, …vh) approach on ChatPage. */
+/* flex: 1/min-height: 0, not the old fixed max-height: min(560px, 65vh) -
+   the panel itself is genuinely locked to the shell's own height now (see
+   .ai-panel above), so the log can fill exactly whatever space is left
+   below the header instead of capping at a guessed pixel value that left
+   dead space on a taller viewport or clipped early on a shorter one.
+   .ai-panel-form (the input row right after this) is a fixed-height flex
+   item, so it naturally lands right after however tall the log actually
+   renders - .ai-panel-body's own gap: 8px is what keeps a fixed distance
+   between them regardless. */
 .ai-panel-log {
-  max-height: min(560px, 65vh);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2280,22 +2318,37 @@ h1:focus-visible {
 .ai-panel-skeleton-line { flex: 1; height: 2.6rem; border-radius: 16px; }
 .ai-panel-skeleton-suggestions { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: 30px; }
 .ai-panel-skeleton-chip { width: 120px; height: 2.3rem; border-radius: var(--radius-md); }
-/* Pushes the composer to the bottom of the panel's flex column - its own
-   box model/border/radius come from .ai-panel-form's own rule above. */
-.ai-panel-form {
-  margin-top: auto;
-}
-
 @media (max-width: 1200px) {
-  .ai-panel { display: none; }
+  .ai-drawer { display: none; }
 }
 @media (max-width: 900px) {
   .storefront-search { display: none; }
 }
 @media (max-width: 700px) {
-  .storefront-body { flex-direction: column; }
+  /* The locked-shell/internal-scroll-panes model above only makes sense
+     for the 3-column desktop layout, where each column can independently
+     bound its own height. Below this width .storefront-body stacks into
+     one long column instead (sidebar row, then page content, then -
+     already hidden by the 1200px breakpoint - the AI panel), so there's
+     no longer a fixed-height row for any of them to fill; the page needs
+     to scroll normally again, the same way it always did before the
+     shell was locked. Resetting height/overflow back to auto/visible
+     here is what lets flexbox's own percentage-height rule take over -
+     a height: 100% child of an auto-height parent resolves as if it were
+     itself height: auto (a normal, if easy-to-forget, part of the spec),
+     so every nested column below this point (.storefront-content,
+     .orders-page-root, .order-cards-scroll, .page-body, …) falls back to
+     ordinary content-flow sizing without needing its own explicit
+     override too. */
+  body:has(.storefront-shell) { height: auto; overflow: visible; }
+  #root:has(> .storefront-shell) { height: auto; overflow: visible; }
+  .storefront-shell { height: auto; overflow: visible; }
+  .storefront-body { overflow: visible; min-height: 0; flex-direction: column; }
+  .storefront-content { height: auto; overflow: visible; }
   .storefront-sidebar {
     width: 100%;
+    height: auto;
+    overflow: visible;
     min-height: 0;
     flex-direction: row;
     flex-wrap: wrap;
@@ -2462,29 +2515,70 @@ h1:focus-visible {
 .spotlight-btn:active { transform: scale(0.97); }
 .spotlight-skeleton { display: block; width: 100%; height: 56px; border-radius: var(--radius-md); }
 
+/* The Delivered state's own deck look, only rendered when there's
+   genuinely more than one recent delivery behind the front card (see
+   ActiveOrderSpotlight in OrdersPage.jsx) - a single recent delivery
+   still gets the plain .spotlight above, never a fabricated stack of one.
+   .spotlight itself keeps its own margin: 0 0 var(--space-4) when it's
+   not inside this wrapper; nested here, that would double up with the
+   wrapper's own margin, so it's zeroed only in that case. */
+.spotlight-slot { position: relative; margin: 0 0 calc(var(--space-4) + 10px); }
+.spotlight-slot.has-stack .spotlight { margin: 0; position: relative; z-index: 1; }
+.spotlight-ghost {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -8px;
+  height: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  z-index: 0;
+}
+.spotlight-ghost.g1 { transform: translateY(7px) scale(0.97); opacity: 0.75; }
+.spotlight-ghost.g2 { transform: translateY(14px) scale(0.94); opacity: 0.45; z-index: -1; }
+
 /* A single connected segmented-control track (inline-flex + one shared
    background/radius), not individually-bordered pill buttons - the active
    item gets its own elevated fill; inactive items are borderless text
    sitting directly on the shared track instead of each having its own
    outline. */
-/* Sticky wrapper around .order-filter-tabs (see OrdersPage.jsx) - lives
-   *inside* .order-cards-scroll, not above it, since sticky only ever
-   sticks relative to its nearest scrolling ancestor, and the order list
-   scrolls in its own bounded box (max-height, overflow-y: auto below),
-   never via outer page scroll the way the sidebar/AI panel columns do.
-   top: 0 (not those columns' own 8px) - this sticks to *this* box's own
-   top edge, not the viewport's. The gradient fade is what makes a card
-   scrolling up from underneath soften into view instead of stopping dead
-   at the tabs' own bottom edge; the tabs' own blurred, translucent fill
-   (below) does the same job for whatever's scrolling directly behind
-   *them*. */
-.order-filter-sticky {
-  position: sticky;
-  top: 0;
+/* The Spotlight + filter tabs' own static header, above the order list's
+   scroll pane, not inside it (see OrdersPage.jsx / .orders-page-root
+   below) - a real, non-scrolling row, not a position: sticky element
+   riding along inside the scrolling content. A card disappearing beneath
+   it gets a plain 1px border + a theme-aware drop shadow, not a
+   translucent blurred fade - that was tried here first, the same
+   backdrop-filter treatment .order-filter-tabs' own track still uses
+   below, but at this header's larger scale it read as a smeared, glassy
+   distortion rather than a clean edge, so it's gone in favor of a
+   boundary that just reads as a boundary. --color-header-shadow, not
+   --color-shadow (used elsewhere for popovers/elevated cards) - a plain
+   rgba(0,0,0,…) only darkens a lighter surface, and this header sits on
+   --color-panel-bg, already near-black in dark mode, so the same value
+   read clearly in light mode and nearly vanished in dark; that token
+   flips to a translucent white lift in dark mode instead, the same
+   inversion --color-surface-hover already needs for the same reason. */
+.orders-page-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.orders-header {
+  flex-shrink: 0;
+  position: relative;
   z-index: 2;
-  padding-top: var(--space-3);
-  margin: 0 0 var(--space-4);
-  background: linear-gradient(var(--color-bg) 60%, transparent);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 6px 12px -6px var(--color-header-shadow);
+}
+.orders-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 /* Translucent + blurred, not this app's usual flat --color-surface fill -
    the one deliberate exception to "every surface here is solid," made
@@ -2504,18 +2598,22 @@ h1:focus-visible {
 /* The one element that actually glides - sized/positioned in px by
    OrdersPage.jsx (measured per tab, since label length and count digits
    give every tab a different width; a flex-based layout has no CSS-only
-   way to know a sibling's box ahead of time). Sits behind the tabs
-   (z-index 0 vs. their own z-index 1) so its motion reads through
-   whichever tabs aren't the active one. */
+   way to know a sibling's box ahead of time). top/height come from that
+   same per-tab measurement now too, not a flat top: 3px/height: calc(100%
+   - 6px) - .order-filter-tabs wraps onto multiple rows at narrow widths
+   (see OrdersPage.jsx's own comment), and a height keyed to the whole
+   track's total height stretched this to cover every wrapped row at once
+   instead of just the active tab's own row. Sits behind the tabs (z-index
+   0 vs. their own z-index 1) so its motion reads through whichever tabs
+   aren't the active one. */
 .order-filter-indicator {
   position: absolute;
-  top: 3px;
   left: 0;
-  height: calc(100% - 6px);
+  top: 0;
   border-radius: var(--radius-pill);
   background: var(--color-solid-bg);
   box-shadow: 0 1px 3px var(--color-shadow);
-  transition: transform var(--duration-base) var(--ease-out-bezier), width var(--duration-base) var(--ease-out-bezier);
+  transition: transform var(--duration-base) var(--ease-out-bezier), width var(--duration-base) var(--ease-out-bezier), height var(--duration-base) var(--ease-out-bezier);
   pointer-events: none;
 }
 .order-filter-tab {
@@ -2602,21 +2700,19 @@ h1:focus-visible {
   color: var(--color-primary-text);
 }
 
-/* The list's own contained scroll region - bounded height + its own
-   scrollbar, not an unbounded column that just keeps growing the whole
-   page as more orders load (see .loadMore below, still inside this same
-   container). Same min(fixed px, vh%) idiom as .ai-panel-log/#chat, so all
-   three of the sidebar/AI-panel/order-list columns read as fixed-height
-   panels rather than this one alone growing the page taller. */
-/* 680px/64vh, not the 640px/60vh this used to be - the sticky filter tabs
-   moved inside this box (see .order-filter-sticky's own comment), so a
-   flat bump keeps roughly as much of the actual card list visible as
-   before instead of quietly losing ~50px of it to the tabs row now
-   sharing the space. */
+/* The list's own contained scroll region - flex: 1/min-height: 0, not the
+   old fixed max-height: min(680px, 64vh). .orders-page-root is genuinely
+   locked to the shell's own height now (see that rule above), with
+   .orders-header a fixed-height sibling above this one, so the list can
+   fill exactly whatever's left rather than capping at a guessed pixel
+   value. padding-top gives the first card the same breathing room below
+   the header's own border that .orders-header's bottom padding gives the
+   filter row above it. */
 .order-cards-scroll {
-  max-height: min(680px, 64vh);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding-right: 2px;
+  padding: var(--space-4) 2px var(--space-4) 0;
 }
 .order-cards {
   list-style: none;

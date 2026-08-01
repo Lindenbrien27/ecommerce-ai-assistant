@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { CheckIcon, ChevronDownIcon, DownloadIcon, EmptyOrdersIcon } from '../components/icons.jsx';
+import { CheckIcon, ChevronDownIcon, DownloadIcon, EmptyOrdersIcon, SearchIcon } from '../components/icons.jsx';
 import { computeOrderTotal, formatCents } from '../utils/pricing.js';
 
 // "Returned" has no matching value in this app's real `status` enum (see
@@ -195,7 +195,18 @@ function ActiveOrderSpotlight() {
     lastDelivered && Date.now() - new Date(lastDelivered.created_at).getTime() <= RECENT_DELIVERY_WINDOW_MS;
 
   if (lastDelivered && isRecent) {
-    return (
+    // How many deliveries actually qualify as "recent" (not just which one
+    // is most recent) - only known past this point, since it's the same
+    // RECENT_DELIVERY_WINDOW_MS proxy the single-delivery check above
+    // already uses. Needed to decide whether the stacked-deck look below
+    // is honest here at all: a single recent delivery must never render as
+    // a stack of one.
+    const recentDeliveryCount = orders.filter(
+      (o) => o.status === 'delivered' && Date.now() - new Date(o.created_at).getTime() <= RECENT_DELIVERY_WINDOW_MS
+    ).length;
+    const moreCount = recentDeliveryCount - 1;
+
+    const card = (
       <section className="spotlight fade-in">
         <ProductImage icon={lastDelivered.product_icon} size="md" />
         <div className="spotlight-body">
@@ -203,6 +214,7 @@ function ActiveOrderSpotlight() {
           <p className="spotlight-title">{lastDelivered.product_name}</p>
           <p className="spotlight-meta">
             {lastDelivered.order_number} · Delivered {spotlightDateFormatter.format(new Date(lastDelivered.created_at))}
+            {moreCount > 0 && ` · ${moreCount} more recently delivered`}
           </p>
         </div>
         <div className="spotlight-actions">
@@ -216,6 +228,21 @@ function ActiveOrderSpotlight() {
           )}
         </div>
       </section>
+    );
+
+    // The stacked-deck look folded in from the earlier Recent Deliveries
+    // concept (rather than that living as its own separate widget) - only
+    // when there's genuinely a second (or more) recent delivery behind
+    // this one. Ghosts are purely decorative (aria-hidden, no content of
+    // their own); the real card in front is still the one thing a screen
+    // reader or a click lands on.
+    if (moreCount === 0) return card;
+    return (
+      <div className="spotlight-slot has-stack">
+        <div className="spotlight-ghost g2" aria-hidden="true" />
+        <div className="spotlight-ghost g1" aria-hidden="true" />
+        {card}
+      </div>
     );
   }
 
@@ -318,8 +345,16 @@ export function OrdersPage() {
   // count digits (see .order-filter-tab). Recomputed whenever the active
   // tab or any tab's rendered width changes (counts arrive async after the
   // orders fetch resolves, which can widen/narrow a tab after first paint).
+  // top/height are measured too, not just left/width - .order-filter-tabs
+  // itself wraps onto multiple rows at narrow widths (five tabs sharing the
+  // filter row with the search bar - see .orders-filter-row), and a CSS-only
+  // height: calc(100% - 6px) assumes a single row, stretching the indicator
+  // to cover every wrapped row at once instead of just the active tab's own
+  // row. Found live on a Mobile Chrome screenshot, not by reasoning about
+  // flex-wrap in the abstract - the indicator rendered as a tall blob
+  // covering three rows of tabs.
   const tabRefs = useRef({});
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, top: 0, height: 0 });
   const counts = {};
   for (const filter of STATUS_FILTERS) {
     counts[filter.key] = orders
@@ -343,46 +378,57 @@ export function OrdersPage() {
     : orders;
 
   useLayoutEffect(() => {
-    const activeTab = tabRefs.current[activeFilter];
-    if (activeTab) {
-      setIndicatorStyle({ left: activeTab.offsetLeft, width: activeTab.offsetWidth });
+    function measure() {
+      const activeTab = tabRefs.current[activeFilter];
+      if (activeTab) {
+        setIndicatorStyle({
+          left: activeTab.offsetLeft,
+          width: activeTab.offsetWidth,
+          top: activeTab.offsetTop,
+          height: activeTab.offsetHeight,
+        });
+      }
     }
+    measure();
+    // Re-measure on resize too, not just when the active tab or its counts
+    // change - which row (if any) the tabs wrap onto depends on the
+    // viewport's own width, so the same active tab can land at a different
+    // top/left purely from the window resizing, with nothing else about
+    // the filters themselves changing.
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
     // counts.all is a stand-in for "any tab's count changed" - every count
     // recomputes together whenever `orders` resolves, so watching one is
     // enough to re-measure after their post-fetch width change.
   }, [activeFilter, counts.all]);
 
   return (
-    <>
+    <div className="orders-page-root">
       {/* The heading itself (and the decorative header-art flourish that
           used to sit next to it) is gone from here - Layout.jsx now owns
           "Your Orders" as part of the shared page-header row alongside the
-          search bar/theme toggle (see Layout.jsx's PAGE_HEADERS). The
-          subtitle that used to sit here is gone too, not just relocated -
-          a high-density SaaS header goes straight from the header's own
-          divider line to the filter tabs, no explanatory line between
-          them. */}
-      <ActiveOrderSpotlight />
+          AI Assistant toggle (see Layout.jsx's PAGE_HEADERS). The subtitle
+          that used to sit here is gone too, not just relocated - a
+          high-density SaaS header goes straight from the header's own
+          divider line to the Spotlight/filter tabs, no explanatory line
+          between them.
+          A real, static header now, not part of the scrollable content at
+          all - .order-cards-scroll below only ever holds the cards
+          themselves. See .orders-header's own comment in index.css for
+          why (a plain border + shadow now, not the sticky/blurred
+          treatment tried here first). */}
+      <div className="orders-header">
+        <ActiveOrderSpotlight />
 
-      {/* One shared scroll container for the tabs *and* the list below,
-          not two separate boxes - the order list scrolls inside its own
-          bounded max-height (see .order-cards-scroll), it never spills
-          into outer page scroll the sidebar/AI panel's own sticky columns
-          rely on. A sticky element only ever sticks within its nearest
-          *scrolling* ancestor, so the tabs have to actually sit inside
-          this box to mean anything - sitting above it as a sibling (an
-          earlier pass of this) never once engaged, since cards scrolling
-          in their own contained box never pass "under" a sibling outside
-          it at all. Found by measuring this box's own bounding client
-          rect live, not by inspecting the CSS in the abstract - it
-          reported an unscrollable 900px-tall page even with a full list
-          rendered underneath. */}
-      <div className="order-cards-scroll slim-scroll" aria-live="polite">
-        <div className="order-filter-sticky">
+        <div className="orders-filter-row">
           <nav className="order-filter-tabs" aria-label="Filter orders by status">
             <span
               className="order-filter-indicator"
-              style={{ transform: `translateX(${indicatorStyle.left}px)`, width: `${indicatorStyle.width}px` }}
+              style={{
+                transform: `translate(${indicatorStyle.left}px, ${indicatorStyle.top}px)`,
+                width: `${indicatorStyle.width}px`,
+                height: `${indicatorStyle.height}px`,
+              }}
               aria-hidden="true"
             />
             {STATUS_FILTERS.map((filter) => (
@@ -403,8 +449,20 @@ export function OrdersPage() {
               </button>
             ))}
           </nav>
-        </div>
 
+          {/* Moved here from the shared page header (see Layout.jsx) - still
+              the one intentionally inert piece of this page, a plain <span>
+              copying a reference design's structure, since this app has no
+              global-search backend for it to actually do something. */}
+          <div className="storefront-search" aria-hidden="true">
+            <SearchIcon />
+            <span>Search for products, orders...</span>
+            <span className="storefront-search-kbd">⌘K</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="order-cards-scroll slim-scroll" aria-live="polite">
         {error && (
           <p className="verify-error" role="alert">
             {error}
@@ -493,6 +551,6 @@ export function OrdersPage() {
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
