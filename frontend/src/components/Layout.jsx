@@ -5,7 +5,7 @@ import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
 import { ProfileMenu } from './ProfileMenu.jsx';
-import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PinIcon, PlusIcon, SearchIcon, ShopIcon, TicketIcon } from './icons.jsx';
+import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PinIcon, PlusIcon, ShopIcon, SparkleIcon, TicketIcon } from './icons.jsx';
 
 // The routed page's own title/icon, keyed by path - not each page rendering
 // its own <h1> anymore. The header row now needs the title on the same
@@ -59,16 +59,18 @@ function getDashboardNavIndex(pathname) {
   return -1;
 }
 
-// The search bar is still the one intentionally inert piece of this header -
-// a plain <span> copying a reference design's structure, since this app has
-// no global-search backend for it to actually do something. Everything else
-// here is real: the account menu (ProfileMenu.jsx) has working theme/sign-
-// out controls, and Shop Now/Coupons/Wishlist/Address/Payment Methods are
-// real NavLinks to real routes (see App.jsx), same as My Orders - they just
-// land on ComingSoonPage instead of a built-out feature, an honest "not
-// built yet" rather than a link that silently does nothing. My Orders' and
-// Coupons' counts are real numbers derived from the signed-in customer's
-// own orders, not placeholders - Wishlist has no backing data at all, so it
+// The (still decorative - see OrdersPage.jsx's own comment on it) search
+// bar moved to the Orders page itself, next to its filter tabs, so this
+// shared header no longer renders it - only the AI Assistant toggle lives
+// here now, the single control that opens/closes the AI drawer (see
+// AiAssistantPanel.jsx). Everything else in the sidebar below is real: the
+// account menu (ProfileMenu.jsx) has working theme/sign-out controls, and
+// Shop Now/Coupons/Wishlist/Address/Payment Methods are real NavLinks to
+// real routes (see App.jsx), same as My Orders - they just land on
+// ComingSoonPage instead of a built-out feature, an honest "not built yet"
+// rather than a link that silently does nothing. My Orders' and Coupons'
+// counts are real numbers derived from the signed-in customer's own
+// orders, not placeholders - Wishlist has no backing data at all, so it
 // gets no number rather than a fabricated one.
 // OrdersProvider wraps LayoutInner (not the other way around) so this outer
 // component can stay the default export React Router renders for every
@@ -92,6 +94,10 @@ function LayoutInner() {
   const showAiPanel = location.pathname !== '/chat';
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Open by default, matching how the AI panel always used to just be
+  // there - the toggle in the header (below) is a way to dismiss it, not
+  // an opt-in a returning visitor has to rediscover every time.
+  const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const navIndex = getDashboardNavIndex(location.pathname);
 
   const { icon: PageIcon, title: pageTitle, docTitle } = getPageHeader(location.pathname, params);
@@ -210,21 +216,35 @@ function LayoutInner() {
             </div>
             <div className="page-header-actions">
               {/* Theme control moved into ProfileMenu's theme trio - this
-                  row no longer needs its own toggle. */}
-              <div className="storefront-search" aria-hidden="true">
-                <SearchIcon />
-                <span>Search for products, orders...</span>
-                <span className="storefront-search-kbd">⌘K</span>
-              </div>
+                  row no longer needs its own toggle. The single control
+                  for the AI drawer below - its own header stopped being
+                  clickable once this became the one way to open/close it
+                  (see AiAssistantPanel.jsx). Only rendered alongside the
+                  drawer itself (see showAiPanel above) - a button that
+                  toggled a panel that isn't even mounted on /chat would be
+                  broken, not just redundant. */}
+              {showAiPanel && (
+                <button
+                  type="button"
+                  className={`ai-toggle${aiPanelOpen ? ' on' : ''}`}
+                  onClick={() => setAiPanelOpen((o) => !o)}
+                  aria-pressed={aiPanelOpen}
+                  aria-label={aiPanelOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
+                >
+                  <SparkleIcon width="15" height="15" />
+                </button>
+              )}
             </div>
           </div>
-          <Outlet />
+          <div className="page-body">
+            <Outlet />
+          </div>
         </main>
 
         {/* Real, working chat, not a copy of the reference's panel with no
             backend - only rendered off the /chat route itself, so there's
             never a second chat surface open next to the full ChatPage. */}
-        {showAiPanel && <AiAssistantPanel />}
+        {showAiPanel && <AiAssistantPanel isOpen={aiPanelOpen} />}
       </div>
     </div>
   );
