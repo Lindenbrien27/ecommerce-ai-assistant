@@ -2302,6 +2302,19 @@ h1:focus-visible {
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-3);
+    /* The desktop rule's position: sticky/z-index: 2 (see that rule's own
+       comment - added for the CategoryBadgesEditor popover, which is
+       already hidden below this breakpoint via .badges-card: display:none)
+       has nothing to safeguard here, and actively breaks this layout: the
+       sidebar becomes a real in-flow row above the page's own content
+       instead of a side column, so sticking it to the viewport top makes
+       it float over whatever scrolls underneath - intercepting clicks on
+       page content beneath it (found via CI: Playwright reporting
+       .order-card-details-link's click intercepted by this row's own
+       pointer-events on Mobile Chrome). Static, not just "no z-index" -
+       the row needs to actually scroll away with the page like any other
+       content at this width. */
+    position: static;
   }
   /* The Dashboard section wrapper div exists to group its items under a
      heading in the vertical desktop layout - display: contents dissolves
@@ -2924,6 +2937,19 @@ h1:focus-visible {
   .order-card-top { flex-wrap: wrap; padding-right: 0; }
   .order-card-details-link { position: static; margin-bottom: var(--space-2); }
   .order-progress-label { display: none; }
+  /* The Spotlight's own corner link (Active order state) is the same
+     .order-card-details-link, already dropped to position: static above -
+     but .spotlight itself is a plain (non-wrapping) flex row, unlike
+     .order-card-top's flex-wrap: wrap, so the now-static link just got
+     squeezed into that row instead of dropping to its own line, still
+     overlapping/overflowing .spotlight-body's reserved 108px at this
+     width (found via CI: Playwright reporting the link's own click
+     intercepted by .spotlight-body on Mobile Chrome, and its bounding
+     box extending past the viewport's right edge). Same fix as the card
+     above - wrap the row, and drop the padding-right reservation that
+     assumed an absolutely-positioned link. */
+  .spotlight { flex-wrap: wrap; }
+  .spotlight.is-linked .spotlight-body { padding-right: 0; }
 }
 
 .order-list {
