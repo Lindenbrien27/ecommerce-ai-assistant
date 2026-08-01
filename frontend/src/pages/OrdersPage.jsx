@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { BarChartIcon, CheckIcon, ChevronDownIcon, EmptyOrdersIcon, TrendArrowIcon } from '../components/icons.jsx';
+import { CheckIcon, ChevronDownIcon, DownloadIcon, EmptyOrdersIcon } from '../components/icons.jsx';
+import { computeOrderTotal, formatCents } from '../utils/pricing.js';
 
 // "Returned" has no matching value in this app's real `status` enum (see
 // the CHECK constraint in migrations/1784973065584_initial-schema.sql) -
@@ -36,104 +37,18 @@ const STATUS_MESSAGES = {
   delivered: { headline: 'Delivered', text: 'Your order has been delivered.' },
 };
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const VOLUME_PERIODS = [
-  { key: 'lastMonth', label: 'Last Month' },
-  { key: 'thisYear', label: 'This Year' },
-  { key: 'lastYear', label: 'Last Year' },
-];
-
-function sum(arr) {
-  return arr.reduce((a, b) => a + b, 0);
-}
-// % change is only ever shown when there's a real prior period to compare
-// against (see 'lastYear' in buildVolumeData, which has none) - never a
-// percentage computed from nothing.
-function pctChange(current, previous) {
-  if (!previous) return null;
-  return Math.round(((current - previous) / previous) * 100);
-}
-function countByMonth(orders, year) {
-  const counts = new Array(12).fill(0);
-  orders.forEach((o) => {
-    const d = new Date(o.created_at);
-    if (d.getFullYear() === year) counts[d.getMonth()] += 1;
-  });
-  return counts;
-}
-function countByDay(orders, year, month) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const counts = new Array(daysInMonth).fill(0);
-  orders.forEach((o) => {
-    const d = new Date(o.created_at);
-    if (d.getFullYear() === year && d.getMonth() === month) counts[d.getDate() - 1] += 1;
-  });
-  return counts;
-}
-
-// The real distribution behind Order Volume - built fresh from the
-// customer's own orders on every render (cheap for the order counts this
-// app deals with), keyed off the real current date rather than a fixed
-// reference the way this widget's own design mockup did (a demo needs a
-// frozen "today" so its numbers don't drift depending on when someone
-// opens it; live software should just ask what day it actually is).
-function buildVolumeData(orders) {
-  const today = new Date();
-  const thisYear = today.getFullYear();
-  const lastYear = thisYear - 1;
-  const thisMonthIdx = today.getMonth();
-  const lastMonthDate = new Date(thisYear, thisMonthIdx - 1, 1);
-  const lastMonthYear = lastMonthDate.getFullYear();
-  const lastMonthIdx = lastMonthDate.getMonth();
-  const monthBeforeLastDate = new Date(lastMonthYear, lastMonthIdx - 1, 1);
-
-  const lastMonthBars = countByDay(orders, lastMonthYear, lastMonthIdx).map((c, i) => ({
-    label: String(i + 1),
-    count: c,
-  }));
-  // This Year only ever shows elapsed months (Jan through whatever month it
-  // actually is) - it never invents zero-order bars for months that haven't
-  // happened yet.
-  const thisYearBars = countByMonth(orders, thisYear)
-    .slice(0, thisMonthIdx + 1)
-    .map((c, i) => ({ label: MONTH_NAMES[i], count: c, isCurrent: i === thisMonthIdx }));
-  const lastYearBars = countByMonth(orders, lastYear).map((c, i) => ({ label: MONTH_NAMES[i], count: c }));
-
-  return {
-    lastMonth: {
-      bars: lastMonthBars,
-      collapsed: 10,
-      total: sum(lastMonthBars.map((b) => b.count)),
-      compare: sum(countByDay(orders, monthBeforeLastDate.getFullYear(), monthBeforeLastDate.getMonth())),
-      compareLabel: 'the previous month',
-    },
-    thisYear: {
-      bars: thisYearBars,
-      collapsed: 4,
-      total: sum(thisYearBars.map((b) => b.count)),
-      compare: sum(countByMonth(orders, lastYear).slice(0, thisMonthIdx + 1)),
-      compareLabel: 'this time last year',
-    },
-    lastYear: {
-      bars: lastYearBars,
-      collapsed: 6,
-      total: sum(lastYearBars.map((b) => b.count)),
-      compare: null,
-      compareLabel: null,
-    },
-  };
-}
-
-// Order Volume needs the customer's *entire* order history to compute
-// honest Last Year/This Year totals - the shared OrdersContext used by the
-// visible card list deliberately only holds one manually-paginated page at
-// a time (see its own comment), which is the right call for a list a
-// person scrolls/loads more of, but would silently understate this
-// widget's own numbers once someone has more than one page of history.
-// MAX_PAGE_SIZE server-side is 100 (see src/services/orderService.js) -
-// comfortably above what any real customer of this app has - so this
-// almost always resolves in a single request; the cursor loop only matters
-// at all for the rare account that somehow exceeds that.
+// The Active Order Spotlight needs the customer's *entire* order history
+// (to reliably find "the most recent active order" and "the most recent
+// delivered order" even if either happens to sit past the first
+// paginated page) - the shared OrdersContext used by the visible card
+// list deliberately only holds one manually-paginated page at a time (see
+// its own comment), which is the right call for a list a person scrolls/
+// loads more of, but would silently miss this widget's own answer once
+// someone has more than one page of history. MAX_PAGE_SIZE server-side is
+// 100 (see src/services/orderService.js) - comfortably above what any
+// real customer of this app has - so this almost always resolves in a
+// single request; the cursor loop only matters at all for the rare
+// account that somehow exceeds that.
 function useOrderHistory() {
   const authorizedFetch = useAuthorizedFetch();
   const [history, setHistory] = useState(null);
@@ -157,10 +72,11 @@ function useOrderHistory() {
         } while (cursor);
         if (!cancelled) setHistory(all);
       } catch {
-        // Order Volume is a supplementary widget, not critical path - if
-        // its own fetch fails, it just doesn't render (see the null check
-        // in OrderVolume below) rather than surfacing a second error
-        // banner next to the real one OrdersContext already owns.
+        // The Active Order Spotlight is a supplementary widget, not
+        // critical path - if its own fetch fails, it just doesn't render
+        // (see the null check in ActiveOrderSpotlight below) rather than
+        // surfacing a second error banner next to the real one
+        // OrdersContext already owns.
       }
     }
 
@@ -173,166 +89,150 @@ function useOrderHistory() {
   return history;
 }
 
-// The signature element above the filter tabs - real order counts over
-// time, not a decorative chart. Answers a different question than the
-// filter tabs/each order's own stepper below it (which are both about
-// current status): "how many orders, over time." The Last Month/This
-// Year/Last Year switch reuses the exact same segmented-control markup/
-// CSS as the filter tabs just below (.order-filter-tabs/.order-filter-tab/
-// .order-filter-indicator) - same glide, same hover/press/focus states,
-// a second independent instance rather than a one-off control. The bar
-// chart itself is decorative (aria-hidden) - the big number/trend/caption
-// above it already state the same real data as accessible text, and a
-// bare color/height swatch with no visible label per bar has nothing
-// further to add there.
-function OrderVolume() {
-  const orders = useOrderHistory();
-  const [periodKey, setPeriodKey] = useState('thisYear');
-  const [expanded, setExpanded] = useState(false);
-  const [minimized, setMinimized] = useState(false);
-  const tabRefs = useRef({});
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+const spotlightDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+// The one thing this widget can't honestly claim: no delivered_at
+// timestamp exists anywhere in this app's data (only created_at, the
+// order-*placement* time - see migrations/1784973065584_initial-schema.sql
+// and .../1785095226496_add-order-pricing-and-product-icon.sql), so
+// "recently delivered" is approximated as "created within the last two
+// weeks" rather than a real delivery-time window. Good enough to decide
+// whether to feature a delivered order here at all; not precise enough to
+// ever print an exact delivered-at time (see the Delivered state below,
+// which shows a date only).
+const RECENT_DELIVERY_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
-  useLayoutEffect(() => {
-    const activeTab = tabRefs.current[periodKey];
-    if (activeTab) {
-      setIndicatorStyle({ left: activeTab.offsetLeft, width: activeTab.offsetWidth });
-    }
-  }, [periodKey]);
+// A real, working download built entirely from data this app already has
+// (unit_price_cents/delivery_cost_cents/vat_cents/voucher_cents all exist
+// per order - see the same migration referenced above) - a plain text
+// receipt via a client-side Blob, not a PDF service or a second backend
+// endpoint, since nothing here needs one.
+function downloadInvoice(order) {
+  const total = computeOrderTotal(order);
+  if (total === null) return;
+
+  const lines = [
+    'Order Support Assistant — Invoice',
+    '',
+    `Order: ${order.order_number}`,
+    `Product: ${order.product_name}`,
+    `Date: ${spotlightDateFormatter.format(new Date(order.created_at))}`,
+    '',
+    `Original price: ${formatCents(order.unit_price_cents)}`,
+    `Delivery: ${order.delivery_cost_cents ? formatCents(order.delivery_cost_cents) : 'Free'}`,
+    `VAT: ${formatCents(order.vat_cents || 0)}`,
+  ];
+  if (order.voucher_cents > 0) {
+    lines.push(`Voucher${order.voucher_code ? ` (${order.voucher_code})` : ''}: -${formatCents(order.voucher_cents)}`);
+  }
+  lines.push(`Total: ${formatCents(total)}`);
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `invoice-${order.order_number}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// The signature element above the filter tabs - not a decorative chart,
+// the one order that's actually relevant right now. Three honest states,
+// checked in priority order against the customer's real order history:
+// something's in progress (show it, with real tracking progress) > the
+// most recent delivery was recent enough to still be worth surfacing
+// (show it, with the two actions this app can genuinely back - View
+// Details and a real invoice download) > neither (a quiet confirmation,
+// not a fabricated "nothing to see" when there might be an old delivery
+// that just isn't recent anymore).
+function ActiveOrderSpotlight() {
+  const orders = useOrderHistory();
 
   if (orders === null) {
     return (
-      <section className="volume" aria-hidden="true">
-        <div className="volume-head">
-          <div className="volume-title-group">
-            <span className="volume-title-icon">
-              <BarChartIcon />
-            </span>
-            <p className="volume-title">Order Volume</p>
+      <section className="spotlight" aria-hidden="true">
+        <span className="skeleton spotlight-skeleton" />
+      </section>
+    );
+  }
+  if (orders.length === 0) return null;
+
+  // Sorted created_at DESC by the API itself (see useOrderHistory's own
+  // comment) - .find() below always returns the *most recent* order
+  // matching each condition, not just any matching one.
+  const activeOrder = orders.find((o) => ['processing', 'shipped', 'out_for_delivery'].includes(o.status));
+
+  if (activeOrder) {
+    const currentIndex = STATUS_STEPS.findIndex((step) => step.key === activeOrder.status);
+    const label = STATUS_STEPS[currentIndex]?.label ?? activeOrder.status;
+    return (
+      <section className="spotlight is-linked fade-in">
+        <ProductImage icon={activeOrder.product_icon} size="md" />
+        <div className="spotlight-body">
+          <span className={`spotlight-eyebrow status-${activeOrder.status}`}>{label}</span>
+          <p className="spotlight-title">{activeOrder.product_name}</p>
+          <p className="spotlight-meta">
+            {activeOrder.order_number}
+            {activeOrder.estimated_delivery &&
+              ` · Arriving ${spotlightDateFormatter.format(new Date(activeOrder.estimated_delivery))}`}
+          </p>
+          <div className="spotlight-progress" aria-hidden="true">
+            {STATUS_STEPS.map((step, i) => (
+              <div key={step.key} className={`seg${i <= currentIndex ? ' done' : ''}`} />
+            ))}
           </div>
         </div>
-        <span className="skeleton volume-skeleton" />
+        <Link to={`/orders/${activeOrder.order_number}`} className="order-card-details-link">
+          View Details
+        </Link>
       </section>
     );
   }
 
-  if (orders.length === 0) return null;
+  const lastDelivered = orders.find((o) => o.status === 'delivered');
+  const isRecent =
+    lastDelivered && Date.now() - new Date(lastDelivered.created_at).getTime() <= RECENT_DELIVERY_WINDOW_MS;
 
-  const data = buildVolumeData(orders);
-  const period = data[periodKey];
-  const bars = expanded ? period.bars : period.bars.slice(-period.collapsed);
-  const max = Math.max(1, ...bars.map((b) => b.count));
-  const labelStep = bars.length > 10 ? Math.ceil(bars.length / 8) : 1;
-  const change = pctChange(period.total, period.compare);
-  const canExpand = period.bars.length > period.collapsed;
-
-  function selectPeriod(key) {
-    setPeriodKey(key);
-    // A newly-selected period always starts collapsed, same as any
-    // freshly-opened view - "show more" is a choice made per period, not
-    // a setting that should silently carry over to a different one.
-    setExpanded(false);
+  if (lastDelivered && isRecent) {
+    return (
+      <section className="spotlight fade-in">
+        <ProductImage icon={lastDelivered.product_icon} size="md" />
+        <div className="spotlight-body">
+          <span className="spotlight-eyebrow status-delivered">Delivered</span>
+          <p className="spotlight-title">{lastDelivered.product_name}</p>
+          <p className="spotlight-meta">
+            {lastDelivered.order_number} · Delivered {spotlightDateFormatter.format(new Date(lastDelivered.created_at))}
+          </p>
+        </div>
+        <div className="spotlight-actions">
+          <Link to={`/orders/${lastDelivered.order_number}`} className="spotlight-btn secondary">
+            View Details
+          </Link>
+          {computeOrderTotal(lastDelivered) !== null && (
+            <button type="button" className="spotlight-btn primary" onClick={() => downloadInvoice(lastDelivered)}>
+              <DownloadIcon /> Download Invoice
+            </button>
+          )}
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className={`volume fade-in${minimized ? ' volume--minimized' : ''}`}>
-      {/* The header itself is the minimize/maximize toggle - same "the row
-          you'd click anyway is the control" pattern the AI panel's own
-          header already uses, rather than a separate small icon button
-          competing for space next to the total pill. */}
-      <button
-        type="button"
-        className="volume-head"
-        onClick={() => setMinimized((m) => !m)}
-        aria-expanded={!minimized}
-      >
-        <div className="volume-title-group">
-          <span className="volume-title-icon" aria-hidden="true">
-            <BarChartIcon />
-          </span>
-          <p className="volume-title">Order Volume</p>
-        </div>
-        <span className="volume-head-right">
-          <span className="volume-total">
-            {orders.length} order{orders.length === 1 ? '' : 's'} all-time
-          </span>
-          <ChevronDownIcon className="volume-head-chevron" aria-hidden="true" />
-        </span>
-      </button>
-
-      {!minimized && (
-        <>
-      <nav className="order-filter-tabs volume-tabs" aria-label="Order volume time period">
-        <span
-          className="order-filter-indicator"
-          style={{ transform: `translateX(${indicatorStyle.left}px)`, width: `${indicatorStyle.width}px` }}
-          aria-hidden="true"
-        />
-        {VOLUME_PERIODS.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            ref={(el) => (tabRefs.current[p.key] = el)}
-            className={`order-filter-tab${periodKey === p.key ? ' active' : ''}`}
-            onClick={() => selectPeriod(p.key)}
-            aria-pressed={periodKey === p.key}
-          >
-            {p.label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="volume-stat-row">
-        <div className="volume-stat-main">
-          <span className="volume-stat-number">{period.total}</span>
-          <span className="volume-stat-unit">orders</span>
-        </div>
-        {change !== null && (
-          <span className={`volume-trend ${change >= 0 ? 'is-up' : 'is-down'}`}>
-            <TrendArrowIcon up={change >= 0} />
-            {Math.abs(change)}%
-          </span>
-        )}
+    <section className="spotlight fade-in">
+      <span className="product-image product-image-md" aria-hidden="true">
+        <CheckIcon />
+      </span>
+      <div className="spotlight-body">
+        <span className="spotlight-eyebrow quiet">All caught up</span>
+        <p className="spotlight-title">No active shipments right now</p>
+        <p className="spotlight-meta">
+          {lastDelivered
+            ? `Your last delivery arrived ${spotlightDateFormatter.format(new Date(lastDelivered.created_at))}.`
+            : "You don't have any active shipments right now."}
+        </p>
       </div>
-      <p className="volume-caption">
-        {change === null
-          ? `${period.total} order${period.total === 1 ? '' : 's'} total for this period.`
-          : `${Math.abs(change)}% ${change >= 0 ? 'more' : 'fewer'} orders than ${period.compareLabel}.`}
-      </p>
-
-      <div className="volume-chart" aria-hidden="true">
-        {bars.map((b, i) => {
-          const h = Math.max(6, (b.count / max) * 100);
-          const showLabel = i % labelStep === 0 || i === bars.length - 1;
-          return (
-            <div
-              key={`${periodKey}-${b.label}-${i}`}
-              className={`volume-bar-col${b.isCurrent ? ' is-current' : ''}`}
-              title={`${b.label}: ${b.count} order${b.count === 1 ? '' : 's'}`}
-            >
-              <div className="volume-bar-track">
-                <span className="volume-bar" style={{ height: `${h}%` }} />
-              </div>
-              <span className={`volume-bar-label${showLabel ? '' : ' is-hidden'}`}>{b.label}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {canExpand && (
-        <div className="volume-more-row">
-          <button
-            type="button"
-            className={`volume-more-btn${expanded ? ' is-expanded' : ''}`}
-            onClick={() => setExpanded((e) => !e)}
-          >
-            {expanded ? 'Show less' : 'Show more'}
-            <ChevronDownIcon />
-          </button>
-        </div>
-      )}
-        </>
-      )}
     </section>
   );
 }
@@ -462,34 +362,49 @@ export function OrdersPage() {
           a high-density SaaS header goes straight from the header's own
           divider line to the filter tabs, no explanatory line between
           them. */}
-      <OrderVolume />
+      <ActiveOrderSpotlight />
 
-      <nav className="order-filter-tabs" aria-label="Filter orders by status">
-        <span
-          className="order-filter-indicator"
-          style={{ transform: `translateX(${indicatorStyle.left}px)`, width: `${indicatorStyle.width}px` }}
-          aria-hidden="true"
-        />
-        {STATUS_FILTERS.map((filter) => (
-          <button
-            key={filter.key}
-            type="button"
-            ref={(el) => (tabRefs.current[filter.key] = el)}
-            className={`order-filter-tab${activeFilter === filter.key ? ' active' : ''}`}
-            onClick={() => setActiveFilter(filter.key)}
-            aria-pressed={activeFilter === filter.key}
-          >
-            {filter.label}{' '}
-            {orders === null ? (
-              <span className="order-filter-count skeleton" aria-hidden="true" />
-            ) : (
-              <span className="order-filter-count fade-in">{counts[filter.key]}</span>
-            )}
-          </button>
-        ))}
-      </nav>
+      {/* One shared scroll container for the tabs *and* the list below,
+          not two separate boxes - the order list scrolls inside its own
+          bounded max-height (see .order-cards-scroll), it never spills
+          into outer page scroll the sidebar/AI panel's own sticky columns
+          rely on. A sticky element only ever sticks within its nearest
+          *scrolling* ancestor, so the tabs have to actually sit inside
+          this box to mean anything - sitting above it as a sibling (an
+          earlier pass of this) never once engaged, since cards scrolling
+          in their own contained box never pass "under" a sibling outside
+          it at all. Found by measuring this box's own bounding client
+          rect live, not by inspecting the CSS in the abstract - it
+          reported an unscrollable 900px-tall page even with a full list
+          rendered underneath. */}
+      <div className="order-cards-scroll slim-scroll" aria-live="polite">
+        <div className="order-filter-sticky">
+          <nav className="order-filter-tabs" aria-label="Filter orders by status">
+            <span
+              className="order-filter-indicator"
+              style={{ transform: `translateX(${indicatorStyle.left}px)`, width: `${indicatorStyle.width}px` }}
+              aria-hidden="true"
+            />
+            {STATUS_FILTERS.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                ref={(el) => (tabRefs.current[filter.key] = el)}
+                className={`order-filter-tab${activeFilter === filter.key ? ' active' : ''}`}
+                onClick={() => setActiveFilter(filter.key)}
+                aria-pressed={activeFilter === filter.key}
+              >
+                {filter.label}{' '}
+                {orders === null ? (
+                  <span className="order-filter-count skeleton" aria-hidden="true" />
+                ) : (
+                  <span className="order-filter-count fade-in">{counts[filter.key]}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-      <div aria-live="polite">
         {error && (
           <p className="verify-error" role="alert">
             {error}
@@ -498,12 +413,10 @@ export function OrdersPage() {
         {!error && orders === null && (
           <>
             <p className="sr-only">Loading your orders…</p>
-            <div className="order-cards-scroll slim-scroll">
-              <ul className="order-cards" aria-hidden="true">
-                <OrderCardSkeleton />
-                <OrderCardSkeleton />
-              </ul>
-            </div>
+            <ul className="order-cards" aria-hidden="true">
+              <OrderCardSkeleton />
+              <OrderCardSkeleton />
+            </ul>
           </>
         )}
         {/* A real, expected state now, not just a theoretical edge case -
@@ -535,7 +448,7 @@ export function OrdersPage() {
         )}
 
         {visibleOrders && visibleOrders.length > 0 && (
-          <div className="order-cards-scroll slim-scroll">
+          <>
             <ul className="order-cards fade-in">
               {visibleOrders.map((order) => (
                 <li key={order.order_number} className="order-card">
@@ -577,7 +490,7 @@ export function OrdersPage() {
                 {loadingMore ? 'Loading...' : 'Load more'}
               </button>
             )}
-          </div>
+          </>
         )}
       </div>
     </>

@@ -9,6 +9,14 @@
   color-scheme: light dark;
 
   --color-bg: #fbfbfb;
+  /* Same rgb triplet as --color-bg itself, just translucent - the sticky
+     filter bar's own background (see .order-filter-tabs), paired with a
+     backdrop-filter blur so scrolling content softens as it passes behind
+     the bar instead of disappearing at a hard edge. A dedicated token, not
+     computed from --color-bg at the CSS level, since color-mix() support
+     is inconsistent enough across engines that hand-picking the matching
+     rgba per theme was the more reliable choice. */
+  --color-bg-translucent: rgba(251, 251, 251, 0.68);
   --color-page-bg: #f4f4f6;
   /* Sits between --color-page-bg and --color-bg, on purpose - the main
      content panel used to share --color-bg with the order cards inside it,
@@ -211,6 +219,7 @@
        (--color-solid-bg below) is the *other* tone, #fbfbfb, giving active
        elements real pop against it instead of blending in. */
     --color-bg: #0d0d0d;
+    --color-bg-translucent: rgba(13, 13, 13, 0.68);
     /* #262626, not a near-black - lighter than every panel/card surface it
        sits behind, on purpose (per direct design feedback): the gaps
        between the sidebar/content/AI columns need to read as a visible
@@ -258,6 +267,7 @@
    pattern for exactly that reason. */
 :root[data-theme="dark"] {
   --color-bg: #0d0d0d;
+  --color-bg-translucent: rgba(13, 13, 13, 0.68);
   --color-page-bg: #262626;
   --color-panel-bg: #0a0a0a;
   --color-text: #fbfbfb;
@@ -396,7 +406,7 @@
 .storefront-sidebar,
 .ai-panel,
 .badges-card,
-.volume,
+.spotlight,
 .order-card {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -1097,9 +1107,13 @@ h1:focus-visible {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--duration-fast) ease, transform 0.1s ease;
 }
 .profile-menu-trigger:hover:not(:disabled) { background: var(--color-surface); }
-.profile-menu-trigger:active { background: var(--color-surface-hover); }
+/* transform: scale added - approved via a states-redesign mockup so this
+   is no longer the one color-only exception among the sidebar's pressable
+   rows (Shop Now/Edit/nav items all already compressed on press). */
+.profile-menu-trigger:active { background: var(--color-surface-hover); transform: scale(0.985); }
 /* transition/rotate on the dropdown chevron itself - a static arrow reads
    as decoration; rotating it 180deg while the menu is open (same idiom
    Order Volume's own header/Show more chevrons use) makes it read as a
@@ -1346,10 +1360,14 @@ h1:focus-visible {
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition: background-color var(--duration-fast) ease, transform 0.1s ease, box-shadow var(--duration-fast) ease;
 }
-.storefront-shop-now:hover { background: var(--color-solid-bg-hover); }
-.storefront-shop-now:active { transform: scale(0.98); }
+/* A real shadow lift on hover, not just the flat color swap this used to
+   be - approved via a states-redesign mockup showing Shop Now as the one
+   high-commitment, solid button on this sidebar, so it's the one that
+   should visibly rise under the cursor rather than just re-tint. */
+.storefront-shop-now:hover { background: var(--color-solid-bg-hover); box-shadow: var(--shadow-hover-lift); }
+.storefront-shop-now:active { background: var(--color-solid-bg); transform: scale(0.97); box-shadow: none; }
 
 .storefront-sidenav { flex-shrink: 0; }
 /* position: relative so the Dashboard glide indicator (absolutely
@@ -1427,6 +1445,12 @@ h1:focus-visible {
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
+  /* transform added for the new press-down feedback below (approved via a
+     states-redesign mockup) - background-color/color transitions weren't
+     here before either, just relying on the browser's own instant default,
+     which is why hover used to feel like a harder snap than every other
+     control in this file that already had one. */
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, transform 0.1s ease;
 }
 .storefront-sidenav a svg,
 .storefront-sidenav span svg,
@@ -1458,7 +1482,13 @@ h1:focus-visible {
 .storefront-sidenav a:hover span,
 .storefront-sidenav span:hover span,
 .storefront-sidenav-item:hover span { color: var(--color-text); background: var(--color-surface-hover); }
-.storefront-sidenav-item:active:not(.active):not(:disabled) { background: var(--color-surface); }
+/* transform: scale, not just the background swap this used to be - every
+   other pressable control in this sidebar already compressed on press;
+   this row (and .active, just below) were the one exception, approved to
+   fix via a states-redesign mockup so pressing anything in this sidebar
+   feels like the same physical surface. */
+.storefront-sidenav-item:active:not(.active):not(:disabled) { background: var(--color-surface); transform: scale(0.985); }
+.storefront-sidenav-item.active:active:not(:disabled) { transform: scale(0.985); }
 /* Still no background here - the three Dashboard rows (My Orders/Coupons/
    Wishlist) share one gliding .storefront-sidenav-indicator behind them
    (the full solid --color-surface fill, stronger than the hover wash
@@ -1499,12 +1529,19 @@ h1:focus-visible {
 .storefront-sidenav .storefront-sidenav-count {
   margin-left: auto;
   min-width: 20px;
-  padding: 0.1rem 0.4rem;
+  height: 20px;
+  padding: 0 0.4rem;
   border-radius: var(--radius-pill);
   /* background/box-shadow/color come from the shared .badge--danger rule
      near the top of this file - grouped there with this exact selector,
      alongside the collapsed rail's own .storefront-sidenav-badge, so the
      same number gets the same red treatment in both shapes. */
+  /* line-height: 1, not the inherited ~1.5 from .storefront-sidenav-item -
+     without it this pill's height was driven by line-height instead of its
+     own text, rendering as a stretched oval with the badge glow smeared
+     around it rather than a compact circle-ish pill. Found by comparing
+     against a redesign mockup showing the intended crisp shape. */
+  line-height: 1;
   font-size: 0.65rem;
   font-weight: 700;
   text-align: center;
@@ -2300,144 +2337,126 @@ h1:focus-visible {
 .back-link:hover { color: var(--color-primary); }
 
 
-/* OrdersPage's own signature element (see OrderVolume) - replaces the
-   earlier "Shipment status" fleet bar entirely. That widget was a
-   real-time status breakdown, which the filter tabs and each order's own
-   stepper below already answer at two other zoom levels - Order Volume
-   answers a genuinely different, non-duplicate question instead: "how
-   many orders, over time," with a real Last Month/This Year/Last Year
-   switch and a Show more/Show less toggle for drilling into daily-or-
-   monthly detail. */
-/* background/border/border-radius come from the shared .surface-card rule
-   near the top of this file (grouped with this exact selector). */
-.volume { margin: 0 0 var(--space-4); padding: 18px 20px; box-shadow: var(--shadow-card-resting); }
-/* A real <button>, not a styled <div> - clicking anywhere in this row is
-   the only way to minimize/reopen the card, same "the header itself is
-   the toggle" pattern the AI panel's own header already uses. Needs the
-   base `button` rule's background/padding/font reset, same as
-   .storefront-brand-button/.profile-menu-trigger above. */
-.volume-head {
-  width: 100%;
+/* OrdersPage's own signature element (see ActiveOrderSpotlight) - replaces
+   Order Volume entirely. Order Volume answered "how many orders, over
+   time," a genuinely useful but secondary question that was taking ~38%
+   of a typical viewport's height to ask; this instead answers the one
+   question actually worth a hero spot: "is there anything about my orders
+   I need to know right now." background/border/border-radius come from
+   the shared .surface-card rule near the top of this file (grouped with
+   this exact selector). */
+.spotlight {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-bottom: 14px;
+  gap: 18px;
+  margin: 0 0 var(--space-4);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card-resting);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+/* :has(), not a whole-card hover - same reasoning as .order-card's own
+   identical rule just below in this file (only a real link inside should
+   make the card look clickable, not the card itself pretending to be one
+   everywhere a cursor lands). Only the Active state renders that link
+   (see .spotlight.is-linked in OrdersPage.jsx) - Delivered has its own
+   explicit buttons instead, and the quiet state has nothing to click at
+   all. */
+.spotlight:has(.order-card-details-link:hover) { box-shadow: var(--shadow-hover-lift); border-color: var(--color-text-muted); }
+.spotlight-body { flex: 1; min-width: 0; }
+/* Reserves the same 108px .order-card-top already reserves for its own
+   corner link (see below) - both are the identical control in the
+   identical corner, so they need the identical reserve or a long product
+   name would run underneath it. */
+.spotlight.is-linked .spotlight-body { padding-right: 108px; }
+.spotlight-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  margin-bottom: 8px;
+}
+/* Same three semantic surfaces .order-status already uses for these exact
+   statuses - a Spotlight badge and an order card's own status pill should
+   never disagree about what color "shipped" is. */
+.spotlight-eyebrow.status-processing,
+.spotlight-eyebrow.status-shipped,
+.spotlight-eyebrow.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
+.spotlight-eyebrow.status-delivered { background: var(--color-success-surface); color: var(--color-success-text); }
+.spotlight-eyebrow.quiet { background: var(--color-surface); color: var(--color-text-muted); }
+.spotlight-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 3px; }
+.spotlight-meta { font-size: 0.82rem; color: var(--color-text-muted); margin: 0; }
+/* One segment per real status step (see STATUS_STEPS in OrdersPage.jsx) -
+   not an arbitrary bar chart, the exact same four-stage sequence each
+   order card's own stepper already shows, just compressed to a glance. */
+.spotlight-progress { display: flex; align-items: center; gap: 5px; margin-top: 12px; max-width: 280px; }
+.spotlight-progress .seg { flex: 1; height: 5px; border-radius: var(--radius-pill); background: var(--color-surface); }
+.spotlight-progress .seg.done { background: var(--color-progress-accent); }
+.spotlight-actions { flex-shrink: 0; display: flex; gap: 8px; }
+.spotlight-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-md);
   border: none;
-  background: transparent;
-  padding: 0;
   font: inherit;
-  text-align: left;
-  color: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
-/* background: transparent on hover is deliberate, not a bug - a full-width
-   filled hover here would make this read as a solid button sitting inside
-   the card, when it's really the card's own heading that happens to be
-   clickable (same "keep the toggle quiet, let its sub-elements carry the
-   feedback" choice .storefront-brand-button already makes for the exact
-   same reason). The icon square and chevron below are what actually move
-   on hover; :active gets a real, visible press instead. Without this
-   explicit background line, the generic button:hover:not(:disabled) rule
-   would otherwise paint it solid on hover - the same class of bug already
-   caught for .chat-send-button/.storefront-sidenav-item/.available-row
-   elsewhere in this file. */
-.volume-head:hover:not(:disabled) { background: transparent; }
-.volume-head:hover:not(:disabled) .volume-title-icon { box-shadow: 0 3px 10px var(--color-shadow); }
-.volume-head:hover:not(:disabled) .volume-head-chevron { color: var(--color-text); }
-.volume-head:active { background: var(--color-surface-hover); }
-/* Icon + label, same pairing every other heading on this page uses
-   (.page-header-title, each .storefront-sidenav-item, every order card's
-   own product tile). */
-.volume-title-group { display: flex; align-items: center; gap: 0.5rem; }
-.volume-title-icon {
-  display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0;
-  border-radius: 8px; background: var(--color-surface); color: var(--color-text);
-  transition: box-shadow 0.15s ease;
-}
-.volume-title { margin: 0; font-size: 0.85rem; font-weight: 700; }
-.volume-head-right { display: flex; align-items: center; gap: 0.5rem; }
-/* Small pill, matching the search kbd hint/sidenav count badge's own
-   "secondary number gets a quiet pill" convention elsewhere on this page. */
-.volume-total {
-  display: inline-flex; align-items: center; height: 22px; padding: 0 0.55rem; border-radius: var(--radius-pill);
-  background: var(--color-surface); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-/* Rotates 180deg when expanded (the default state) - same rotate-on-open
-   idiom .volume-more-btn's own chevron and the profile menu's dropdown
-   arrow already use, reused here for a card-level minimize instead of a
-   bar-level reveal, not a third new convention. */
-.volume-head-chevron { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease, color 0.15s ease; }
-.volume-head[aria-expanded="true"] .volume-head-chevron { transform: rotate(180deg); }
-/* Collapsed to just the header row - padding shrinks to match (no empty
-   space left below a header with nothing under it), same idea as
-   .ai-panel--minimized. */
-.volume--minimized { padding: 14px 20px; }
-.volume--minimized .volume-head { margin-bottom: 0; }
-/* The period switch reuses .order-filter-tabs/.order-filter-tab/
-   .order-filter-indicator directly (see below) - same segmented-control
-   look, same glide, same hover/press/focus states, just a second
-   independent instance with a tighter bottom margin than the page-level
-   filter tabs need. */
-.volume-tabs { margin: 0 0 16px; }
-.volume-stat-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: 4px; }
-.volume-stat-main { display: flex; align-items: baseline; gap: 0.45rem; }
-.volume-stat-number { font-size: 1.85rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.volume-stat-unit { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500; }
-.volume-trend { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.15rem 0.5rem; border-radius: var(--radius-pill); font-size: 0.76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.volume-trend.is-up { background: var(--color-success-surface); color: var(--color-success-text); }
-.volume-trend.is-down { background: var(--color-error-surface); color: var(--color-error-text); }
-.volume-caption { margin: 0.35rem 0 16px; color: var(--color-text-muted); font-size: 0.8rem; }
-.volume-chart { display: flex; align-items: flex-end; gap: 5px; height: 78px; }
-.volume-bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 0.35rem; }
-.volume-bar-track { width: 100%; max-width: 24px; flex: 1; display: flex; align-items: flex-end; }
-.volume-bar {
-  display: block; width: 100%; border-radius: 3px 3px 1px 1px; background: var(--color-surface);
-  transform: scaleY(0); transform-origin: bottom; animation: volume-grow var(--duration-slow) var(--ease-out-bezier) both;
-}
-/* The one bar that gets the strong "active" fill - same convention
-   .order-filter-tab.active/the profile menu's active theme option already
-   use for "this is the one that's true right now," not a new accent
-   color. Only This Year's chart ever has one (the current, still-in-
-   progress month) - Last Month and Last Year are both fully in the past,
-   so nothing in either range is "now." */
-.volume-bar-col.is-current .volume-bar { background: var(--color-solid-bg); }
-.volume-bar-col.is-current .volume-bar-label { color: var(--color-text); font-weight: 700; }
-@keyframes volume-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-@media (prefers-reduced-motion: reduce) { .volume-bar { animation: none; transform: scaleY(1); } }
-.volume-bar-label { font-size: 0.62rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* Kept in the DOM (so every column's width stays equal) but visually
-   suppressed once there are too many bars for every label to fit - the
-   full per-bar figure is still available via each column's title
-   tooltip. */
-.volume-bar-label.is-hidden { visibility: hidden; }
-.volume-more-row { display: flex; justify-content: center; margin-top: 10px; }
-.volume-more-btn {
-  display: inline-flex; align-items: center; gap: 0.3rem; font: inherit; font-size: 0.78rem; font-weight: 600;
-  color: var(--color-text-muted); background: none; border: none; padding: 0.35rem 0.7rem; border-radius: var(--radius-sm);
-  cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
-}
-.volume-more-btn svg { transition: transform 0.2s ease; }
-.volume-more-btn:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text); }
-.volume-more-btn:active { background: var(--color-surface-hover); }
-.volume-more-btn.is-expanded svg { transform: rotate(180deg); }
-.volume-skeleton { display: block; width: 100%; height: 78px; border-radius: var(--radius-md); }
+.spotlight-btn.primary { background: var(--color-solid-bg); color: var(--color-primary-text); }
+.spotlight-btn.primary:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+.spotlight-btn.secondary { border: 1px solid var(--color-border); color: var(--color-text); }
+.spotlight-btn.secondary:hover:not(:disabled) { background: var(--color-surface); }
+.spotlight-btn:active { transform: scale(0.97); }
+.spotlight-skeleton { display: block; width: 100%; height: 56px; border-radius: var(--radius-md); }
 
 /* A single connected segmented-control track (inline-flex + one shared
    background/radius), not individually-bordered pill buttons - the active
    item gets its own elevated fill; inactive items are borderless text
    sitting directly on the shared track instead of each having its own
    outline. */
+/* Sticky wrapper around .order-filter-tabs (see OrdersPage.jsx) - lives
+   *inside* .order-cards-scroll, not above it, since sticky only ever
+   sticks relative to its nearest scrolling ancestor, and the order list
+   scrolls in its own bounded box (max-height, overflow-y: auto below),
+   never via outer page scroll the way the sidebar/AI panel columns do.
+   top: 0 (not those columns' own 8px) - this sticks to *this* box's own
+   top edge, not the viewport's. The gradient fade is what makes a card
+   scrolling up from underneath soften into view instead of stopping dead
+   at the tabs' own bottom edge; the tabs' own blurred, translucent fill
+   (below) does the same job for whatever's scrolling directly behind
+   *them*. */
+.order-filter-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: var(--space-3);
+  margin: 0 0 var(--space-4);
+  background: linear-gradient(var(--color-bg) 60%, transparent);
+}
+/* Translucent + blurred, not this app's usual flat --color-surface fill -
+   the one deliberate exception to "every surface here is solid," made
+   specifically because this is the one surface asked to float above
+   scrolling content rather than just sit on the page. */
 .order-filter-tabs {
   position: relative;
   display: inline-flex;
   flex-wrap: wrap;
   gap: 2px;
-  margin: var(--space-3) 0 var(--space-4);
   padding: 3px;
-  background: var(--color-surface);
+  background: var(--color-bg-translucent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
   border-radius: var(--radius-pill);
 }
 /* The one element that actually glides - sized/positioned in px by
@@ -2547,8 +2566,13 @@ h1:focus-visible {
    container). Same min(fixed px, vh%) idiom as .ai-panel-log/#chat, so all
    three of the sidebar/AI-panel/order-list columns read as fixed-height
    panels rather than this one alone growing the page taller. */
+/* 680px/64vh, not the 640px/60vh this used to be - the sticky filter tabs
+   moved inside this box (see .order-filter-sticky's own comment), so a
+   flat bump keeps roughly as much of the actual card list visible as
+   before instead of quietly losing ~50px of it to the tabs row now
+   sharing the space. */
 .order-cards-scroll {
-  max-height: min(640px, 60vh);
+  max-height: min(680px, 64vh);
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -3020,6 +3044,12 @@ h1:focus-visible {
 .product-image img { width: 100%; height: 100%; object-fit: cover; }
 .product-image-sm { width: 40px; height: 40px; }
 .product-image-sm svg { width: 20px; height: 20px; }
+/* Between sm and lg - the Active Order Spotlight's own icon tile is
+   bigger than an order card's thumbnail (this card is the one thing at
+   the top of the page, not one row among many) but smaller than the
+   order detail page's full hero image. */
+.product-image-md { width: 54px; height: 54px; border-radius: 12px; }
+.product-image-md svg { width: 26px; height: 26px; }
 .product-image-lg { width: 88px; height: 88px; border-radius: 16px; }
 .product-image-lg svg { width: 44px; height: 44px; }
 

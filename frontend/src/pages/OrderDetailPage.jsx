@@ -2,21 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { ProductImage } from '../components/ProductImage.jsx';
+import { computeOrderTotal, formatCents } from '../utils/pricing.js';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-const formatCents = (cents) => currencyFormatter.format(cents / 100);
 
-// unit_price_cents is the one field of the four that's never optional once
-// present at all (see migrations/1785095226496_add-order-pricing-and-
-// product-icon.sql) - treating it as "pricing data exists for this order"
-// and falling back to nothing rather than a summary with holes in it for
-// any order seeded before that migration.
+// computeOrderTotal itself already handles the "no pricing data at all"
+// case (see utils/pricing.js) - null here means skip the summary entirely
+// rather than rendering one with holes in it.
 function OrderSummary({ order }) {
-  if (order.unit_price_cents == null) return null;
-
-  const total =
-    order.unit_price_cents + (order.delivery_cost_cents || 0) + (order.vat_cents || 0) - (order.voucher_cents || 0);
+  const total = computeOrderTotal(order);
+  if (total === null) return null;
 
   return (
     <div className="order-summary">
