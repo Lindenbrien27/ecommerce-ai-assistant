@@ -132,27 +132,13 @@ export function PersonIcon(props) {
   );
 }
 
-// OrdersPage's Order Volume widget (three ascending bars) - not reused
-// anywhere else, so it doesn't need the shared PRODUCT_ICONS treatment
-// below.
-export function BarChartIcon(props) {
+// The Active Order Spotlight's "Download Invoice" action.
+export function DownloadIcon(props) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="12" y1="20" x2="12" y2="10" />
-      <line x1="18" y1="20" x2="18" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="16" />
-    </svg>
-  );
-}
-
-// Order Volume's trend badge - one shared glyph, mirrored via `up` rather
-// than two separate hand-drawn arrow icons, since "more orders" and
-// "fewer orders" are the exact same diagonal arrow reflected across the
-// horizontal axis, not two different shapes.
-export function TrendArrowIcon({ up, ...props }) {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      {up ? <path d="M7 17 17 7M17 7H9M17 7v8" /> : <path d="M7 7l10 10M17 17H9M17 17V9" />}
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   );
 }
@@ -218,6 +204,18 @@ export function ShopIcon(props) {
       <path d="M3 9l1.5-5h15L21 9" />
       <path d="M3 9a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0" />
       <path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9" />
+    </svg>
+  );
+}
+
+// The sidebar's own "Shop Now" button uses this instead of ShopIcon (still
+// used for the /shop page's own header) - matches the reference design's
+// plain "+" mark for that one button specifically.
+export function PlusIcon(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }

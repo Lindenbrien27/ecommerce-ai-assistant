@@ -5,7 +5,7 @@ import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
 import { ProfileMenu } from './ProfileMenu.jsx';
-import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PinIcon, SearchIcon, ShopIcon, TicketIcon } from './icons.jsx';
+import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PinIcon, PlusIcon, SearchIcon, ShopIcon, TicketIcon } from './icons.jsx';
 
 // The routed page's own title/icon, keyed by path - not each page rendering
 // its own <h1> anymore. The header row now needs the title on the same
@@ -136,7 +136,7 @@ function LayoutInner() {
           {/* A real route now (see App.jsx's /shop), not a decorative span -
               lands on the same honest ComingSoonPage as Coupons/Wishlist. */}
           <NavLink to="/shop" className="storefront-shop-now">
-            <ShopIcon /> <span>Shop Now</span>
+            <PlusIcon /> <span>Shop Now</span>
           </NavLink>
 
           <nav className="storefront-sidenav">
@@ -151,7 +151,19 @@ function LayoutInner() {
                 aria-hidden="true"
               />
               <NavLink to="/orders" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
-                <OrdersIcon /> <span>My Orders</span>
+                <span className="storefront-sidenav-icon-wrap">
+                  <OrdersIcon />
+                  {/* Collapsed-only stand-in for the count pill below, which
+                      the collapsed rail hides along with every other label -
+                      a small badge overlaid on the icon itself keeps the
+                      count visible even with no room for a full row. */}
+                  {orderCount === null ? (
+                    <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
+                  ) : (
+                    <span className="storefront-sidenav-badge" aria-hidden="true">{orderCount}</span>
+                  )}
+                </span>
+                <span>My Orders</span>
                 {orderCount === null ? (
                   <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
                 ) : (
@@ -159,7 +171,15 @@ function LayoutInner() {
                 )}
               </NavLink>
               <NavLink to="/coupons" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
-                <TicketIcon /> <span>Coupons</span>
+                <span className="storefront-sidenav-icon-wrap">
+                  <TicketIcon />
+                  {voucherCount === null ? (
+                    <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
+                  ) : (
+                    <span className="storefront-sidenav-badge" aria-hidden="true">{voucherCount}</span>
+                  )}
+                </span>
+                <span>Coupons</span>
                 {voucherCount === null ? (
                   <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
                 ) : (
