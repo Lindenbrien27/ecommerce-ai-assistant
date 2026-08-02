@@ -1320,10 +1320,18 @@ body:has(.storefront-shell) {
    height (see its own align-items comment), and .storefront-shell no
    longer allows outer page scroll at all, so there's nothing left for a
    sticky sidebar to stay stuck against; it just fills its share of the
-   already-fixed row. overflow-y: auto is a safety net, not the expected
-   case - a short viewport with a long Category list is the one way this
-   column's own content could still exceed the row's height now that nothing
-   scrolls around it. */
+   already-fixed row.
+   No overflow-y: auto here, tempting as a "safety net" for a short
+   viewport with a long Category list - CSS has no way to clip only the
+   vertical axis: setting overflow-y to anything but visible silently
+   forces overflow-x to auto too (a real, if obscure, spec rule), and this
+   column's two real popovers (ProfileMenu, CategoryBadgesEditor's own
+   edit-popover) both escape this box horizontally by design, positioned
+   to the right of it. overflow-y: auto clipped both to invisible -
+   confirmed live, one screenshot showed the profile popover sliced off
+   at the sidebar's own right edge, the other showed the category editor
+   not rendering at all. A rare short-viewport overflow is a far smaller
+   problem than two core interactions silently breaking for everyone. */
 .storefront-sidebar {
   flex-shrink: 0;
   width: 240px;
@@ -1331,7 +1339,6 @@ body:has(.storefront-shell) {
   display: flex;
   flex-direction: column;
   padding: 16px 12px 12px;
-  overflow-y: auto;
   /* background/border/border-radius come from the shared .surface-card
      rule near the top of this file (grouped with this exact selector). */
   /* position: relative + z-index: 2, not position: sticky's own implicit
