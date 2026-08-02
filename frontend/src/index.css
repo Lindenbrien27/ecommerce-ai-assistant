@@ -2176,6 +2176,16 @@ body:has(.storefront-shell) {
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
+/* flex-shrink: 0, not left to its own default of 1 - every other icon-in-
+   a-flex-button in this file needs this same override (.storefront-search
+   svg/.profile-menu-trigger svg/.storefront-sidenav-item svg all have their
+   own copy), and this one was missing it: with no CSS width of its own,
+   an SVG's computed flex-basis falls back through the same shrink-capable
+   sizing path the icon's own width="15" attribute should short-circuit,
+   and it was resolving to a genuine 0px rendered width - not a small icon,
+   an invisible one. Found live via getComputedStyle, not by eyeballing a
+   screenshot: width: 0px next to a perfectly correct fill color. */
+.ai-toggle svg { flex-shrink: 0; }
 .ai-toggle:hover:not(:disabled) { background: var(--color-surface-hover); }
 .ai-toggle:active { transform: scale(0.95); }
 .ai-toggle.on {
