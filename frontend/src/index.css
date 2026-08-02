@@ -1169,7 +1169,21 @@ body:has(.storefront-shell) {
   font-weight: 700;
 }
 .storefront-profile-text { flex: 1; min-width: 0; }
+/* display: block, not left as a plain <span>'s default inline - overflow/
+   text-overflow have no defined effect on a genuinely inline box (there's
+   no real "width" for it to overflow against, since inline non-replaced
+   elements just render at their content's natural width regardless of
+   the container). Without this, the email silently ignored its parent's
+   available width instead of ever actually truncating against it -
+   found live via getBoundingClientRect: this span was rendering ~35px
+   wider than .storefront-profile-text, its own direct parent, something
+   a block box could never do. The popover's own equivalent
+   (.profile-menu-email) got this incidentally for free by becoming a
+   flex item (flex items are always blockified) when it picked up its
+   own flex: 1 fix - this one needs it explicitly since it's a plain
+   child, not a flex item itself. */
 .storefront-profile-email {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1184,11 +1198,20 @@ body:has(.storefront-shell) {
    bottom of the sidebar, so a downward popover would run off the viewport.
    Same scale+fade-from-the-corner-it-meets-its-trigger motion as that other
    popover otherwise, including the same reduced-motion opt-out. */
+/* 288px, not the 260px this used to be - a real customer email
+   ("lindenbrien27@gmail.com", 24 characters) measured out to exactly
+   this row's available width with zero margin (scrollWidth ===
+   clientWidth, 171px both) in one check, meaning any small rendering
+   difference - a different font-weight-600 metric, a different browser,
+   a system font substitution - could push a perfectly ordinary email
+   into silent truncation. Found live on a real device, not caught by
+   headless Chromium's own font rendering. 288px gives this row real
+   margin instead of a knife's-edge fit. */
 .profile-menu-popover {
   position: absolute;
   left: 0;
   bottom: calc(100% + 8px);
-  width: min(260px, 88vw);
+  width: min(288px, 88vw);
   padding: 0.6rem;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -1210,7 +1233,17 @@ body:has(.storefront-shell) {
   gap: 0.6rem;
   padding: 0.3rem 0.3rem 0.7rem;
 }
+/* flex: 1, not left at the default flex-grow: 0 - without it this span
+   just shrink-to-fits its own text (only ever as wide as the string
+   itself needs), so it never actually claims the row's real leftover
+   space at all - widening .profile-menu-popover alone (see that rule's
+   own comment) did nothing on its own, because this element was never
+   using the extra room in the first place. Combined with min-width: 0
+   (letting it shrink back down when the row *does* run out of space),
+   this is what makes the popover's wider box actually translate into a
+   bigger safety margin before ellipsis kicks in. */
 .profile-menu-email {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1312,9 +1345,11 @@ body:has(.storefront-shell) {
   overflow: hidden;
 }
 
-/* 240px/16px-top-12px-elsewhere/no shared gap - an exact spec (down to
+/* 16px-top-12px-elsewhere/no shared gap - an exact spec (down to
    each individual transition's own margin below) replacing what used to
-   be one uniform var(--space-3) gap between every child.
+   be one uniform var(--space-3) gap between every child. Width itself
+   was originally an equally exact 240px, since bumped to 280px - see
+   this rule's own width comment below for why.
    height: 100%, not the old min-height: calc(100vh - 16px) + position:
    sticky - .storefront-body now stretches every column to the row's full
    height (see its own align-items comment), and .storefront-shell no
@@ -1331,24 +1366,46 @@ body:has(.storefront-shell) {
    confirmed live, one screenshot showed the profile popover sliced off
    at the sidebar's own right edge, the other showed the category editor
    not rendering at all. A rare short-viewport overflow is a far smaller
-   problem than two core interactions silently breaking for everyone. */
+   problem than two core interactions silently breaking for everyone.
+   300px, not the 240px this used to be - once .storefront-profile-email
+   actually got a real width to overflow against (see its own comment,
+   right above where this used to just silently render past its
+   container instead of ever truncating), a genuinely ordinary email
+   ("lindenbrien27@gmail.com") was ~35-50px short of fitting next to the
+   avatar/chevron in this row, not a hairline-close fit like the
+   popover's own version of the same bug - reclaiming padding/gaps alone
+   inside that one row couldn't realistically close a gap that size, so
+   the column itself needed the room instead. 280px (the first value
+   tried here) closed the gap but only to ~5px of margin - still close
+   enough to the edge that a slightly longer real email or a different
+   browser's font metrics could tip it back into truncating; 300px
+   leaves a real double-digit margin instead. */
 .storefront-sidebar {
   flex-shrink: 0;
-  width: 240px;
+  width: 300px;
   height: 100%;
   display: flex;
   flex-direction: column;
   padding: 16px 12px 12px;
   /* background/border/border-radius come from the shared .surface-card
      rule near the top of this file (grouped with this exact selector). */
-  /* position: relative + z-index: 2, not position: sticky's own implicit
-     stacking context - CategoryBadgesEditor's own popover still needs to
-     paint above .storefront-content (later in the DOM, its own z-index:
-     auto) to visually escape this column's box to the right, the same
-     reasoning as before, just without the sticky positioning that used to
-     supply the stacking context for free. */
+  /* position: relative + z-index: 3 (not 2) - CategoryBadgesEditor's own
+     popover still needs to paint above .storefront-content to visually
+     escape this column's box to the right, the same reasoning as before,
+     just without the sticky positioning that used to supply the stacking
+     context for free. Plain z-index: 2 wasn't actually enough once the
+     sidebar grew to 300px (see this rule's own width comment): the wider
+     sidebar shifts the popover's own right edge further right too, far
+     enough to genuinely overlap .orders-header - a *different* element
+     inside .storefront-content that also needs to sit above its own
+     scrolled cards and also uses z-index: 2. Tied z-index falls back to
+     DOM order, and .orders-header (later in the DOM) was winning that
+     tie in the overlapping region, silently eating clicks meant for the
+     popover underneath it - found live via a real e2e test failure
+     (closing the Category editor stopped working), not by inspecting
+     the stacking math in the abstract. */
   position: relative;
-  z-index: 2;
+  z-index: 3;
   /* The one property that actually changes between expanded/collapsed
      (see .storefront-sidebar--collapsed below) - everything inside just
      appears/disappears at its own width, so a single width transition on
