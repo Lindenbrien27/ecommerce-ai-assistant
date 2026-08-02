@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { CheckIcon, ChevronDownIcon, DownloadIcon, EmptyOrdersIcon, SearchIcon } from '../components/icons.jsx';
+import { CheckIcon, ChevronDownIcon, DownloadIcon, EmptyOrdersIcon, SearchIcon, UndoIcon, XIcon } from '../components/icons.jsx';
 import { computeOrderTotal, formatCents } from '../utils/pricing.js';
 
 // "Returned" has no matching value in this app's real `status` enum (see
@@ -20,6 +20,11 @@ const STATUS_FILTERS = [
   { key: 'returned', label: 'Returned', statuses: [] },
 ];
 
+// The statuses Needs Attention features - anything still "in motion".
+// Everything else (Delivered/Cancelled/Returned) is done moving and lives
+// in the order history list below instead.
+const IN_MOTION_STATUSES = ['processing', 'shipped', 'out_for_delivery'];
+
 // The four forward-progression statuses this app actually has, each with
 // the headline/subtext an order card shows for it - cancelled is handled
 // separately in OrderProgress below since it's a branch-off, not a further
@@ -30,25 +35,16 @@ const STATUS_STEPS = [
   { key: 'out_for_delivery', label: 'Out for delivery' },
   { key: 'delivered', label: 'Delivered' },
 ];
-const STATUS_MESSAGES = {
-  processing: { headline: 'Your order is being processed', text: 'We are preparing your order for shipment.' },
-  shipped: { headline: 'Your order has shipped', text: 'Your package is on its way to the carrier facility.' },
-  out_for_delivery: { headline: 'Out for delivery', text: 'Your order is on the way to you.' },
-  delivered: { headline: 'Delivered', text: 'Your order has been delivered.' },
-};
 
-// The Active Order Spotlight needs the customer's *entire* order history
-// (to reliably find "the most recent active order" and "the most recent
-// delivered order" even if either happens to sit past the first
-// paginated page) - the shared OrdersContext used by the visible card
-// list deliberately only holds one manually-paginated page at a time (see
-// its own comment), which is the right call for a list a person scrolls/
-// loads more of, but would silently miss this widget's own answer once
-// someone has more than one page of history. MAX_PAGE_SIZE server-side is
-// 100 (see src/services/orderService.js) - comfortably above what any
-// real customer of this app has - so this almost always resolves in a
-// single request; the cursor loop only matters at all for the rare
-// account that somehow exceeds that.
+// The Needs Attention section (and the order history list, for the same
+// reason) needs the customer's *entire* order history, not just the
+// shared OrdersContext's one manually-paginated page at a time (see that
+// context's own comment) - both would silently miss orders past the first
+// page otherwise. MAX_PAGE_SIZE server-side is 100 (see
+// src/services/orderService.js) - comfortably above what any real
+// customer of this app has - so this almost always resolves in a single
+// request; the cursor loop only matters for the rare account that somehow
+// exceeds that.
 function useOrderHistory() {
   const authorizedFetch = useAuthorizedFetch();
   const [history, setHistory] = useState(null);
@@ -72,11 +68,10 @@ function useOrderHistory() {
         } while (cursor);
         if (!cancelled) setHistory(all);
       } catch {
-        // The Active Order Spotlight is a supplementary widget, not
-        // critical path - if its own fetch fails, it just doesn't render
-        // (see the null check in ActiveOrderSpotlight below) rather than
-        // surfacing a second error banner next to the real one
-        // OrdersContext already owns.
+        // Needs Attention/order history are supplementary widgets, not
+        // critical path - if this fetch fails, they just don't render
+        // rather than surfacing a second error banner next to the real
+        // one OrdersContext already owns.
       }
     }
 
@@ -89,23 +84,20 @@ function useOrderHistory() {
   return history;
 }
 
-const spotlightDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
-// The one thing this widget can't honestly claim: no delivered_at
-// timestamp exists anywhere in this app's data (only created_at, the
-// order-*placement* time - see migrations/1784973065584_initial-schema.sql
-// and .../1785095226496_add-order-pricing-and-product-icon.sql), so
-// "recently delivered" is approximated as "created within the last two
-// weeks" rather than a real delivery-time window. Good enough to decide
-// whether to feature a delivered order here at all; not precise enough to
-// ever print an exact delivered-at time (see the Delivered state below,
-// which shows a date only).
-const RECENT_DELIVERY_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
 
 // A real, working download built entirely from data this app already has
 // (unit_price_cents/delivery_cost_cents/vat_cents/voucher_cents all exist
-// per order - see the same migration referenced above) - a plain text
-// receipt via a client-side Blob, not a PDF service or a second backend
-// endpoint, since nothing here needs one.
+// per order - see migrations/1785095226496_add-order-pricing-and-product-
+// icon.sql) - a plain text receipt via a client-side Blob, not a PDF
+// service or a second backend endpoint, since nothing here needs one.
 function downloadInvoice(order) {
   const total = computeOrderTotal(order);
   if (total === null) return;
@@ -115,7 +107,7 @@ function downloadInvoice(order) {
     '',
     `Order: ${order.order_number}`,
     `Product: ${order.product_name}`,
-    `Date: ${spotlightDateFormatter.format(new Date(order.created_at))}`,
+    `Date: ${dateFormatter.format(new Date(order.created_at))}`,
     '',
     `Original price: ${formatCents(order.unit_price_cents)}`,
     `Delivery: ${order.delivery_cost_cents ? formatCents(order.delivery_cost_cents) : 'Free'}`,
@@ -137,148 +129,11 @@ function downloadInvoice(order) {
   URL.revokeObjectURL(url);
 }
 
-// The signature element above the filter tabs - not a decorative chart,
-// the one order that's actually relevant right now. Three honest states,
-// checked in priority order against the customer's real order history:
-// something's in progress (show it, with real tracking progress) > the
-// most recent delivery was recent enough to still be worth surfacing
-// (show it, with the two actions this app can genuinely back - View
-// Details and a real invoice download) > neither (a quiet confirmation,
-// not a fabricated "nothing to see" when there might be an old delivery
-// that just isn't recent anymore).
-function ActiveOrderSpotlight() {
-  const orders = useOrderHistory();
-
-  if (orders === null) {
-    return (
-      <section className="spotlight" aria-hidden="true">
-        <span className="skeleton spotlight-skeleton" />
-      </section>
-    );
-  }
-  if (orders.length === 0) return null;
-
-  // Sorted created_at DESC by the API itself (see useOrderHistory's own
-  // comment) - .find() below always returns the *most recent* order
-  // matching each condition, not just any matching one.
-  const activeOrder = orders.find((o) => ['processing', 'shipped', 'out_for_delivery'].includes(o.status));
-
-  if (activeOrder) {
-    const currentIndex = STATUS_STEPS.findIndex((step) => step.key === activeOrder.status);
-    const label = STATUS_STEPS[currentIndex]?.label ?? activeOrder.status;
-    return (
-      <section className="spotlight is-linked fade-in">
-        <ProductImage icon={activeOrder.product_icon} size="md" />
-        <div className="spotlight-body">
-          <span className={`spotlight-eyebrow status-${activeOrder.status}`}>{label}</span>
-          <p className="spotlight-title">{activeOrder.product_name}</p>
-          <p className="spotlight-meta">
-            {activeOrder.order_number}
-            {activeOrder.estimated_delivery &&
-              ` · Arriving ${spotlightDateFormatter.format(new Date(activeOrder.estimated_delivery))}`}
-          </p>
-          <div className="spotlight-progress" aria-hidden="true">
-            {STATUS_STEPS.map((step, i) => (
-              <div key={step.key} className={`seg${i <= currentIndex ? ' done' : ''}`} />
-            ))}
-          </div>
-        </div>
-        <Link to={`/orders/${activeOrder.order_number}`} className="order-card-details-link">
-          View Details
-        </Link>
-      </section>
-    );
-  }
-
-  const lastDelivered = orders.find((o) => o.status === 'delivered');
-  const isRecent =
-    lastDelivered && Date.now() - new Date(lastDelivered.created_at).getTime() <= RECENT_DELIVERY_WINDOW_MS;
-
-  if (lastDelivered && isRecent) {
-    // How many deliveries actually qualify as "recent" (not just which one
-    // is most recent) - only known past this point, since it's the same
-    // RECENT_DELIVERY_WINDOW_MS proxy the single-delivery check above
-    // already uses. Needed to decide whether the stacked-deck look below
-    // is honest here at all: a single recent delivery must never render as
-    // a stack of one.
-    const recentDeliveryCount = orders.filter(
-      (o) => o.status === 'delivered' && Date.now() - new Date(o.created_at).getTime() <= RECENT_DELIVERY_WINDOW_MS
-    ).length;
-    const moreCount = recentDeliveryCount - 1;
-
-    const card = (
-      <section className="spotlight fade-in">
-        <ProductImage icon={lastDelivered.product_icon} size="md" />
-        <div className="spotlight-body">
-          <span className="spotlight-eyebrow status-delivered">Delivered</span>
-          <p className="spotlight-title">{lastDelivered.product_name}</p>
-          <p className="spotlight-meta">
-            {lastDelivered.order_number} · Delivered {spotlightDateFormatter.format(new Date(lastDelivered.created_at))}
-            {moreCount > 0 && ` · ${moreCount} more recently delivered`}
-          </p>
-        </div>
-        <div className="spotlight-actions">
-          <Link to={`/orders/${lastDelivered.order_number}`} className="spotlight-btn secondary">
-            View Details
-          </Link>
-          {computeOrderTotal(lastDelivered) !== null && (
-            <button type="button" className="spotlight-btn primary" onClick={() => downloadInvoice(lastDelivered)}>
-              <DownloadIcon /> Download Invoice
-            </button>
-          )}
-        </div>
-      </section>
-    );
-
-    // The stacked-deck look folded in from the earlier Recent Deliveries
-    // concept (rather than that living as its own separate widget) - only
-    // when there's genuinely a second (or more) recent delivery behind
-    // this one. Ghosts are purely decorative (aria-hidden, no content of
-    // their own); the real card in front is still the one thing a screen
-    // reader or a click lands on.
-    if (moreCount === 0) return card;
-    return (
-      <div className="spotlight-slot has-stack">
-        <div className="spotlight-ghost g2" aria-hidden="true" />
-        <div className="spotlight-ghost g1" aria-hidden="true" />
-        {card}
-      </div>
-    );
-  }
-
-  return (
-    <section className="spotlight fade-in">
-      <span className="product-image product-image-md" aria-hidden="true">
-        <CheckIcon />
-      </span>
-      <div className="spotlight-body">
-        <span className="spotlight-eyebrow quiet">All caught up</span>
-        <p className="spotlight-title">No active shipments right now</p>
-        <p className="spotlight-meta">
-          {lastDelivered
-            ? `Your last delivery arrived ${spotlightDateFormatter.format(new Date(lastDelivered.created_at))}.`
-            : "You don't have any active shipments right now."}
-        </p>
-      </div>
-    </section>
-  );
-}
-
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-});
-
 // Content-shaped placeholder (image tile/title/meta/status pill/progress
 // bar, matching .order-card's own layout) instead of a plain "Loading..."
 // line - previews the real layout so the page doesn't visually jump once
 // data arrives, and reads as "orders are coming" rather than just "wait".
-// aria-hidden since the loading announcement itself lives once in the
-// sr-only text next to this, not repeated per skeleton row.
-function OrderCardSkeleton() {
+function NeedsAttentionSkeleton() {
   return (
     <li className="order-card order-card-skeleton" aria-hidden="true">
       <div className="order-card-top">
@@ -289,8 +144,6 @@ function OrderCardSkeleton() {
           <span className="skeleton order-card-skeleton-pill" />
         </div>
       </div>
-      <span className="skeleton order-card-skeleton-line order-card-skeleton-line--headline" />
-      <span className="skeleton order-card-skeleton-line order-card-skeleton-line--subtext" />
       <span className="skeleton order-card-skeleton-progress" />
     </li>
   );
@@ -335,10 +188,162 @@ function OrderProgress({ status }) {
   );
 }
 
+// The page's own hero section - every order still in motion, each with its
+// real tracking progress, not just the single most-recent one the old
+// Active Order Spotlight featured. Delivered/Cancelled/Returned orders
+// never appear here regardless of how recent they are - "needs attention"
+// means something is still happening, not that something happened lately
+// (see the order history list below for those). Renders nothing at all
+// when there's nothing in motion, rather than a fabricated "all caught up"
+// placeholder the brief didn't ask for.
+// selectedCategories (the sidebar's own chips) still narrows this section -
+// "only show me these kinds of products" is a standing preference for the
+// whole page, not a way to browse a specific slice of history, unlike the
+// status tabs/search bar just below (which the brief explicitly scoped to
+// the order history list only, see OrdersPage's own historyOrders filter).
+function NeedsAttentionSection({ selectedCategories }) {
+  const history = useOrderHistory();
+
+  if (history === null) {
+    return (
+      <section aria-hidden="true">
+        <h2 className="section-heading">Needs attention</h2>
+        <ul className="order-cards needs-attention-cards">
+          <NeedsAttentionSkeleton />
+        </ul>
+      </section>
+    );
+  }
+
+  // Sorted created_at DESC by the API itself (see useOrderHistory's own
+  // comment), so this reads newest-in-motion-order first.
+  const activeOrders = history
+    .filter((o) => IN_MOTION_STATUSES.includes(o.status))
+    .filter((o) => selectedCategories.size === 0 || selectedCategories.has(o.product_icon));
+  if (activeOrders.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="section-heading">Needs attention</h2>
+      <ul className="order-cards needs-attention-cards fade-in">
+        {activeOrders.map((order) => {
+          const currentIndex = STATUS_STEPS.findIndex((step) => step.key === order.status);
+          return (
+            <li key={order.order_number} className="order-card">
+              <Link to={`/orders/${order.order_number}`} className="order-card-details-link">
+                Track package
+              </Link>
+              <div className="order-card-top">
+                <ProductImage icon={order.product_icon} size="lg" />
+                <div className="order-card-info">
+                  <p className="order-card-product">{order.product_name}</p>
+                  <p className="order-card-meta">
+                    <span className="order-card-id">{order.order_number}</span>
+                    <span aria-hidden="true">&bull;</span>
+                    <span>Qty: 1</span>
+                  </p>
+                  <span className={`order-status status-${order.status}`}>
+                    {STATUS_STEPS[currentIndex]?.label ?? order.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+              <OrderProgress status={order.status} />
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+const HISTORY_BADGE = {
+  delivered: { label: 'Delivered', icon: CheckIcon, className: 'status-delivered' },
+  returned: { label: 'Returned', icon: UndoIcon, className: 'status-returned' },
+  cancelled: { label: 'Cancelled', icon: XIcon, className: 'status-cancelled' },
+};
+
+// What each row's own subtitle date means per status - created_at is the
+// only real timestamp this app has (no delivered_at/cancelled_at/
+// returned_at column exists, see migrations/1784973065584_initial-
+// schema.sql), so it doubles as an honest stand-in for "when this
+// status happened" the same way the old Active Order Spotlight's own
+// "Delivered" state already did, not a fabricated precise event time.
+function historySubtitle(order) {
+  const when = dateFormatter.format(new Date(order.created_at));
+  if (order.status === 'delivered') return `Delivered ${when}`;
+  if (order.status === 'cancelled') return `Cancelled ${when}`;
+  return `Returned ${when}`;
+}
+
+// One collapsible row - expand state is owned locally, not lifted to a
+// shared Set in OrdersPage, since "rows expand independently" is exactly
+// what a plain per-row useState already gives for free; a shared
+// Set(expandedOrderNumbers) would do the identical job with more code.
+function OrderHistoryRow({ order }) {
+  const [expanded, setExpanded] = useState(false);
+  const badge = HISTORY_BADGE[order.status] ?? HISTORY_BADGE.delivered;
+  const BadgeIcon = badge.icon;
+  const total = computeOrderTotal(order);
+  const detailId = `order-history-detail-${order.order_number}`;
+
+  return (
+    <li className={`order-history-row${order.status === 'cancelled' ? ' cancelled' : ''}`}>
+      <button
+        type="button"
+        className="order-history-summary"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-controls={detailId}
+      >
+        <ProductImage icon={order.product_icon} size="xs" />
+        <span className="order-history-info">
+          <span className="order-history-title">{order.product_name}</span>
+          <span className="order-history-meta">{historySubtitle(order)}</span>
+        </span>
+        <span className={`order-history-badge ${badge.className}`}>
+          <BadgeIcon /> {badge.label}
+        </span>
+        <ChevronDownIcon className="order-history-chevron" aria-hidden="true" />
+      </button>
+
+      {expanded && (
+        <div className="order-history-detail" id={detailId}>
+          <div className="order-history-detail-field">
+            <span>Order</span>
+            <span>
+              {order.order_number} · Qty: 1
+            </span>
+          </div>
+          {order.status === 'delivered' && order.estimated_delivery && (
+            <div className="order-history-detail-field">
+              <span>Estimated arrival</span>
+              <span>{dateFormatter.format(new Date(order.estimated_delivery))}</span>
+            </div>
+          )}
+          <div className="order-history-detail-actions">
+            <Link to={`/orders/${order.order_number}`} className="order-history-detail-btn">
+              View Details
+            </Link>
+            {total !== null && (
+              <button type="button" className="order-history-detail-btn" onClick={() => downloadInvoice(order)}>
+                <DownloadIcon /> Download Invoice
+              </button>
+            )}
+            <Link to="/shop" className="order-history-detail-btn">
+              Buy again
+            </Link>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function OrdersPage() {
   const { email, logout } = useAuth();
   const { orders, nextCursor, loadingMore, error, loadMore, selectedCategories } = useOrders();
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // The glide indicator behind the active filter tab - measured, not
   // hardcoded, since each tab's width varies with its own label length and
@@ -365,16 +370,19 @@ export function OrdersPage() {
   }
 
   const activeStatuses = STATUS_FILTERS.find((f) => f.key === activeFilter).statuses;
-  // Status (filter tabs) and category (sidebar chips) narrow the same list
-  // together, not separately - an order has to match the active status
-  // tab AND (if any categories are selected) be one of them. No categories
-  // selected means no category narrowing at all, not "show nothing" - an
-  // empty multi-select reads as "no filter applied", the same convention
-  // "All Orders" already uses for the status tabs.
-  const visibleOrders = orders
+  // Order history only ever holds orders that are done moving - the status
+  // tabs/category chips/search all narrow *within* that fixed scope, they
+  // don't widen it back out. Selecting "On Shipping" here correctly shows
+  // an empty history list (those orders live in Needs Attention instead,
+  // always shown regardless of this filter) rather than duplicating them
+  // into both places at once.
+  const query = searchQuery.trim().toLowerCase();
+  const historyOrders = orders
     ? orders
+        .filter((o) => !IN_MOTION_STATUSES.includes(o.status))
         .filter((o) => !activeStatuses || activeStatuses.includes(o.status))
         .filter((o) => selectedCategories.size === 0 || selectedCategories.has(o.product_icon))
+        .filter((o) => !query || o.product_name.toLowerCase().includes(query) || o.order_number.toLowerCase().includes(query))
     : orders;
 
   useLayoutEffect(() => {
@@ -407,19 +415,13 @@ export function OrdersPage() {
       {/* The heading itself (and the decorative header-art flourish that
           used to sit next to it) is gone from here - Layout.jsx now owns
           "Your Orders" as part of the shared page-header row alongside the
-          AI Assistant toggle (see Layout.jsx's PAGE_HEADERS). The subtitle
-          that used to sit here is gone too, not just relocated - a
-          high-density SaaS header goes straight from the header's own
-          divider line to the Spotlight/filter tabs, no explanatory line
-          between them.
+          AI Assistant toggle (see Layout.jsx's PAGE_HEADERS).
           A real, static header now, not part of the scrollable content at
           all - .order-cards-scroll below only ever holds the cards
           themselves. See .orders-header's own comment in index.css for
           why (a plain border + shadow now, not the sticky/blurred
           treatment tried here first). */}
       <div className="orders-header">
-        <ActiveOrderSpotlight />
-
         <div className="orders-filter-row">
           <nav className="order-filter-tabs" aria-label="Filter orders by status">
             <span
@@ -450,19 +452,31 @@ export function OrdersPage() {
             ))}
           </nav>
 
-          {/* Moved here from the shared page header (see Layout.jsx) - still
-              the one intentionally inert piece of this page, a plain <span>
-              copying a reference design's structure, since this app has no
-              global-search backend for it to actually do something. */}
-          <div className="storefront-search" aria-hidden="true">
-            <SearchIcon />
-            <span>Search for products, orders...</span>
-            <span className="storefront-search-kbd">⌘K</span>
+          {/* A real, working filter now (not the decorative placeholder
+              this page's own header used to carry) - narrows the order
+              history list below by product name or order number, entirely
+              client-side against data this page already has in memory. */}
+          <div className="storefront-search">
+            <SearchIcon aria-hidden="true" />
+            <label htmlFor="orders-search-input" className="sr-only">
+              Search order history by product name or order number
+            </label>
+            <input
+              id="orders-search-input"
+              type="text"
+              placeholder="Search for products, orders..."
+              autoComplete="off"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <span className="storefront-search-kbd" aria-hidden="true">⌘K</span>
           </div>
         </div>
       </div>
 
       <div className="order-cards-scroll slim-scroll" aria-live="polite">
+        <NeedsAttentionSection selectedCategories={selectedCategories} />
+
         {error && (
           <p className="verify-error" role="alert">
             {error}
@@ -471,9 +485,13 @@ export function OrdersPage() {
         {!error && orders === null && (
           <>
             <p className="sr-only">Loading your orders…</p>
-            <ul className="order-cards" aria-hidden="true">
-              <OrderCardSkeleton />
-              <OrderCardSkeleton />
+            <h2 className="section-heading">Updated order history</h2>
+            <ul className="order-history-list" aria-hidden="true">
+              <li className="order-history-row order-history-row-skeleton">
+                <span className="skeleton order-history-skeleton-thumb" />
+                <span className="skeleton order-history-skeleton-line" />
+                <span className="skeleton order-history-skeleton-pill" />
+              </li>
             </ul>
           </>
         )}
@@ -501,47 +519,19 @@ export function OrdersPage() {
             </div>
           </div>
         )}
-        {orders && orders.length > 0 && visibleOrders.length === 0 && (
-          <p className="subtitle fade-in">No orders in this category.</p>
-        )}
 
-        {visibleOrders && visibleOrders.length > 0 && (
+        {orders && orders.length > 0 && (
           <>
-            <ul className="order-cards fade-in">
-              {visibleOrders.map((order) => (
-                <li key={order.order_number} className="order-card">
-                  <Link to={`/orders/${order.order_number}`} className="order-card-details-link">
-                    View Details
-                  </Link>
-                  <div className="order-card-top">
-                    <ProductImage icon={order.product_icon} size="lg" />
-                    <div className="order-card-info">
-                      <p className="order-card-product">{order.product_name}</p>
-                      <p className="order-card-meta">
-                        <span className="order-card-id">{order.order_number}</span>
-                        <span aria-hidden="true">&bull;</span>
-                        <span>{dateTimeFormatter.format(new Date(order.created_at))}</span>
-                        <span aria-hidden="true">&bull;</span>
-                        <span>Qty: 1</span>
-                      </p>
-                      <span className={`order-status status-${order.status}`}>
-                        {order.status.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {order.status === 'cancelled' ? (
-                    <OrderProgress status={order.status} />
-                  ) : (
-                    <>
-                      <p className="order-card-headline">{STATUS_MESSAGES[order.status].headline}</p>
-                      <p className="order-card-subtext">{STATUS_MESSAGES[order.status].text}</p>
-                      <OrderProgress status={order.status} />
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <h2 className="section-heading">Updated order history</h2>
+            {historyOrders.length === 0 ? (
+              <p className="subtitle fade-in">No orders in this category.</p>
+            ) : (
+              <ul className="order-history-list fade-in">
+                {historyOrders.map((order) => (
+                  <OrderHistoryRow key={order.order_number} order={order} />
+                ))}
+              </ul>
+            )}
 
             {nextCursor && (
               <button type="button" className="order-cards-load-more" onClick={loadMore} disabled={loadingMore}>

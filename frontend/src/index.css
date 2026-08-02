@@ -421,7 +421,6 @@
 .storefront-sidebar,
 .ai-panel,
 .badges-card,
-.spotlight,
 .order-card {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -1068,12 +1067,14 @@ body:has(.storefront-shell) {
   overflow: hidden;
 }
 
-/* .page-header-actions holds just the search bar now (the theme toggle
-   moved into ProfileMenu's theme trio) - a styled span, not a real
-   <input>, since a text field that visibly invites typing but silently
-   does nothing on keystroke is a worse trap than a button that does
-   nothing on click; this can't be mistaken for something that accepts
-   input. */
+/* Orders page's own filter row (see .orders-filter-row/OrdersPage.jsx) -
+   a real <input> now, not the styled, do-nothing span this used to be.
+   That original choice was deliberate (a text field that visibly invites
+   typing but silently does nothing on keystroke is a worse trap than a
+   button that does nothing on click), but this one is real: it narrows
+   the order history list client-side by product name or order number,
+   so the same reasoning no longer applies once there's something behind
+   it to find. */
 .storefront-search {
   display: flex;
   align-items: center;
@@ -1085,21 +1086,23 @@ body:has(.storefront-shell) {
   border-radius: var(--radius-pill);
   color: var(--color-text-muted);
   font-size: 0.85rem;
-  cursor: pointer;
 }
+.storefront-search:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-focus-ring); }
 .storefront-search svg { flex-shrink: 0; }
-/* min-width: 0 + truncation, not just flex: 1 - at this row's narrower
-   260px max-width (down from 320px, to fit next to the page title now),
-   the placeholder text no longer reliably fits on one line, and a wrapped
-   second line was quietly making this whole row - and the border-bottom
-   alignment that depends on its height - taller than intended. */
-.storefront-search span:first-of-type {
+/* min-width: 0, not just flex: 1 - at this row's 260px max-width, a long
+   typed query needs to be free to sit in a field narrower than its own
+   unconstrained text width without pushing the kbd hint out of the row. */
+.storefront-search input {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  padding: 0;
 }
+.storefront-search input::placeholder { color: var(--color-text-muted); }
+.storefront-search input:focus-visible { outline: none; }
 .storefront-search-kbd {
   flex-shrink: 0;
   padding: 0.1rem 0.4rem;
@@ -2506,111 +2509,136 @@ body:has(.storefront-shell) {
 .back-link:hover { color: var(--color-primary); }
 
 
-/* OrdersPage's own signature element (see ActiveOrderSpotlight) - replaces
-   Order Volume entirely. Order Volume answered "how many orders, over
-   time," a genuinely useful but secondary question that was taking ~38%
-   of a typical viewport's height to ask; this instead answers the one
-   question actually worth a hero spot: "is there anything about my orders
-   I need to know right now." background/border/border-radius come from
-   the shared .surface-card rule near the top of this file (grouped with
-   this exact selector). */
-.spotlight {
-  position: relative;
+/* Needs Attention reuses .order-card/.order-card-top/.order-card-info/
+   .order-card-details-link almost entirely as-is (see OrdersPage.jsx) -
+   it's the same card, just grouped under its own heading, restricted to
+   in-motion orders, and missing the two STATUS_MESSAGES lines (headline/
+   subtext) the full order list used to show - the reference design's own
+   Needs Attention card doesn't carry that extra prose, just the product
+   row, status pill, and the progress stepper. .needs-attention-cards
+   exists as its own selector (not just reusing .order-cards bare) only so
+   this section's own top spacing can be tuned independently of the order
+   history list's. */
+.needs-attention-cards { margin-bottom: var(--space-2); }
+.needs-attention-cards + .section-heading { margin-top: var(--space-3); }
+
+/* Order history's own compact row - a collapsed summary (thumbnail/title/
+   meta/status badge/chevron) that expands into a small detail panel in
+   place, not a second visit to OrderDetailPage for orders that are done
+   moving and don't need the full tracking-label treatment Needs Attention
+   above still gets. */
+.order-history-list { list-style: none; margin: 0; padding: 0; }
+.order-history-row { border-bottom: 1px solid var(--color-border); }
+.order-history-row:last-child { border-bottom: none; }
+/* A real <button>, not a styled <div> - the whole row is the click target
+   for expanding/collapsing, not just the chevron glyph at its end (a
+   larger, easier hit target, and free keyboard/screen-reader semantics
+   via aria-expanded instead of hand-rolling both). */
+.order-history-summary {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin: 0 0 var(--space-4);
-  padding: 20px 22px;
-  box-shadow: var(--shadow-card-resting);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  gap: var(--space-3);
+  padding: 0.85rem 0.25rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-/* :has(), not a whole-card hover - same reasoning as .order-card's own
-   identical rule just below in this file (only a real link inside should
-   make the card look clickable, not the card itself pretending to be one
-   everywhere a cursor lands). Only the Active state renders that link
-   (see .spotlight.is-linked in OrdersPage.jsx) - Delivered has its own
-   explicit buttons instead, and the quiet state has nothing to click at
-   all. */
-.spotlight:has(.order-card-details-link:hover) { box-shadow: var(--shadow-hover-lift); border-color: var(--color-text-muted); }
-.spotlight-body { flex: 1; min-width: 0; }
-/* Reserves the same 108px .order-card-top already reserves for its own
-   corner link (see below) - both are the identical control in the
-   identical corner, so they need the identical reserve or a long product
-   name would run underneath it. */
-.spotlight.is-linked .spotlight-body { padding-right: 108px; }
-.spotlight-eyebrow {
+.order-history-summary:hover:not(:disabled) { background: var(--color-surface-hover); }
+.order-history-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.order-history-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Cancelled specifically strikes the item name, not the whole row - the
+   order number/date/badge below still need to stay legible, this is
+   about marking the *item* as the thing that didn't happen. */
+.order-history-row.cancelled .order-history-title { text-decoration: line-through; color: var(--color-text-muted); }
+.order-history-meta { color: var(--color-text-muted); font-size: 0.8rem; }
+.order-history-badge {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 0.2rem 0.55rem;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
   border-radius: var(--radius-pill);
-  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
-/* Same three semantic surfaces .order-status already uses for these exact
-   statuses - a Spotlight badge and an order card's own status pill should
-   never disagree about what color "shipped" is. */
-.spotlight-eyebrow.status-processing,
-.spotlight-eyebrow.status-shipped,
-.spotlight-eyebrow.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
-.spotlight-eyebrow.status-delivered { background: var(--color-success-surface); color: var(--color-success-text); }
-.spotlight-eyebrow.quiet { background: var(--color-surface); color: var(--color-text-muted); }
-.spotlight-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 3px; }
-.spotlight-meta { font-size: 0.82rem; color: var(--color-text-muted); margin: 0; }
-/* One segment per real status step (see STATUS_STEPS in OrdersPage.jsx) -
-   not an arbitrary bar chart, the exact same four-stage sequence each
-   order card's own stepper already shows, just compressed to a glance. */
-.spotlight-progress { display: flex; align-items: center; gap: 5px; margin-top: 12px; max-width: 280px; }
-.spotlight-progress .seg { flex: 1; height: 5px; border-radius: var(--radius-pill); background: var(--color-surface); }
-.spotlight-progress .seg.done { background: var(--color-progress-accent); }
-.spotlight-actions { flex-shrink: 0; display: flex; gap: 8px; }
-.spotlight-btn {
+/* Same success/warning/error surfaces this file already uses everywhere
+   else a status needs one (.order-status, the old Spotlight eyebrow) -
+   Returned reuses the warning pair (an amber "needs a look" tone, the
+   same job it already does for in-motion statuses elsewhere on this
+   page), not a fourth semantic color invented just for this row. */
+.order-history-badge.status-delivered { background: var(--color-success-surface); color: var(--color-success-text); }
+.order-history-badge.status-returned { background: var(--color-warning-surface); color: var(--color-warning-text); }
+.order-history-badge.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
+/* flex-shrink: 0, not left at the default 1 - see .ai-toggle svg's own
+   comment elsewhere in this file for why an un-shrunk SVG in a flex row
+   can otherwise silently collapse to 0px. transform, not a second icon
+   swapped in on expand - one glyph that visibly points whichever way the
+   panel below it currently opens. */
+.order-history-chevron { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease; }
+.order-history-summary[aria-expanded="true"] .order-history-chevron { transform: rotate(180deg); }
+
+/* The expanded panel - real fields only (order number/qty, and an
+   estimated-arrival date when the order actually has one), never the
+   fabricated refund amount/reason or "delivered to" location a generic
+   reference design might show - this app's own orders table has no such
+   columns (see migrations/1784973065584_initial-schema.sql), and showing
+   invented specifics would fail the same honesty bar every other page
+   here holds to. "Buy again" is real too, just honest about where it
+   goes - the same ComingSoonPage route Shop Now already uses, not a
+   fabricated instant reorder this app has no real cart/checkout to back. */
+.order-history-detail {
+  padding: 0 0.25rem var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.order-history-detail-field {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 0.85rem;
+}
+.order-history-detail-field > span:first-child { color: var(--color-text-muted); }
+.order-history-detail-field > span:last-child { font-weight: 600; text-align: right; }
+.order-history-detail-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+/* background declared explicitly, not left unset - the generic button
+   reset (index.css's own shared button {} rule) sets background: var(
+   --color-solid-bg)/color: var(--color-primary-text) on every <button>,
+   and a class here that only contests color (not background) still loses
+   that property to the generic rule by default - the same class of bug
+   already caught and fixed for .chat-send-button/.storefront-sidenav-item
+   elsewhere in this file. Found live: this button rendered as a solid
+   black square with invisible text, because its own color: var(--color-
+   text) landed on top of the generic rule's still-uncontested near-
+   identical near-black background. */
+.order-history-detail-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.6rem 1.1rem;
-  border-radius: var(--radius-md);
-  border: none;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
   font: inherit;
   font-size: 0.82rem;
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
-.spotlight-btn.primary { background: var(--color-solid-bg); color: var(--color-primary-text); }
-.spotlight-btn.primary:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
-.spotlight-btn.secondary { border: 1px solid var(--color-border); color: var(--color-text); }
-.spotlight-btn.secondary:hover:not(:disabled) { background: var(--color-surface); }
-.spotlight-btn:active { transform: scale(0.97); }
-.spotlight-skeleton { display: block; width: 100%; height: 56px; border-radius: var(--radius-md); }
+.order-history-detail-btn:hover:not(:disabled) { background: var(--color-surface); border-color: var(--color-text-muted); }
+.order-history-detail-btn:active { transform: scale(0.97); }
 
-/* The Delivered state's own deck look, only rendered when there's
-   genuinely more than one recent delivery behind the front card (see
-   ActiveOrderSpotlight in OrdersPage.jsx) - a single recent delivery
-   still gets the plain .spotlight above, never a fabricated stack of one.
-   .spotlight itself keeps its own margin: 0 0 var(--space-4) when it's
-   not inside this wrapper; nested here, that would double up with the
-   wrapper's own margin, so it's zeroed only in that case. */
-.spotlight-slot { position: relative; margin: 0 0 calc(var(--space-4) + 10px); }
-.spotlight-slot.has-stack .spotlight { margin: 0; position: relative; z-index: 1; }
-.spotlight-ghost {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -8px;
-  height: 100%;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  z-index: 0;
-}
-.spotlight-ghost.g1 { transform: translateY(7px) scale(0.97); opacity: 0.75; }
-.spotlight-ghost.g2 { transform: translateY(14px) scale(0.94); opacity: 0.45; z-index: -1; }
+.order-history-row-skeleton { display: flex; align-items: center; gap: var(--space-3); padding: 0.85rem 0.25rem; }
+.order-history-skeleton-thumb { width: 36px; height: 36px; border-radius: var(--radius-sm); flex-shrink: 0; }
+.order-history-skeleton-line { flex: 1; height: 1em; border-radius: var(--radius-sm); }
+.order-history-skeleton-pill { width: 90px; height: 1.6rem; border-radius: var(--radius-pill); flex-shrink: 0; }
 
 /* A single connected segmented-control track (inline-flex + one shared
    background/radius), not individually-bordered pill buttons - the active
@@ -3267,6 +3295,11 @@ body:has(.storefront-shell) {
   box-shadow: var(--shadow-hover-lift);
 }
 .product-image img { width: 100%; height: 100%; object-fit: cover; }
+/* Order history's own compact row thumbnail - smaller than every other
+   size here since it sits in a dense list of many rows, not as the one
+   focal image a card or hero section builds around. */
+.product-image-xs { width: 36px; height: 36px; border-radius: var(--radius-sm); }
+.product-image-xs svg { width: 17px; height: 17px; }
 .product-image-sm { width: 40px; height: 40px; }
 .product-image-sm svg { width: 20px; height: 20px; }
 /* Between sm and lg - the Active Order Spotlight's own icon tile is

@@ -8,13 +8,14 @@ test.describe('orders', () => {
   });
 
   test('lists only the logged-in customer\'s own orders', async ({ page }) => {
-    const items = page.locator('.order-card');
-    await expect(items).toHaveCount(2);
-    // Keyset order is created_at DESC - ORD-1001 (shipped, still in transit)
-    // has a later created_at than ORD-1002 (delivered, a completed order
-    // from further back) per the seed dates in
-    // migrations/1785068947495_fix-seed-order-dates.sql, so it sorts first.
-    await expect(page.locator('.order-card-id')).toContainText(['ORD-1001', 'ORD-1002']);
+    // ORD-1001 (shipped, still in transit) is still in motion, so it's a
+    // Needs Attention card; ORD-1002 (delivered, a completed order) is
+    // done moving, so it's a compact order history row instead - see
+    // OrdersPage.jsx's own split by status.
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-card-id')).toHaveText('ORD-1001');
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
+    await expect(page.locator('.order-history-title')).toHaveText('USB-C Charging Cable (3-pack)');
   });
 
   test('clicking an order opens its detail page with the right fields', async ({ page }) => {
@@ -34,7 +35,8 @@ test.describe('orders', () => {
 
     await page.goBack();
     await expect(page).toHaveURL(/\/orders$/);
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
   });
 
   test('a direct hard-load of an owned order URL works (SPA fallback + persisted session)', async ({
@@ -66,8 +68,15 @@ test.describe('orders', () => {
     // Edit button this test clicks doesn't exist there.
     test.skip(testInfo.project.name.startsWith('Mobile'), 'the Category badges card is hidden below 700px by design');
 
-    // ORD-1001 is headphones (Audio), ORD-1002 is a USB-C cable (Cables).
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    // ORD-1001 (shipped) is headphones (Audio) and still in motion, so
+    // it's a Needs Attention card (.order-card); ORD-1002 (delivered) is
+    // a USB-C cable (Cables) and done moving, so it's a compact order
+    // history row (.order-history-row) instead - the category chips
+    // still need to narrow *both* sections together (see NeedsAttention
+    // Section's own comment on why, unlike the status tabs/search bar
+    // just below it, which only ever touch the history list).
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
     await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(0);
 
     // Edits are staged in the popover and only take effect on Save - one
@@ -79,9 +88,12 @@ test.describe('orders', () => {
     await page.click('.popover-save');
 
     await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(2);
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
 
-    // Removing just Cables (in a fresh edit pass) narrows down to Audio only.
+    // Removing just Cables (in a fresh edit pass) narrows down to Audio
+    // only - ORD-1001 (Needs Attention) still matches, ORD-1002 (history)
+    // no longer does.
     await page.click('.badges-edit-btn');
     await page.click('.badge-row [aria-label="Remove Cables"]');
     await page.click('.popover-save');
@@ -89,6 +101,7 @@ test.describe('orders', () => {
     await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(1);
     await expect(page.locator('.order-card')).toHaveCount(1);
     await expect(page.locator('.order-card-product')).toHaveText('Wireless Noise-Cancelling Headphones');
+    await expect(page.locator('.order-history-row')).toHaveCount(0);
 
     // Removing every category goes back to "no filter", not "show nothing".
     await page.click('.badges-edit-btn');
@@ -96,7 +109,8 @@ test.describe('orders', () => {
     await page.click('.popover-save');
 
     await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(0);
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
   });
 
   test('closing the Category badges editor without saving discards the draft', async ({
@@ -112,7 +126,8 @@ test.describe('orders', () => {
     // untouched - reopening the editor should show a fresh draft too, not
     // the discarded one.
     await expect(page.locator('.badges-active-row .badge-pill')).toHaveCount(0);
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
 
     await page.click('.badges-edit-btn');
     await expect(page.locator('.popover-section-label').first()).toContainText('Active Badges (0)');

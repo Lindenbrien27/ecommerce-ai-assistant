@@ -12,7 +12,11 @@ test.describe('authentication', () => {
     await verifyAs(page, { email: 'jane.doe@example.com' });
 
     await expect(page).toHaveURL(/\/orders$/);
-    await expect(page.locator('.order-card')).toHaveCount(2);
+    // ORD-1001 (shipped) is still in motion, so it's a Needs Attention
+    // card; ORD-1002 (delivered) is done moving, so it's a compact order
+    // history row instead - see OrdersPage.jsx's own split.
+    await expect(page.locator('.order-card')).toHaveCount(1);
+    await expect(page.locator('.order-history-row')).toHaveCount(1);
   });
 
   // No such thing as a "wrong email" rejection anymore - POST /api/auth/otp
