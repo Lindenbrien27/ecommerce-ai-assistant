@@ -39,12 +39,12 @@ function getPageHeader(pathname, params) {
   return PAGE_HEADERS[pathname] || { icon: null, title: '', docTitle: '' };
 }
 
-// Row height (36px, see .storefront-sidenav-item in index.css) + the
-// section's own 4px row gap - kept as one JS constant instead of measuring
+// Row height (32px, see .storefront-sidenav-item in index.css) + the
+// section's own 3px row gap - kept as one JS constant instead of measuring
 // the DOM, since every Dashboard row shares the exact same fixed height and
 // this is the one number the sliding indicator (.storefront-sidenav-
 // indicator) needs to glide to the right row.
-const NAV_ROW_STEP = 40;
+const NAV_ROW_STEP = 35;
 // All three Dashboard rows are real routes now (My Orders/Coupons/Wishlist
 // - Coupons and Wishlist land on ComingSoonPage rather than a built-out
 // feature, but that's still a real page, not a fake local-only highlight).
@@ -162,18 +162,25 @@ function LayoutInner() {
                   {/* Collapsed-only stand-in for the count pill below, which
                       the collapsed rail hides along with every other label -
                       a small badge overlaid on the icon itself keeps the
-                      count visible even with no room for a full row. */}
+                      count visible even with no room for a full row. Hidden
+                      once loaded at 0, same as the full pill below - see
+                      that span's own comment for why. */}
                   {orderCount === null ? (
                     <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
                   ) : (
-                    <span className="storefront-sidenav-badge" aria-hidden="true">{orderCount}</span>
+                    orderCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{orderCount}</span>
                   )}
                 </span>
                 <span>My Orders</span>
+                {/* Hidden once loaded at 0, not just while loading - a real
+                    zero is still worth omitting here (there's nothing to
+                    draw the eye to), the same call this app already makes
+                    for e.g. the Category badges editor's own empty "Active
+                    Badges (0)" state not needing a pill of its own. */}
                 {orderCount === null ? (
                   <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
                 ) : (
-                  <span className="storefront-sidenav-count fade-in">{orderCount}</span>
+                  orderCount > 0 && <span className="storefront-sidenav-count fade-in">{orderCount}</span>
                 )}
               </NavLink>
               <NavLink to="/coupons" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
@@ -182,14 +189,14 @@ function LayoutInner() {
                   {voucherCount === null ? (
                     <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
                   ) : (
-                    <span className="storefront-sidenav-badge" aria-hidden="true">{voucherCount}</span>
+                    voucherCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{voucherCount}</span>
                   )}
                 </span>
                 <span>Coupons</span>
                 {voucherCount === null ? (
                   <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
                 ) : (
-                  <span className="storefront-sidenav-count fade-in">{voucherCount}</span>
+                  voucherCount > 0 && <span className="storefront-sidenav-count fade-in">{voucherCount}</span>
                 )}
               </NavLink>
               <NavLink to="/wishlist" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>

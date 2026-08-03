@@ -63,6 +63,14 @@
   --color-success-text: #166534;
   --color-warning-surface: #fffbeb;
   --color-warning-text: #92400e;
+  /* A fourth status pair, same pale-surface/dark-text shape as the three
+     above - for in-motion order history rows/chips (see OrdersPage.jsx's
+     status-active). Not a solid --color-progress-accent fill with white
+     text (the first thing tried) - white-on-#3b82f6 only clears 3.67:1,
+     short of the 4.5:1 AA minimum for this text's size, caught live by the
+     axe run against /orders. */
+  --color-active-surface: #eff6ff;
+  --color-active-text: #1d4ed8;
   /* Shared, theme-agnostic - a drop shadow reads as "darker than its
      surroundings" in both light and dark mode, unlike the old blue-tinted
      glow this replaces (see brand-mark/msg-avatar/product-image below), so
@@ -95,6 +103,20 @@
      --color-bg in both themes. */
   --color-progress-accent: #3b82f6;
   --color-progress-accent-glow: rgba(59, 130, 246, 0.35);
+  /* The third accent - one fixed orange for this app's two purchase-driving
+     CTAs (Shop Now, Buy again), same "single unmistakable landmark color,
+     not one that itself shifts with the theme" reasoning as the blue
+     progress accent above. Both buttons put solid white text on top of a
+     full fill, so (unlike the outlined progress accent) this pair is
+     checked against white directly - a brighter, more vivid orange
+     (#f97316) was tried first and only clears ~2.8:1, short of the 4.5:1
+     AA minimum this button text needs (0.85rem/600 weight doesn't reach
+     WCAG's own "large text" size threshold, so 3:1 isn't the applicable
+     bar here). This darker value passes at >5:1 while still reading as
+     unmistakably orange; the hover partner is darker still, for a visible
+     press state on top of already-passing contrast. */
+  --color-cta: #c2410c;
+  --color-cta-hover: #9a3412;
   /* Same "one fixed hex in both themes" reasoning as --color-progress-accent
      above - a notification badge needs to read as "attention" the same way
      regardless of theme, not shift with it. Not --color-error-text/-surface
@@ -238,7 +260,7 @@
        between the sidebar/content/AI columns need to read as a visible
        seam, not the barely-there sliver a near-black page bg leaves next
        to near-black panels. */
-    --color-page-bg: #262626;
+    --color-page-bg: #242424;
     --color-panel-bg: #0a0a0a;
     --color-text: #fbfbfb;
     --color-text-muted: #9a9a9a;
@@ -247,7 +269,7 @@
        bright outline against the dark surfaces it was supposed to subtly
        separate, instead of the near-invisible seam a border is meant to
        be at this app's own "dividers should barely register" standard. */
-    --color-border: #262626;
+    --color-border: #242424;
     --color-primary: #fbfbfb;
     --color-primary-text: #171717;
     --color-solid-bg: #fbfbfb;
@@ -262,6 +284,8 @@
     --color-success-text: #86efac;
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
+    --color-active-surface: #15233f;
+    --color-active-text: #93c5fd;
     --color-focus-ring: rgba(251, 251, 251, 0.22);
     --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
     --color-chip-selected-border: #a78bfa;
@@ -282,11 +306,11 @@
 :root[data-theme="dark"] {
   --color-bg: #0d0d0d;
   --color-bg-translucent: rgba(13, 13, 13, 0.68);
-  --color-page-bg: #262626;
+  --color-page-bg: #242424;
   --color-panel-bg: #0a0a0a;
   --color-text: #fbfbfb;
   --color-text-muted: #9a9a9a;
-  --color-border: #262626;
+  --color-border: #242424;
   --color-primary: #fbfbfb;
   --color-primary-text: #171717;
   --color-solid-bg: #fbfbfb;
@@ -301,6 +325,8 @@
   --color-success-text: #86efac;
   --color-warning-surface: #2a2110;
   --color-warning-text: #fcd34d;
+  --color-active-surface: #15233f;
+  --color-active-text: #93c5fd;
   --color-focus-ring: rgba(251, 251, 251, 0.22);
   --color-chip-selected-bg: rgba(167, 139, 250, 0.14);
   --color-chip-selected-border: #a78bfa;
@@ -1087,6 +1113,17 @@ body:has(.storefront-shell) {
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
+/* margin-left: auto, not just .orders-filter-row's own justify-content:
+   space-between - space-between only pushes this to the right while it
+   shares a line with the filter tabs. Six status tabs (with count pills)
+   comfortably wrap onto their own line before the search box does at this
+   panel's width, and a lone item on a wrapped flex line has no "other end"
+   for space-between to push against - it lands at the line's start
+   (left) instead. margin-left: auto works regardless of which line it's
+   sharing, or whether it's sharing one at all. Found live: the search box
+   sat flush left, directly under the tabs, instead of staying right-
+   aligned once it wrapped. */
+.orders-filter-row .storefront-search { margin-left: auto; }
 .storefront-search:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-focus-ring); }
 .storefront-search svg { flex-shrink: 0; }
 /* min-width: 0, not just flex: 1 - at this row's 260px max-width, a long
@@ -1292,13 +1329,30 @@ body:has(.storefront-shell) {
   cursor: pointer;
   transition: transform 0.1s ease;
 }
-.profile-menu-theme-btn:hover:not(.active) { color: var(--color-text); }
+/* Both hover rules below declare their own background explicitly, not
+   left unset - the generic button:hover:not(:disabled) rule elsewhere in
+   this file sets its own background (var(--color-solid-bg-hover)), and
+   without contesting the property directly here it wins by specificity
+   alone: button:hover:not(:disabled) has one more element/pseudo term
+   than a bare class selector like .profile-menu-theme-btn:hover, and two
+   classes tied with it (.profile-menu-theme-btn.active) still lose on the
+   next tiebreak column. Same class of bug already caught and fixed for
+   .order-filter-tab/.chat-send-button/.storefront-sidenav-item elsewhere
+   in this file. Found live in two places: hovering an *inactive*
+   Light/Dark/System button turned its background near-black (light mode)
+   /near-white (dark mode) while this rule's own color moved to the
+   opposite near-black/near-white; hovering the *active* one had the same
+   result via a second, separate specificity loss (.active's own
+   background lost to the generic hover rule the same way) - one fix
+   without the other left the bug half-patched. */
+.profile-menu-theme-btn:hover:not(.active) { color: var(--color-text); background: transparent; }
 .profile-menu-theme-btn:active { transform: scale(0.88); }
 .profile-menu-theme-btn.active {
   background: var(--color-bg);
   color: var(--color-text);
   box-shadow: 0 1px 3px var(--color-shadow);
 }
+.profile-menu-theme-btn.active:hover:not(:disabled) { background: var(--color-bg); color: var(--color-text); }
 /* Help & Support (a real <Link>) and Sign Out (a real <button>) share this
    class - both need the same anchor/button resets (no underline, no solid
    button background) so they read as one consistent list of rows. */
@@ -1451,8 +1505,18 @@ body:has(.storefront-shell) {
   padding: 0 16px;
   margin-bottom: 24px;
   border-radius: 10px;
-  background: var(--color-solid-bg);
-  color: var(--color-primary-text);
+  /* var(--color-cta), not --color-solid-bg - Shop Now is this sidebar's one
+     purchase-driving CTA, called out in the same fixed orange as order
+     history's own "Buy again" (see .order-history-detail-btn.buy-again)
+     rather than this app's monochrome near-black/-white "selected state"
+     tone, so the two read as one deliberate accent wherever a customer can
+     go buy something. color: #fff, not var(--color-primary-text) - that
+     token flips per theme (assumes it's sitting on --color-solid-bg, which
+     itself flips), but this fixed orange fill doesn't flip, so its text
+     can't either - same reasoning as .badge--danger/.spotlight-banner
+     elsewhere in this file. */
+  background: var(--color-cta);
+  color: #fff;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 700;
@@ -1463,8 +1527,8 @@ body:has(.storefront-shell) {
    be - approved via a states-redesign mockup showing Shop Now as the one
    high-commitment, solid button on this sidebar, so it's the one that
    should visibly rise under the cursor rather than just re-tint. */
-.storefront-shop-now:hover { background: var(--color-solid-bg-hover); box-shadow: var(--shadow-hover-lift); }
-.storefront-shop-now:active { background: var(--color-solid-bg); transform: scale(0.97); box-shadow: none; }
+.storefront-shop-now:hover { background: var(--color-cta-hover); box-shadow: var(--shadow-hover-lift); }
+.storefront-shop-now:active { background: var(--color-cta); transform: scale(0.97); box-shadow: none; }
 
 .storefront-sidenav { flex-shrink: 0; }
 /* position: relative so the Dashboard glide indicator (absolutely
@@ -1473,11 +1537,11 @@ body:has(.storefront-shell) {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 /* The one element that actually glides between My Orders/Coupons/Wishlist -
    translateY is computed in Layout.jsx from a fixed row-height + gap
-   (every row is the same 36px height), not measured, since all three rows
+   (every row is the same 32px height), not measured, since all three rows
    are always the same size - nothing here depends on label length the way
    the order-filter-tabs indicator does. Sits behind the rows (z-index 0 vs.
    their own z-index 1 below) so hovering a different, not-yet-selected row
@@ -1493,8 +1557,8 @@ body:has(.storefront-shell) {
    (class+type selector) is otherwise MORE specific than this single class
    and was silently winning on every property they both set: position
    (relative, not this rule's own absolute - the indicator was sitting in
-   normal flow, taking up its own 36px + the section's 4px gap and pushing
-   every row below it down by 40px, not just failing to show a fill) and
+   normal flow, taking up its own 32px + the section's 3px gap and pushing
+   every row below it down by 35px, not just failing to show a fill) and
    z-index (1, not 0 - would have painted the "sits behind the rows" comment
    above backwards too). background was the one already fixed here, but the
    layout bug it was quietly masking - found by comparing measured row
@@ -1508,7 +1572,7 @@ body:has(.storefront-shell) {
   left: 0;
   z-index: 0;
   width: 100%;
-  height: 36px;
+  height: 32px;
   background: var(--color-surface);
 }
 /* 13px/500/65% opacity, not uppercase-and-tracked - deliberately small and
@@ -1523,6 +1587,11 @@ body:has(.storefront-shell) {
   font-size: 13px;
   font-weight: 500;
 }
+/* Row metrics tightened (36px -> 32px height, 8px -> 6px internal gap, 12px
+   -> 10px padding, 0.9rem -> 0.86rem type) against a reui "c-item-8"-style
+   compact nav-list reference - same row/icon/badge shape, just a noticeably
+   denser rhythm than this app's own default control sizing. Collapsed-rail
+   mode, the sliding indicator, and skeleton loading are all unchanged. */
 .storefront-sidenav a,
 .storefront-sidenav span,
 .storefront-sidenav-item {
@@ -1530,16 +1599,16 @@ body:has(.storefront-shell) {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
   border: none;
   border-radius: 10px;
   background: transparent;
   color: var(--color-text-muted);
   text-decoration: none;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 500;
   cursor: pointer;
   /* transform added for the new press-down feedback below (approved via a
@@ -1549,9 +1618,15 @@ body:has(.storefront-shell) {
      control in this file that already had one. */
   transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, transform 0.1s ease;
 }
+/* --icon-size-sm (16px), not each icon's own inline default (Orders/Ticket
+   ship at 18px, Heart at 16px - a small pre-existing inconsistency) - one
+   shared compact size across all three rows, matching the reui reference's
+   own "xs" scale. A plain CSS width/height on the <svg> always wins over
+   its own width/height attributes, so this doesn't need any extra
+   specificity fight to take effect. */
 .storefront-sidenav a svg,
 .storefront-sidenav span svg,
-.storefront-sidenav-item svg { flex-shrink: 0; }
+.storefront-sidenav-item svg { flex-shrink: 0; width: var(--icon-size-sm); height: var(--icon-size-sm); }
 /* The label text sits in its own nested <span> (see Layout.jsx - needed so
    the mobile breakpoint can hide just the label, not the icon), which the
    base ".storefront-sidenav span" rule above also matches directly, even
@@ -1638,8 +1713,8 @@ body:has(.storefront-shell) {
    sidenav-label and category-tag contrast fixes elsewhere in this file. */
 .storefront-sidenav .storefront-sidenav-count {
   margin-left: auto;
-  min-width: 20px;
-  height: 20px;
+  min-width: 18px;
+  height: 18px;
   padding: 0 0.4rem;
   border-radius: var(--radius-pill);
   /* background/box-shadow/color come from the shared .badge--danger rule
@@ -1652,7 +1727,7 @@ body:has(.storefront-shell) {
      around it rather than a compact circle-ish pill. Found by comparing
      against a redesign mockup showing the intended crisp shape. */
   line-height: 1;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-align: center;
 }
@@ -2509,25 +2584,24 @@ body:has(.storefront-shell) {
 .back-link:hover { color: var(--color-primary); }
 
 
-/* Needs Attention reuses .order-card/.order-card-top/.order-card-info/
-   .order-card-details-link almost entirely as-is (see OrdersPage.jsx) -
-   it's the same card, just grouped under its own heading, restricted to
-   in-motion orders, and missing the two STATUS_MESSAGES lines (headline/
-   subtext) the full order list used to show - the reference design's own
-   Needs Attention card doesn't carry that extra prose, just the product
-   row, status pill, and the progress stepper. .needs-attention-cards
-   exists as its own selector (not just reusing .order-cards bare) only so
-   this section's own top spacing can be tuned independently of the order
-   history list's. */
-.needs-attention-cards { margin-bottom: var(--space-2); }
-.needs-attention-cards + .section-heading { margin-top: var(--space-3); }
-
-/* Order history's own compact row - a collapsed summary (thumbnail/title/
-   meta/status badge/chevron) that expands into a small detail panel in
-   place, not a second visit to OrderDetailPage for orders that are done
-   moving and don't need the full tracking-label treatment Needs Attention
-   above still gets. */
-.order-history-list { list-style: none; margin: 0; padding: 0; }
+/* Order history's own card - a real bordered/shadowed container (see the
+   approved component redesign's "Main Card" concept), not a bare flat list
+   sitting directly on the page. Light mode uses this app's existing
+   --color-bg/-border/shadow tokens, so it looks exactly as it always has;
+   dark mode gets its own dedicated zinc-900 panel + zinc-800 resting rows,
+   literal hex values specific to this one component rather than the app's
+   shared --color-bg/-surface tokens - see the dark-mode block at the end of
+   this section for why. */
+.order-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card-resting);
+}
 .order-history-row { border-bottom: 1px solid var(--color-border); }
 .order-history-row:last-child { border-bottom: none; }
 /* A real <button>, not a styled <div> - the whole row is the click target
@@ -2539,13 +2613,14 @@ body:has(.storefront-shell) {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0.85rem 0.25rem;
+  padding: 0.85rem 1rem;
   border: none;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 .order-history-summary:hover:not(:disabled) { background: var(--color-surface-hover); }
 .order-history-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
@@ -2553,7 +2628,7 @@ body:has(.storefront-shell) {
 /* Cancelled specifically strikes the item name, not the whole row - the
    order number/date/badge below still need to stay legible, this is
    about marking the *item* as the thing that didn't happen. */
-.order-history-row.cancelled .order-history-title { text-decoration: line-through; color: var(--color-text-muted); }
+.order-history-row.cancelled .order-history-title { text-decoration: line-through; color: var(--color-text-muted); opacity: 0.75; }
 .order-history-meta { color: var(--color-text-muted); font-size: 0.8rem; }
 .order-history-badge {
   flex-shrink: 0;
@@ -2567,13 +2642,15 @@ body:has(.storefront-shell) {
   white-space: nowrap;
 }
 /* Same success/warning/error surfaces this file already uses everywhere
-   else a status needs one (.order-status, the old Spotlight eyebrow) -
-   Returned reuses the warning pair (an amber "needs a look" tone, the
-   same job it already does for in-motion statuses elsewhere on this
-   page), not a fourth semantic color invented just for this row. */
+   else a status needs one (.order-status) - Returned reuses the warning
+   pair (an amber "needs a look" tone, the same job it already does for
+   in-motion statuses elsewhere on this page), not a fourth semantic color
+   invented just for this row. Dark mode overrides these four to the
+   approved emerald/amber/rose/blue palette below. */
 .order-history-badge.status-delivered { background: var(--color-success-surface); color: var(--color-success-text); }
 .order-history-badge.status-returned { background: var(--color-warning-surface); color: var(--color-warning-text); }
 .order-history-badge.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
+.order-history-badge.status-active { background: var(--color-active-surface); color: var(--color-active-text); }
 /* flex-shrink: 0, not left at the default 1 - see .ai-toggle svg's own
    comment elsewhere in this file for why an un-shrunk SVG in a flex row
    can otherwise silently collapse to 0px. transform, not a second icon
@@ -2590,9 +2667,18 @@ body:has(.storefront-shell) {
    invented specifics would fail the same honesty bar every other page
    here holds to. "Buy again" is real too, just honest about where it
    goes - the same ComingSoonPage route Shop Now already uses, not a
-   fabricated instant reorder this app has no real cart/checkout to back. */
+   fabricated instant reorder this app has no real cart/checkout to back.
+   background: var(--color-surface) - this app's one existing "grey
+   surface, one step recessed" token, the same one .msg.assistant/.chat-
+   suggestion/other nested panels already reuse. Dark mode shares its own
+   row-resting/expanded colors between the summary and this panel instead
+   (see that block below) - a deliberate, approved difference from this
+   light-mode "recessed panel" look. */
 .order-history-detail {
-  padding: 0 0.25rem var(--space-3);
+  margin: 0.2rem 0 0.4rem;
+  padding: var(--space-2) 0.75rem var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -2634,17 +2720,74 @@ body:has(.storefront-shell) {
 }
 .order-history-detail-btn:hover:not(:disabled) { background: var(--color-surface); border-color: var(--color-text-muted); }
 .order-history-detail-btn:active { transform: scale(0.97); }
+/* margin-left: auto pushes this one button to the row's own right edge
+   regardless of how many ghost-style siblings sit before it (View Details/
+   Download Invoice) - the same reliable "push to the end of this flex
+   line" pattern .orders-filter-row .storefront-search already uses. Solid
+   var(--color-cta) fill + white text, not the ghost/bordered look its
+   siblings keep - Buy again is this row's one actual purchase-driving CTA,
+   the same fixed orange as the sidebar's own Shop Now button, called out
+   deliberately rather than blending in as one more informational action. */
+.order-history-detail-btn.buy-again {
+  margin-left: auto;
+  border-color: var(--color-cta);
+  background: var(--color-cta);
+  color: #fff;
+}
+.order-history-detail-btn.buy-again:hover:not(:disabled) { background: var(--color-cta-hover); border-color: var(--color-cta-hover); color: #fff; }
 
 .order-history-row-skeleton { display: flex; align-items: center; gap: var(--space-3); padding: 0.85rem 0.25rem; }
 .order-history-skeleton-thumb { width: 36px; height: 36px; border-radius: var(--radius-sm); flex-shrink: 0; }
 .order-history-skeleton-line { flex: 1; height: 1em; border-radius: var(--radius-sm); }
 .order-history-skeleton-pill { width: 90px; height: 1.6rem; border-radius: var(--radius-pill); flex-shrink: 0; }
 
-/* A single connected segmented-control track (inline-flex + one shared
-   background/radius), not individually-bordered pill buttons - the active
-   item gets its own elevated fill; inactive items are borderless text
-   sitting directly on the shared track instead of each having its own
-   outline. */
+/* Dark mode's own approved palette for this one component - literal zinc/
+   emerald/amber/rose hex values (matching a specific design brief) rather
+   than this file's usual var(--color-x) tokens, and rather than the dark-
+   mode redefinitions those tokens already get near :root. This is a
+   deliberate, approved exception: the brief asked for (and got signed off
+   on) a distinct dark-only look for order history specifically, not a
+   reskin of --color-bg/-surface/-success/-warning/-error everywhere else
+   on the site still uses. Both blocks below (the media query for OS-level
+   dark mode, and the explicit [data-theme="dark"] override) carry the same
+   values, same reasoning as every dark-mode token pair defined near
+   :root - only one of the two applies at a time, but both need the value
+   for whichever theme-detection path is active to actually pick it up.
+   Rows share one color once expanded, not two: clicking a row doesn't add
+   a highlight on top of its own #222222 resting tone, it recedes to the
+   card's own #161616 instead, the same color .order-history-detail below
+   it uses - approved specifically so the row and its expanded content read
+   as one continuous surface rather than two different-toned pieces
+   stacked together. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .order-history-list { background: #161616; }
+  :root:not([data-theme="light"]) .order-history-row { border-bottom-color: rgba(255, 255, 255, 0.07); }
+  :root:not([data-theme="light"]) .order-history-summary { background: #171717; }
+  :root:not([data-theme="light"]) .order-history-row:not(.expanded) .order-history-summary:hover:not(:disabled) { background: #272727; }
+  :root:not([data-theme="light"]) .order-history-row.expanded .order-history-summary { background: #161616; }
+  :root:not([data-theme="light"]) .order-history-detail { background: #161616; }
+  :root:not([data-theme="light"]) .order-history-badge.status-delivered { background: rgba(6, 78, 59, 0.6); color: #34d399; }
+  :root:not([data-theme="light"]) .order-history-badge.status-returned { background: rgba(69, 26, 3, 0.6); color: #fbbf24; }
+  :root:not([data-theme="light"]) .order-history-badge.status-cancelled { background: rgba(76, 5, 25, 0.6); color: #fb7185; }
+  :root:not([data-theme="light"]) .order-history-badge.status-active { background: rgba(23, 37, 84, 0.6); color: #60a5fa; }
+  :root:not([data-theme="light"]) .order-history-detail-btn { background: transparent; border-color: #3f3f46; }
+  :root:not([data-theme="light"]) .order-history-detail-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); border-color: #71717a; color: #fff; }
+  :root:not([data-theme="light"]) .product-image-xs { background: rgba(39, 39, 42, 0.8); }
+}
+:root[data-theme="dark"] .order-history-list { background: #161616; }
+:root[data-theme="dark"] .order-history-row { border-bottom-color: rgba(255, 255, 255, 0.07); }
+:root[data-theme="dark"] .order-history-summary { background: #171717; }
+:root[data-theme="dark"] .order-history-row:not(.expanded) .order-history-summary:hover:not(:disabled) { background: #272727; }
+:root[data-theme="dark"] .order-history-row.expanded .order-history-summary { background: #161616; }
+:root[data-theme="dark"] .order-history-detail { background: #161616; }
+:root[data-theme="dark"] .order-history-badge.status-delivered { background: rgba(6, 78, 59, 0.6); color: #34d399; }
+:root[data-theme="dark"] .order-history-badge.status-returned { background: rgba(69, 26, 3, 0.6); color: #fbbf24; }
+:root[data-theme="dark"] .order-history-badge.status-cancelled { background: rgba(76, 5, 25, 0.6); color: #fb7185; }
+:root[data-theme="dark"] .order-history-badge.status-active { background: rgba(23, 37, 84, 0.6); color: #60a5fa; }
+:root[data-theme="dark"] .order-history-detail-btn { background: transparent; border-color: #3f3f46; }
+:root[data-theme="dark"] .order-history-detail-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); border-color: #71717a; color: #fff; }
+:root[data-theme="dark"] .product-image-xs { background: rgba(39, 39, 42, 0.8); }
+
 /* The Spotlight + filter tabs' own static header, above the order list's
    scroll pane, not inside it (see OrdersPage.jsx / .orders-page-root
    below) - a real, non-scrolling row, not a position: sticky element
@@ -2667,10 +2810,18 @@ body:has(.storefront-shell) {
   flex-direction: column;
   overflow: hidden;
 }
+/* display: flex/flex-direction: column/gap, not a plain block with
+   Spotlight's own bottom margin - Spotlight is a real sibling of
+   .orders-filter-row in here now (see OrdersPage.jsx), not still nested
+   inside the scrolling content below it, so the two need their own
+   explicit spacing rather than relying on adjacent-sibling margins alone. */
 .orders-header {
   flex-shrink: 0;
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border);
   box-shadow: 0 6px 12px -6px var(--color-header-shadow);
@@ -2907,162 +3058,14 @@ body:has(.storefront-shell) {
 .order-card-skeleton-line--subtext { width: 65%; height: 0.9em; margin-bottom: var(--space-2); }
 .order-card-skeleton-progress { display: block; width: 100%; height: 64px; border-radius: var(--radius-md); }
 
-/* Horizontal icon stepper - a different visual language from
-   OrderDetailPage's route line (.order-route), but the same underlying
-   rule about not implying progress that hasn't happened: a
-   step's connecting line is only colored once that step is both completed
-   AND not the current one, same as .order-route-step's own fix. */
-.order-progress {
-  list-style: none;
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  display: flex;
-  align-items: flex-start;
-  /* --ease-out-bezier/--ease-spring now come from :root (see its own
-     comment - they used to be redefined right here, identically, before
-     the same two curves turned out to be hand-copied as literal strings
-     all over this file). --progress-step-duration stays local under its
-     own descriptive name - one step's worth of time for the connecting
-     line to grow AND for the icon at its far end to pop (see the fill/pop
-     rules below for how --step-i, set per <li> in OrdersPage.jsx, staggers
-     both so the line visibly "reaches" each icon before it pops, instead
-     of every step animating at once on mount) - but now points at the
-     shared --duration-slow token rather than its own redundant literal. */
-  --progress-step-duration: var(--duration-slow);
-}
-.order-progress-step {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  text-align: center;
-  color: var(--color-text-muted);
-}
-.order-progress-icon {
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text-muted);
-}
-.order-progress-label { font-size: 0.75rem; font-weight: 500; }
-/* The static muted track (::before), always present at full width - the
-   completed/accent portion (::after, below) now grows on top of it, so
-   this base layer has to exist independently rather than just being the
-   pre-animation state of the same pseudo-element. */
-.order-progress-step:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  top: 15px;
-  left: 50%;
-  width: 100%;
-  height: 2px;
-  background: var(--color-border);
-}
-/* Two of the three states get the same treatment (completed's checkmark
-   and current's node both read as "reached"); .icon-ring is deliberately
-   left unstyled here since the base .order-progress-icon rule above
-   already is an empty muted ring - a future step needs no override.
-   Outlined, not filled - only the border and glyph switch to
-   --color-progress-accent, the background stays the same var(--color-bg)
-   every step already sits on, so completed/current read as "the same
-   ring, now lit up" rather than a different shape taking over. */
-.order-progress-icon.icon-check,
-.order-progress-icon.icon-dot {
-  border-color: var(--color-progress-accent);
-  color: var(--color-progress-accent);
-}
-.order-progress-icon.icon-check svg { width: 15px; height: 15px; }
-/* The current step gets a plain filled dot, not a checkmark - a checkmark
-   here would claim this step is done, which it isn't yet. */
-.order-progress-icon.icon-dot::after {
-  content: '';
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--color-progress-accent);
-}
-/* The animated fill - a second, initially-absent layer (::after) on top of
-   the static track above, not a recolor of the same pseudo-element, so it
-   can grow from nothing. transform-origin: left + scaleX(0 -> 1) rather
-   than animating width directly - a transform animates on the compositor
-   (smooth regardless of how many steps are animating at once), where a
-   width animation would trigger layout on every frame. --step-i (set per
-   <li>, not on this pseudo-element's own selector - see OrdersPage.jsx)
-   staggers each segment so they fill left-to-right in sequence on mount,
-   reading as one line drawing across rather than every segment growing
-   simultaneously. */
-.order-progress-step.completed:not(.current):not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 15px;
-  left: 50%;
-  width: 100%;
-  height: 2px;
-  background: var(--color-progress-accent);
-  transform-origin: left;
-  animation: order-progress-fill var(--progress-step-duration) var(--ease-out-bezier) both;
-  animation-delay: calc(var(--step-i, 0) * var(--progress-step-duration));
-}
-@keyframes order-progress-fill {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-.order-progress-step.current .order-progress-label { color: var(--color-text); font-weight: 700; }
-/* Every reached icon (completed or current) pops in with a spring
-   overshoot, timed via the same --step-i/--progress-step-duration pairing
-   as the fill above so an icon pops the instant the line growing into it
-   finishes - not before (nothing to reach it with yet) and not after
-   (looks laggy). animation-fill-mode: both holds it at scale(0.4) for the
-   whole delay beforehand, so an icon several steps out doesn't flash at
-   full size before shrinking down to wait its turn. */
-.order-progress-step.completed .order-progress-icon,
-.order-progress-step.current .order-progress-icon {
-  animation: order-progress-pop 0.35s var(--ease-spring) both;
-  animation-delay: calc(var(--step-i, 0) * var(--progress-step-duration));
-}
-@keyframes order-progress-pop {
-  from { transform: scale(0.4); }
-  to { transform: scale(1); }
-}
-/* The current step's own extra "just arrived" glow, chained to start right
-   as its own pop above finishes rather than firing the instant the page
-   loads. box-shadow only, deliberately not transform/scale anymore - two
-   animations both driving transform on the same element would have this
-   one (listed/starting second) win the property for its own animation-
-   delay via fill-mode: both, silently cancelling order-progress-pop's
-   scale-in for exactly the icon it's most important on. See the
-   reduced-motion override further down for why this is opt-out, not
-   opt-in. */
-.order-progress-step.current .order-progress-icon {
-  animation:
-    order-progress-pop 0.35s var(--ease-spring) both,
-    step-pulse 0.9s ease-out both;
-  animation-delay:
-    calc(var(--step-i, 0) * var(--progress-step-duration)),
-    calc(var(--step-i, 0) * var(--progress-step-duration) + 0.35s);
-}
-@keyframes step-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--color-progress-accent-glow); }
-  50% { box-shadow: 0 0 0 6px var(--color-progress-accent-glow); }
-}
-
-.order-progress-cancelled {
-  margin: var(--space-2) 0 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-error-surface);
-  color: var(--color-error-text);
-  border: 1px solid var(--color-error-border);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-}
+/* .order-progress/.order-progress-step/.order-progress-icon/
+   .order-progress-cancelled (the old horizontal icon stepper) and their
+   own keyframes (order-progress-fill/-pop, step-pulse) were removed here -
+   dead since the Active Order Spotlight that was their only caller was
+   removed from OrdersPage.jsx in an earlier round. .order-route below
+   (OrderDetailPage's own stepper) is being replaced in this same pass, so
+   both of this file's progress-stepper implementations are gone together
+   rather than leaving one more found later. */
 
 /* A verified-but-orderless email is a real, expected destination now (see
    OrdersPage.jsx), not a dead end - full icon/title/text/actions treatment
@@ -3150,131 +3153,145 @@ body:has(.storefront-shell) {
   .spotlight.is-linked .spotlight-body { padding-right: 0; }
 }
 
-.order-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.order-list-item {
+/* The order detail page's own header row - brand mark/name on the left,
+   real Download/Email/Print actions on the right (Download reuses the
+   same invoice-text generator order history's own row uses; Email is a
+   real mailto: with that same text as the body; Print is a real
+   window.print() - see OrderDetailPage.jsx). */
+.order-receipt-header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0 var(--space-4);
+}
+.order-brand-row { display: flex; align-items: center; gap: 0.65rem; }
+.order-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-solid-bg), var(--color-solid-bg-hover));
+  color: var(--color-primary-text);
+}
+.order-brand-mark svg { width: 18px; height: 18px; }
+.order-brand-text { display: flex; flex-direction: column; }
+.order-brand-name { font-weight: 700; font-size: 0.95rem; }
+.order-brand-sub { font-size: 0.78rem; color: var(--color-text-muted); }
+.order-receipt-actions { display: flex; gap: 0.5rem; }
+.order-receipt-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 9px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  text-decoration: none;
+  background: var(--color-bg);
   color: var(--color-text);
-  transition: border-color 0.15s ease;
-}
-.order-list-item:hover { border-color: var(--color-primary); }
-.order-number { font-weight: 600; }
-.order-product { flex: 1; color: var(--color-text-muted); font-size: 0.9rem; }
-
-.order-status {
-  font-size: 0.78rem;
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-surface-text);
-  white-space: nowrap;
-  text-transform: capitalize;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.order-status.status-delivered { background: var(--color-success-surface); color: var(--color-success-text); }
-.order-status.status-shipped,
-.order-status.status-out_for_delivery { background: var(--color-warning-surface); color: var(--color-warning-text); }
-.order-status.status-cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
+.order-receipt-action-btn.square { padding: 0.5rem; }
+.order-receipt-action-btn:hover:not(:disabled) { background: var(--color-surface); border-color: var(--color-text-muted); }
 
-/* The order detail page's product/status/route block - a single card
-   (same --color-bg-on-panel recipe as .order-card) rather than the flat,
-   un-cardded content this page used to be, since the perforation below
-   only reads as a waybill's own tear-line if there's a card edge for it
-   to interrupt. */
-.order-label-card {
+/* The real status this order actually has (Processing/Shipped/.../
+   Cancelled) given the c-badge-20-style icon+pill treatment - not a
+   separate "payment status" (Paid/Processing) this app's data model has
+   no field for. Light mode reuses the same success/error/active surface+
+   text pairs the rest of this file already uses for a status; dark mode
+   gets the same emerald/rose/blue-950/60+400 literals the order history
+   list's own badges use (see that block's own comment on why this one
+   component gets a dedicated dark palette instead of the shared tokens). */
+.order-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.order-status-badge svg { width: 13px; height: 13px; }
+.order-status-badge.delivered { background: var(--color-success-surface); color: var(--color-success-text); }
+.order-status-badge.cancelled { background: var(--color-error-surface); color: var(--color-error-text); }
+.order-status-badge.active { background: var(--color-active-surface); color: var(--color-active-text); }
+
+/* The receipt's own summary card - status/placed date/order number/product
+   on the left, total paid on the right. Same --color-bg-on-panel recipe as
+   .order-card, not the flat un-cardded content this page used to be. */
+.order-status-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
   padding: var(--space-4);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card-resting);
+  margin-bottom: var(--space-3);
 }
-.order-label-top {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-.order-label-top .order-status { margin-top: 0.4rem; }
-
-/* The one literal "waybill" quotation on the page, used exactly once -
-   negative side margins pull it out to the card's own edges (matching
-   .order-label-card's padding) so it reads as a seam across the whole
-   card, not an indented rule. The two half-circle "punch-outs" are purely
-   decorative (aria-hidden via the empty div itself carrying no content)
-   and colored to the page background, not the card's, so they read as
-   holes rather than dots sitting on top of the card. */
-.order-perforation {
-  position: relative;
-  margin: var(--space-4) calc(var(--space-4) * -1) 0;
-  border-top: 1px dashed var(--color-border);
-}
-.order-perforation::before,
-.order-perforation::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--color-panel-bg);
-  border: 1px solid var(--color-border);
-}
-.order-perforation::before { left: -9px; }
-.order-perforation::after { right: -9px; }
-
-/* Carrier/tracking number - the two "how it's being shipped" facts, kept
-   separate from the dates now living in .order-route below (a manifest
-   identifies the shipment; the route says when it moved). Same
-   --color-bg-card-on-panel recipe as .order-label-card/.order-card, so
-   the two read as siblings rather than one being a lesser element. */
-.order-manifest {
-  margin-top: var(--space-4);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card-resting);
-  padding: 0 var(--space-4);
-}
-.order-manifest-field {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-3);
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--color-border);
-}
-.order-manifest-field:last-child { border-bottom: none; }
-.order-manifest-field dt {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+.order-status-card-left { display: flex; flex-direction: column; gap: 0.7rem; }
+.order-status-card-row { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; }
+.order-placed-date { font-size: 0.85rem; color: var(--color-text-muted); }
+.order-status-card-right { text-align: right; }
+.order-total-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
-.order-manifest-field dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 0.92rem;
-  text-align: right;
+.order-total-value { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Order number is now this card's own headline (mono, matching a real
+   shipping label/receipt's own code-not-prose treatment - same reasoning
+   as .order-manifest-field dd used to carry) - the product name underneath
+   is real too, just a secondary line now rather than this card's main
+   focus like it was in the old label-card layout. */
+.order-number { margin: 0; font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; }
+.order-product-name { margin: 0.15rem 0 0; font-size: 0.88rem; color: var(--color-text-muted); font-weight: 500; }
+
+/* The left journey panel's own "Next step" block - carrier/tracking
+   number, the two "how it's being shipped" facts, plus a real Track
+   Shipment action when this carrier's own URL scheme is known (see
+   trackingUrl in OrderDetailPage.jsx). .order-manifest is a second class
+   on this same element purely so the pre-existing e2e contract checking
+   for it keeps working - there's no more separate dl/dt/dd manifest card,
+   this is just the tracking sub-section of the journey panel now. */
+.order-manifest { margin-top: var(--space-4); }
+.order-tracking-line { margin: 0 0 var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); }
+.order-tracking-number { font-family: var(--font-mono); color: var(--color-text); }
+/* var(--color-cta) - the same fixed orange as Shop Now/Buy again elsewhere
+   in this file; Track Shipment is this panel's one purchase-adjacent
+   forward action, so it gets the same "go do the next thing" accent. */
+.order-track-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 9px;
+  background: var(--color-cta);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
-.order-manifest-field dd a {
-  color: var(--color-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.order-manifest-field dd a:hover { text-decoration-thickness: 2px; }
+.order-track-btn:hover { background: var(--color-cta-hover); }
+.order-track-btn svg { width: 14px; height: 14px; }
 
 /* Real photo when ProductImage.jsx has one mapped (overflow: hidden clips
    it to this tile's own rounded corners, object-fit: cover fills the tile
@@ -3298,8 +3315,8 @@ body:has(.storefront-shell) {
 /* Order history's own compact row thumbnail - smaller than every other
    size here since it sits in a dense list of many rows, not as the one
    focal image a card or hero section builds around. */
-.product-image-xs { width: 36px; height: 36px; border-radius: var(--radius-sm); }
-.product-image-xs svg { width: 17px; height: 17px; }
+.product-image-xs { width: 40px; height: 40px; border-radius: var(--radius-md); }
+.product-image-xs svg { width: 19px; height: 19px; }
 .product-image-sm { width: 40px; height: 40px; }
 .product-image-sm svg { width: 20px; height: 20px; }
 /* Between sm and lg - the Active Order Spotlight's own icon tile is
@@ -3318,7 +3335,6 @@ body:has(.storefront-shell) {
   align-items: center;
   gap: var(--space-3);
 }
-.order-product-name { margin: 0; font-size: 1.15rem; font-weight: 600; }
 
 .order-summary {
   display: flex;
@@ -3347,103 +3363,131 @@ body:has(.storefront-shell) {
   font-size: 0.9rem;
   font-weight: 600;
 }
-/* The signature element: a single route line spanning the label card's
-   full width, replacing the old vertical dot timeline. Same underlying
-   completed/current/upcoming states and the same "outlined ring lights
-   up, only .order-progress-icon's own colors move" convention as the
-   order list's own stepper - .order-route-date is the
-   one real addition, since this app's order data has real dates for the
-   first and last steps (ordered on / estimated delivery) that the old
-   timeline never surfaced beside the step labels. */
-.order-route {
-  list-style: none;
-  margin: var(--space-4) 0 0;
-  padding: 0;
-  display: flex;
+/* The two-column layout below the summary card - "Order Journey"/"Next
+   step" on the left, "Order Details"/cost breakdown on the right (see the
+   c-timeline-4-style reference this was built against). Stacks to one
+   column on narrow viewports, same breakpoint convention as this file's
+   other responsive grids. */
+.order-detail-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
-.order-route-step {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  text-align: center;
+@media (max-width: 700px) {
+  .order-detail-grid { grid-template-columns: 1fr; }
+}
+.order-detail-panel {
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-resting);
+}
+.order-journey-label {
+  margin: 0 0 var(--space-3);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--color-text-muted);
 }
-.order-route-node {
-  position: relative;
-  z-index: 1;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--color-border);
-  background: var(--color-bg);
-}
-.order-route-node::after {
+
+/* The vertical journey timeline, replacing the old horizontal route line -
+   a continuous spine (::before) behind every step, same underlying
+   completed/current/upcoming states as this app's other steppers.
+   Completed steps get a small filled dot; the current step (the one
+   moment worth calling out) a visibly larger one; upcoming steps a hollow
+   ring - matching the reference's own bigger-dot-for-the-live-step
+   treatment rather than every step reading identically. */
+.order-journey { list-style: none; margin: 0; padding: 0; position: relative; }
+.order-journey::before {
   content: '';
   position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: var(--color-progress-accent);
-  opacity: 0;
-}
-.order-route-step.completed .order-route-node,
-.order-route-step.current .order-route-node { border-color: var(--color-progress-accent); }
-.order-route-step.completed .order-route-node::after,
-.order-route-step.current .order-route-node::after { opacity: 1; }
-/* Same trailing-pseudo-element line as .order-progress-step's own (top
-   offset = half the node's own height, minus 1px for the line's stroke),
-   anchored to each step rather than a separate element, so it stays
-   centered on the node regardless of label/date text length. */
-.order-route-step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 7px;
-  left: 50%;
-  width: 100%;
-  height: 2px;
+  left: 5px;
+  top: 6px;
+  bottom: 22px;
+  width: 1px;
   background: var(--color-border);
 }
-.order-route-step.completed { color: var(--color-text); }
-/* :not(.current), not just .completed - same reasoning as
-   .order-progress-step's own equivalent rule: a step's trailing line is
-   progress *into the next step*, which hasn't happened yet for the
-   current step regardless of its own node being lit. */
-.order-route-step.completed:not(.current):not(:last-child)::after { background: var(--color-progress-accent); }
-.order-route-label { font-size: 0.78rem; font-weight: 500; }
-.order-route-step.current .order-route-label { color: var(--color-text); font-weight: 700; }
-/* Only .order-route-step.processing/.delivered ever get a date (see
-   OrderDetailPage.jsx's stepDate map) - the app's order data has no
-   per-step timestamp history for the two middle steps, so this only
-   needs to exist, not branch on which step it's in. */
-.order-route-date {
+.order-journey-step { position: relative; padding: 0 0 1.1rem 26px; color: var(--color-text-muted); }
+.order-journey-step:last-child { padding-bottom: 0; }
+.order-journey-dot {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+.order-journey-step.completed .order-journey-dot { background: var(--color-progress-accent); }
+.order-journey-step.current .order-journey-dot {
+  width: 15px;
+  height: 15px;
+  left: -2px;
+  top: 1px;
+  background: var(--color-progress-accent);
+  box-shadow: 0 0 0 3px var(--color-progress-accent-glow);
+}
+.order-journey-title { font-size: 0.9rem; font-weight: 600; color: var(--color-text); }
+.order-journey-step:not(.completed):not(.current) .order-journey-title { color: var(--color-text-muted); font-weight: 500; }
+.order-journey-date {
+  display: block;
+  margin-top: 0.1rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--color-text-muted);
 }
-/* Same one-shot milestone pulse as .order-progress-icon's own (see its
-   comment) - shared keyframes, since it's the same "acknowledge the step
-   this order is currently at" moment, just on the route line's own node
-   instead of the order list's stepper icon. */
-.order-route-step.current .order-route-node { animation: step-pulse 0.9s ease-out; }
 
-/* A second prefers-reduced-motion block, not folded into the one near the
-   top of this file - these two selectors have to physically come after
-   the unconditional rules just above (and .order-progress-icon's
-   equivalent, earlier in the file) that they're overriding. Equal
-   specificity ties resolve by source order, not by "which one has a media
-   condition" - an earlier media-scoped rule loses to a later unconditional
-   one with the same selector, which is exactly what happened here the
-   first time through (verified live: animation-name still read
-   "step-pulse" under a reduced-motion emulation despite an `animation:
-   none` rule that looked like it should have won). */
-@media (prefers-reduced-motion: reduce) {
-  .order-progress-step.current .order-progress-icon,
-  .order-progress-step.completed .order-progress-icon,
-  .order-progress-step.completed:not(.current):not(:last-child)::after,
-  .order-route-step.current .order-route-node { animation: none; }
+.order-detail-count { margin: -0.5rem 0 var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); }
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
 }
+.order-item-info { flex: 1; min-width: 0; }
+.order-item-name { margin: 0; font-weight: 600; font-size: 0.92rem; }
+.order-item-meta { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.order-item-price { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.order-help-row { text-align: center; margin-top: var(--space-4); }
+.order-help-row a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.order-help-row a:hover { color: var(--color-text); }
+
+/* Dark mode's own approved palette for this page too (see order history's
+   own comment on why this is a deliberate, approved exception rather than
+   a reskin of the shared --color-bg/-surface/-success/-warning/-error
+   tokens) - the receipt/journey/details cards get the same zinc-900 panel
+   the order history card uses, and the status badge gets the matching
+   emerald/rose/blue-950/60+400 literals instead of this file's usual
+   theme-aware success/error/active tokens. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .order-status-card,
+  :root:not([data-theme="light"]) .order-detail-panel { background: #161616; }
+  :root:not([data-theme="light"]) .order-status-badge.delivered { background: rgba(6, 78, 59, 0.6); color: #34d399; }
+  :root:not([data-theme="light"]) .order-status-badge.cancelled { background: rgba(76, 5, 25, 0.6); color: #fb7185; }
+  :root:not([data-theme="light"]) .order-status-badge.active { background: rgba(23, 37, 84, 0.6); color: #60a5fa; }
+  :root:not([data-theme="light"]) .order-receipt-action-btn { background: transparent; border-color: #3f3f46; }
+  :root:not([data-theme="light"]) .order-receipt-action-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); border-color: #71717a; }
+}
+:root[data-theme="dark"] .order-status-card,
+:root[data-theme="dark"] .order-detail-panel { background: #161616; }
+:root[data-theme="dark"] .order-status-badge.delivered { background: rgba(6, 78, 59, 0.6); color: #34d399; }
+:root[data-theme="dark"] .order-status-badge.cancelled { background: rgba(76, 5, 25, 0.6); color: #fb7185; }
+:root[data-theme="dark"] .order-status-badge.active { background: rgba(23, 37, 84, 0.6); color: #60a5fa; }
+:root[data-theme="dark"] .order-receipt-action-btn { background: transparent; border-color: #3f3f46; }
+:root[data-theme="dark"] .order-receipt-action-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); border-color: #71717a; }
 
 /* Same "physically after the unconditional rules it overrides" reasoning
    as the block above - .storefront-sidenav-item.active and .order-filter
