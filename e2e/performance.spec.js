@@ -52,7 +52,8 @@ test.describe('performance', () => {
     expect(loadedSoFar.some((p) => p.includes('/ChatPage-'))).toBe(false);
     expect(loadedSoFar.some((p) => p.includes('/OrderDetailPage-'))).toBe(false);
 
-    await page.click('.order-card-details-link >> nth=0');
+    await page.click('.order-history-summary >> nth=0');
+    await page.click('.order-history-detail-actions a');
     await expect(page.locator('.order-label-card')).toBeVisible();
     expect([...jsChunksLoaded].some((p) => p.includes('/OrderDetailPage-'))).toBe(true);
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(false);
