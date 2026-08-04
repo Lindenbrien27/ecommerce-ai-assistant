@@ -17,9 +17,7 @@ const OrderDetailPage = lazy(() =>
   import('./pages/OrderDetailPage.jsx').then((m) => ({ default: m.OrderDetailPage }))
 );
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
-const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx').then((m) => ({ default: m.ProfilePage })));
-const AddressPage = lazy(() => import('./pages/AddressPage.jsx').then((m) => ({ default: m.AddressPage })));
-const PaymentPage = lazy(() => import('./pages/PaymentPage.jsx').then((m) => ({ default: m.PaymentPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage.jsx').then((m) => ({ default: m.SettingsPage })));
 const ComingSoonPage = lazy(() =>
   import('./pages/ComingSoonPage.jsx').then((m) => ({ default: m.ComingSoonPage }))
 );
@@ -39,7 +37,7 @@ export default function App() {
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/orders/:orderNumber" element={<OrderDetailPage />} />
                 <Route path="/chat" element={<ChatPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route
                   path="/coupons"
                   element={
@@ -70,8 +68,6 @@ export default function App() {
                     />
                   }
                 />
-                <Route path="/address" element={<AddressPage />} />
-                <Route path="/payment" element={<PaymentPage />} />
               </Route>
             </Route>
 

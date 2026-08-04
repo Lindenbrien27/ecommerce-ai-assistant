@@ -236,7 +236,7 @@ Measured, not assumed, given this project's own standing "measure before optimiz
 
 ### Frontend routing
 
-`react-router-dom` (`BrowserRouter`), not just conditionally-rendered state. Seven real routes, each with a distinct URL, browser back/forward, and direct-link support:
+`react-router-dom` (`BrowserRouter`), not just conditionally-rendered state. Five real routes, each with a distinct URL, browser back/forward, and direct-link support:
 
 | Route | Page | Access |
 |---|---|---|
@@ -244,9 +244,7 @@ Measured, not assumed, given this project's own standing "measure before optimiz
 | `/orders` | `OrdersPage` | Protected - lists the customer's orders (`GET /api/orders`) |
 | `/orders/:orderNumber` | `OrderDetailPage` | Protected - single order (`GET /api/orders/:id`); a different customer's order number 404s here the same as it does over the API |
 | `/chat` | `ChatPage` | Protected |
-| `/profile` | `ProfilePage` | Protected - saved profile settings (`GET`/`PUT /api/account/profile`) |
-| `/address` | `AddressPage` | Protected - saved address settings (`GET`/`PUT`/`DELETE /api/account/address`) |
-| `/payment` | `PaymentPage` | Protected - saved payment method settings (`GET`/`PUT`/`DELETE /api/account/payment-method`) |
+| `/settings` | `SettingsPage` | Protected - saved profile settings (`GET`/`PUT /api/account/profile`) |
 
 `AuthContext` (`frontend/src/context/AuthContext.jsx`) holds the token and is read by `ProtectedRoute`/`PublicOnlyRoute` to decide whether to render the route or `<Navigate>` elsewhere. Since `express.static` alone 404s on a hard refresh of a client-side route like `/orders/ORD-1001` (no such file exists), `src/app.js` has a catch-all `app.get('*', ...)` after every real route that serves `frontend/dist/index.html` and lets React Router take over - verified working for both in-app navigation and direct/hard-loaded URLs.
 

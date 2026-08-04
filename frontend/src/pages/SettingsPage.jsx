@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { SettingsLayout } from '../components/SettingsLayout.jsx';
 import { SettingsDropdown } from '../components/SettingsDropdown.jsx';
 
 // The five roles named twice in the original design brief - reads as an
@@ -16,7 +15,7 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
 ];
 
-export function ProfilePage() {
+export function SettingsPage() {
   const authorizedFetch = useAuthorizedFetch();
   const { email } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -86,7 +85,7 @@ export function ProfilePage() {
   const initial = email ? email[0].toUpperCase() : '?';
 
   return (
-    <SettingsLayout>
+    <div className="settings-content">
       {error && (
         <p className="verify-error" role="alert">
           {error}
@@ -97,8 +96,8 @@ export function ProfilePage() {
       {profile && (
         <form className="settings-panel" onSubmit={handleSubmit}>
           <div className="settings-panel-head">
-            <h2>My profile</h2>
-            <p>Public account details</p>
+            <h2>Profile details</h2>
+            <p>Update your name, username, role, and bio.</p>
           </div>
 
           <div className="settings-field-row">
@@ -173,7 +172,7 @@ export function ProfilePage() {
             </div>
             <div className="settings-field-control">
               <SettingsDropdown
-                id="profile-role-select"
+                id="settings-role-select"
                 value={profile.role}
                 onChange={(value) => updateField('role', value)}
                 options={ROLE_OPTIONS}
@@ -212,6 +211,6 @@ export function ProfilePage() {
           </div>
         </form>
       )}
-    </SettingsLayout>
+    </div>
   );
 }

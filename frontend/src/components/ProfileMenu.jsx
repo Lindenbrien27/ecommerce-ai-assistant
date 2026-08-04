@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../hooks/useTheme.js';
-import { CardIcon, ChevronDownIcon, LogoutIcon, MonitorIcon, MoonIcon, PersonIcon, PinIcon, QuestionIcon, SunIcon } from './icons.jsx';
+import { ChevronDownIcon, LogoutIcon, MonitorIcon, MoonIcon, QuestionIcon, SettingsIcon, SunIcon } from './icons.jsx';
 
 const THEME_MODES = [
   { key: 'light', label: 'Light', icon: SunIcon },
@@ -13,17 +13,10 @@ const THEME_MODES = [
 // Sidebar's account menu - replaces the old decorative profile chip + the
 // always-visible Logout button below it with a single real trigger and a
 // floating popover, same open/close/outside-click-catcher pattern as
-// CategoryBadgesEditor's own popover. Adapted from a reference "account
-// menu" screenshot, but only keeping what's actually real here: an
-// avatar+email header (no fabricated name field - this app only has an
-// email per customer, see AuthContext), the theme trio (now a real 3-way
-// light/dark/system control, see useTheme), Address/Payment Methods/Help &
-// Support (real routes landing on ComingSoonPage, same honest "not built
-// yet" pattern as Shop Now/Coupons/Wishlist - there's no address or payment
-// data model behind either yet, see App.jsx - Address/Payment Methods get
-// their own real pages in a later task), and real Sign Out - not the
-// reference's Profile/Preferences/My Tasks/Completed rows, since none of
-// those are real features here.
+// CategoryBadgesEditor's own popover. An avatar+email header, the theme
+// trio (a real 3-way light/dark/system control, see useTheme), a real
+// Settings link (GET/PUT /api/account/profile, see SettingsPage.jsx) and
+// Help & Support, and real Sign Out.
 export function ProfileMenu() {
   const { email, logout } = useAuth();
   const { mode, setMode } = useTheme();
@@ -80,14 +73,8 @@ export function ProfileMenu() {
 
             <hr className="popover-divider" />
 
-            <Link to="/profile" className="profile-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-              <PersonIcon width="16" height="16" /> Profile
-            </Link>
-            <Link to="/address" className="profile-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-              <PinIcon width="16" height="16" /> Address
-            </Link>
-            <Link to="/payment" className="profile-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-              <CardIcon width="16" height="16" /> Payment Methods
+            <Link to="/settings" className="profile-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+              <SettingsIcon width="16" height="16" /> Settings
             </Link>
 
             <hr className="popover-divider" />

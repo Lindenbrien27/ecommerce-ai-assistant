@@ -5,7 +5,7 @@ import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
 import { ProfileMenu } from './ProfileMenu.jsx';
-import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PersonIcon, PinIcon, PlusIcon, ShopIcon, SparkleIcon, TicketIcon } from './icons.jsx';
+import { ChatIcon, HeartIcon, OrdersIcon, PlusIcon, SettingsIcon, ShopIcon, SparkleIcon, TicketIcon } from './icons.jsx';
 
 // The routed page's own title/icon, keyed by path - not each page rendering
 // its own <h1> anymore. The header row now needs the title on the same
@@ -30,9 +30,7 @@ const PAGE_HEADERS = {
   '/coupons': { icon: TicketIcon, title: 'Coupons', docTitle: 'Coupons' },
   '/wishlist': { icon: HeartIcon, title: 'Wishlist', docTitle: 'Wishlist' },
   '/shop': { icon: ShopIcon, title: 'Shop', docTitle: 'Shop' },
-  '/profile': { icon: PersonIcon, title: 'Profile', docTitle: 'Profile' },
-  '/address': { icon: PinIcon, title: 'Address', docTitle: 'Address' },
-  '/payment': { icon: CardIcon, title: 'Payment Methods', docTitle: 'Payment Methods' },
+  '/settings': { icon: SettingsIcon, title: 'Settings', docTitle: 'Settings' },
 };
 
 function getPageHeader(pathname, params) {
