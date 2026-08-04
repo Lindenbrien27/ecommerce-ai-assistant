@@ -7,8 +7,9 @@ const openApiSpec = require('../openapi.json');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const accountRoutes = require('./routes/accountRoutes');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
-const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { chatLimiter, ordersLimiter, authLimiter, accountLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
 const { securityHeaders, apiDocsStyleOverride } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
@@ -92,6 +93,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
 app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
+app.use('/api/account', requireCustomerAuth, accountLimiter, accountRoutes);
 
 // Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
 // also the source of truth /api-docs below renders from.

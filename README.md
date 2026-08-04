@@ -142,6 +142,7 @@ Live-verified against the real Neon database (not just mocked): authenticating a
 - `/api/auth/otp/request` and `/api/auth/otp/verify` are both capped at `RATE_LIMIT_AUTH_MAX` requests (default 10) per `RATE_LIMIT_AUTH_WINDOW_MS` (default 60s) per client, to slow down code-request spamming and code-guessing respectively.
 - `/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound Claude API cost under abuse or accidental retry loops.
 - `/api/orders/:id` is capped at `RATE_LIMIT_ORDERS_MAX` requests (default 30) per `RATE_LIMIT_ORDERS_WINDOW_MS` (default 60s) per client, to slow down order-number enumeration/scanning attempts.
+- `/api/account/*` (profile/address/payment-method) is capped at `RATE_LIMIT_ACCOUNT_MAX` requests (default 30) per `RATE_LIMIT_ACCOUNT_WINDOW_MS` (default 60s) per client.
 
 Each is an independent limiter (separate quota). Exceeding any of them returns `429`.
 
@@ -181,7 +182,12 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 | `auth.otp_locked` | `authController.js` | Too many incorrect attempts against an outstanding code |
 | `auth.token_rejected` | `customerAuth.js` | Missing/invalid/expired JWT on a protected route (`reason`: `missing`/`invalid`/`expired`) |
 | `order.access_denied` | `orderController.js` | `GET /api/orders/:id` denied (`reason`: `not_found`/`not_owned`) |
-| `rate_limit.exceeded` | `rateLimiter.js` | Any of the three limiters trips (`limiter`: `chat`/`orders`/`auth`) |
+| `rate_limit.exceeded` | `rateLimiter.js` | Any of the three limiters trips (`limiter`: `chat`/`orders`/`account`/`auth`) |
+| `account.profile_updated` | `accountController.js` | A customer saved profile changes |
+| `account.address_updated` | `accountController.js` | A customer saved address changes |
+| `account.address_removed` | `accountController.js` | A customer cleared their saved address |
+| `account.payment_method_updated` | `accountController.js` | A customer saved payment method changes |
+| `account.payment_method_removed` | `accountController.js` | A customer cleared their saved payment method |
 
 `order.access_denied` is the one worth calling out specifically: the HTTP response is a `404` regardless of whether the order doesn't exist or belongs to someone else - deliberately, so a client can't use it to enumerate real order numbers (see [Authorization](#authorization)). The audit log entry still tells the two apart internally, and for the `not_owned` case, records *which other customer's* order was requested (`actualOwner`) - an authenticated customer's token hitting an order that genuinely belongs to someone else is meaningfully different signal (possible token leakage/reuse, or targeted probing) than one that just doesn't exist, even though neither is visible to the requester. This is the general shape of audit logging: the external response stays minimal, the internal record stays complete.
 

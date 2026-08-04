@@ -50,6 +50,19 @@ const ordersLimiter = rateLimit({
   handler: auditedHandler('orders'),
 });
 
+// Same per-customer keying and cadence as ordersLimiter - settings reads/
+// writes are infrequent per session, but this still bounds a leaked token
+// hammering profile/address/payment-method the same way orders is bounded.
+const accountLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_ACCOUNT_WINDOW_MS) || 60_000,
+  max: Number(process.env.RATE_LIMIT_ACCOUNT_MAX) || 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByCustomer,
+  message: { error: 'Too many account requests, please try again shortly.' },
+  handler: auditedHandler('account'),
+});
+
 // Stricter: this endpoint lets someone try guessing (order number, email)
 // pairs, so it gets a tighter default than the read endpoints above.
 const authLimiter = rateLimit({
@@ -61,4 +74,4 @@ const authLimiter = rateLimit({
   handler: auditedHandler('auth'),
 });
 
-module.exports = { chatLimiter, ordersLimiter, authLimiter };
+module.exports = { chatLimiter, ordersLimiter, authLimiter, accountLimiter };
