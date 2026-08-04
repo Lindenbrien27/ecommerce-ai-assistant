@@ -170,3 +170,40 @@ test('exceeding the auth rate limit logs rate_limit.exceeded', async (t) => {
   assert.ok(call, 'expected a rate_limit.exceeded audit log entry');
   assert.equal(call.arguments[0].limiter, 'auth');
 });
+
+test('saving a profile logs account.profile_updated', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [{ email: 'jane@example.com', name: null, username: null, role: null, bio: null, photo_url: null }] }));
+  t.mock.method(auditLogger, 'info', () => {});
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    await fetch(`${base}/api/account/profile`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+  });
+
+  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'account.profile_updated');
+  assert.ok(call, 'expected an account.profile_updated audit log entry');
+  assert.equal(call.arguments[0].email, 'jane@example.com');
+});
+
+test('removing a saved address logs account.address_removed', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
+  t.mock.method(auditLogger, 'info', () => {});
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    await fetch(`${base}/api/account/address`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  });
+
+  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'account.address_removed');
+  assert.ok(call, 'expected an account.address_removed audit log entry');
+  assert.equal(call.arguments[0].email, 'jane@example.com');
+});

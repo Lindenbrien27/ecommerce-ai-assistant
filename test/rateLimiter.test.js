@@ -126,3 +126,26 @@ test('returns 429 once a client exceeds RATE_LIMIT_AUTH_MAX requests to /api/aut
   const res = await fetch(`${base}/api/auth/otp/request`, { method: 'POST', headers, body });
   assert.equal(res.status, 429);
 });
+
+test('returns 429 once a client exceeds RATE_LIMIT_ACCOUNT_MAX requests to /api/account/profile', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
+
+  const server = app.listen(0);
+  t.after(() => server.close());
+  const { port } = server.address();
+  const base = `http://localhost:${port}`;
+
+  const max = Number(process.env.RATE_LIMIT_ACCOUNT_MAX);
+  assert.ok(max > 0, 'RATE_LIMIT_ACCOUNT_MAX must be set for this test');
+
+  const token = issueToken('jane@example.com');
+  const headers = { Authorization: `Bearer ${token}` };
+
+  for (let i = 0; i < max; i += 1) {
+    const res = await fetch(`${base}/api/account/profile`, { headers });
+    assert.notEqual(res.status, 429, `request ${i + 1} should not be rate limited yet`);
+  }
+
+  const res = await fetch(`${base}/api/account/profile`, { headers });
+  assert.equal(res.status, 429);
+});
