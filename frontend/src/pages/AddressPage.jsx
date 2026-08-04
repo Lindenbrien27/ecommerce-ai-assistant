@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
+import { SettingsLayout } from '../components/SettingsLayout.jsx';
 
 const EMPTY_ADDRESS = { line1: '', line2: '', city: '', state: '', postal_code: '', country: '', phone: '' };
 
@@ -10,39 +11,34 @@ export function AddressPage() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await authorizedFetch('/api/account/address');
-        if (res.status === 401) return;
-        if (!res.ok) {
-          if (!cancelled) setError('Something went wrong loading your address.');
-          return;
-        }
-        const data = await res.json();
-        if (!cancelled) {
-          setAddress({
-            line1: data.line1 || '',
-            line2: data.line2 || '',
-            city: data.city || '',
-            state: data.state || '',
-            postal_code: data.postal_code || '',
-            country: data.country || '',
-            phone: data.phone || '',
-          });
-        }
-      } catch {
-        if (!cancelled) setError("Couldn't reach the server. Please check your connection and try again.");
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const res = await authorizedFetch('/api/account/address');
+      if (res.status === 401) return;
+      if (!res.ok) {
+        setError('Something went wrong loading your address.');
+        return;
       }
+      const data = await res.json();
+      setAddress({
+        line1: data.line1 || '',
+        line2: data.line2 || '',
+        city: data.city || '',
+        state: data.state || '',
+        postal_code: data.postal_code || '',
+        country: data.country || '',
+        phone: data.phone || '',
+      });
+      setSavedAt(null);
+    } catch {
+      setError("Couldn't reach the server. Please check your connection and try again.");
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, [authorizedFetch]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   function updateField(field, value) {
     setAddress((current) => ({ ...current, [field]: value }));
@@ -102,68 +98,106 @@ export function AddressPage() {
     }
   }
 
-  if (!address && !error) return <p className="subtitle">Loading...</p>;
-
   return (
-    <form className="settings-form" onSubmit={handleSubmit}>
+    <SettingsLayout>
       {error && (
         <p className="verify-error" role="alert">
           {error}
         </p>
       )}
+      {!address && !error && <p className="subtitle">Loading...</p>}
 
       {address && (
-        <>
-          <label className="settings-field">
-            <span>Address line 1</span>
-            <input type="text" required value={address.line1} onChange={(e) => updateField('line1', e.target.value)} maxLength={200} />
-          </label>
+        <form className="settings-panel" onSubmit={handleSubmit}>
+          <div className="settings-panel-head">
+            <h2>Shipping address</h2>
+            <p>Where your orders get delivered</p>
+          </div>
 
-          <label className="settings-field">
-            <span>Address line 2</span>
-            <input type="text" value={address.line2} onChange={(e) => updateField('line2', e.target.value)} maxLength={200} />
-          </label>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">Address line 1</div>
+            </div>
+            <div className="settings-field-control">
+              <input type="text" required value={address.line1} onChange={(e) => updateField('line1', e.target.value)} maxLength={200} />
+            </div>
+          </div>
 
-          <label className="settings-field">
-            <span>City</span>
-            <input type="text" required value={address.city} onChange={(e) => updateField('city', e.target.value)} maxLength={200} />
-          </label>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">Address line 2</div>
+            </div>
+            <div className="settings-field-control">
+              <input type="text" value={address.line2} onChange={(e) => updateField('line2', e.target.value)} maxLength={200} />
+            </div>
+          </div>
 
-          <label className="settings-field">
-            <span>State / Province</span>
-            <input type="text" value={address.state} onChange={(e) => updateField('state', e.target.value)} maxLength={200} />
-          </label>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">City</div>
+            </div>
+            <div className="settings-field-control">
+              <input type="text" required value={address.city} onChange={(e) => updateField('city', e.target.value)} maxLength={200} />
+            </div>
+          </div>
 
-          <label className="settings-field">
-            <span>Postal code</span>
-            <input type="text" required value={address.postal_code} onChange={(e) => updateField('postal_code', e.target.value)} maxLength={20} />
-          </label>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">State / Province</div>
+            </div>
+            <div className="settings-field-control">
+              <input type="text" value={address.state} onChange={(e) => updateField('state', e.target.value)} maxLength={200} />
+            </div>
+          </div>
 
-          <label className="settings-field">
-            <span>Country</span>
-            <input type="text" required value={address.country} onChange={(e) => updateField('country', e.target.value)} maxLength={200} />
-          </label>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">Postal code</div>
+            </div>
+            <div className="settings-field-control">
+              <input
+                type="text"
+                required
+                value={address.postal_code}
+                onChange={(e) => updateField('postal_code', e.target.value)}
+                maxLength={20}
+              />
+            </div>
+          </div>
 
-          <label className="settings-field">
-            <span>Phone</span>
-            <input type="tel" value={address.phone} onChange={(e) => updateField('phone', e.target.value)} maxLength={30} />
-          </label>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">Country</div>
+            </div>
+            <div className="settings-field-control">
+              <input type="text" required value={address.country} onChange={(e) => updateField('country', e.target.value)} maxLength={200} />
+            </div>
+          </div>
 
-          <div className="settings-actions">
-            <button type="submit" className="settings-save-btn" disabled={saving}>
-              {saving ? 'Saving...' : 'Save address'}
-            </button>
-            <button type="button" className="settings-remove-btn" onClick={handleRemove} disabled={saving}>
-              Remove
-            </button>
+          <div className="settings-field-row">
+            <div>
+              <div className="settings-field-label">Phone</div>
+            </div>
+            <div className="settings-field-control">
+              <input type="tel" value={address.phone} onChange={(e) => updateField('phone', e.target.value)} maxLength={30} />
+            </div>
+          </div>
+
+          <div className="settings-panel-actions">
             {savedAt && (
               <span className="settings-saved-note" role="status">
                 Saved
               </span>
             )}
+            <button type="button" className="settings-btn-secondary" onClick={handleRemove} disabled={saving}>
+              Remove
+            </button>
+            <button type="submit" className="settings-btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : 'Save address'}
+            </button>
           </div>
-        </>
+        </form>
       )}
-    </form>
+    </SettingsLayout>
   );
 }
