@@ -57,6 +57,7 @@ module.exports = defineConfig({
       RATE_LIMIT_AUTH_MAX: '100',
       RATE_LIMIT_ORDERS_MAX: '100',
       RATE_LIMIT_MAX: '100',
+      RATE_LIMIT_ACCOUNT_MAX: '100',
       // Forced off regardless of what a local .env has configured for real
       // Gmail/SMTP sending - every spec's login goes through the seeded
       // demo accounts (jane.doe@example.com and friends), which aren't
