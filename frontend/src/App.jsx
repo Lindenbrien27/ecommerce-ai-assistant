@@ -19,6 +19,7 @@ const OrderDetailPage = lazy(() =>
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx').then((m) => ({ default: m.ProfilePage })));
 const AddressPage = lazy(() => import('./pages/AddressPage.jsx').then((m) => ({ default: m.AddressPage })));
+const PaymentPage = lazy(() => import('./pages/PaymentPage.jsx').then((m) => ({ default: m.PaymentPage })));
 const ComingSoonPage = lazy(() =>
   import('./pages/ComingSoonPage.jsx').then((m) => ({ default: m.ComingSoonPage }))
 );
@@ -70,16 +71,7 @@ export default function App() {
                   }
                 />
                 <Route path="/address" element={<AddressPage />} />
-                <Route
-                  path="/payment"
-                  element={
-                    <ComingSoonPage
-                      icon={CardIcon}
-                      title="Payment Methods"
-                      text="Saved payment methods will show up here once this is built."
-                    />
-                  }
-                />
+                <Route path="/payment" element={<PaymentPage />} />
               </Route>
             </Route>
 
