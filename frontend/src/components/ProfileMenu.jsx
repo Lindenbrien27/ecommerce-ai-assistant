@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../hooks/useTheme.js';
-import { CardIcon, ChevronDownIcon, LogoutIcon, MonitorIcon, MoonIcon, PinIcon, QuestionIcon, SunIcon } from './icons.jsx';
+import { CardIcon, ChevronDownIcon, LogoutIcon, MonitorIcon, MoonIcon, PersonIcon, PinIcon, QuestionIcon, SunIcon } from './icons.jsx';
 
 const THEME_MODES = [
   { key: 'light', label: 'Light', icon: SunIcon },
@@ -20,7 +20,8 @@ const THEME_MODES = [
 // light/dark/system control, see useTheme), Address/Payment Methods/Help &
 // Support (real routes landing on ComingSoonPage, same honest "not built
 // yet" pattern as Shop Now/Coupons/Wishlist - there's no address or payment
-// data model behind either yet, see App.jsx), and real Sign Out - not the
+// data model behind either yet, see App.jsx - Address/Payment Methods get
+// their own real pages in a later task), and real Sign Out - not the
 // reference's Profile/Preferences/My Tasks/Completed rows, since none of
 // those are real features here.
 export function ProfileMenu() {
@@ -79,6 +80,9 @@ export function ProfileMenu() {
 
             <hr className="popover-divider" />
 
+            <Link to="/profile" className="profile-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+              <PersonIcon width="16" height="16" /> Profile
+            </Link>
             <Link to="/address" className="profile-menu-item" role="menuitem" onClick={() => setOpen(false)}>
               <PinIcon width="16" height="16" /> Address
             </Link>

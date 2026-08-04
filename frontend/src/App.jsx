@@ -4,7 +4,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
-import { CardIcon, HeartIcon, PinIcon, ShopIcon, TicketIcon } from './components/icons.jsx';
+import { CardIcon, HeartIcon, PersonIcon, PinIcon, ShopIcon, TicketIcon } from './components/icons.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -17,6 +17,7 @@ const OrderDetailPage = lazy(() =>
   import('./pages/OrderDetailPage.jsx').then((m) => ({ default: m.OrderDetailPage }))
 );
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx').then((m) => ({ default: m.ProfilePage })));
 const ComingSoonPage = lazy(() =>
   import('./pages/ComingSoonPage.jsx').then((m) => ({ default: m.ComingSoonPage }))
 );
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/orders/:orderNumber" element={<OrderDetailPage />} />
                 <Route path="/chat" element={<ChatPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route
                   path="/coupons"
                   element={
