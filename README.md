@@ -53,6 +53,14 @@ flowchart LR
 | POST   | `/api/chat`       | Send a conversation; assistant replies using order-lookup tools scoped to the authenticated customer (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/orders`     | Paginated list of orders belonging to the authenticated customer - keyset pagination via `?limit=` (default 20, max 100) and `?cursor=` (opaque, from the previous page's `nextCursor`); responds `{ orders, nextCursor }` (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/orders/:id` | Fetch a single order by order number - only if it belongs to the authenticated customer (requires `Authorization: Bearer <token>`) |
+| GET    | `/api/account/profile` | Fetch the authenticated customer's saved profile (name/username/role/bio/photo URL) (requires `Authorization: Bearer <token>`) |
+| PUT    | `/api/account/profile` | Save profile changes (requires `Authorization: Bearer <token>`) |
+| GET    | `/api/account/address` | Fetch the authenticated customer's saved address (requires `Authorization: Bearer <token>`) |
+| PUT    | `/api/account/address` | Save address changes (requires `Authorization: Bearer <token>`) |
+| DELETE | `/api/account/address` | Remove the saved address (requires `Authorization: Bearer <token>`) |
+| GET    | `/api/account/payment-method` | Fetch the authenticated customer's saved payment method (brand/last 4/expiry/billing name - never a full card number) (requires `Authorization: Bearer <token>`) |
+| PUT    | `/api/account/payment-method` | Save payment method changes (requires `Authorization: Bearer <token>`) |
+| DELETE | `/api/account/payment-method` | Remove the saved payment method (requires `Authorization: Bearer <token>`) |
 | GET    | `/openapi.json`   | The machine-readable spec this table is generated from - see [API documentation](#api-documentation) (no auth) |
 | GET    | `/api-docs`       | Interactive, browsable version of the same spec (no auth) |
 
@@ -182,7 +190,7 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 | `auth.otp_locked` | `authController.js` | Too many incorrect attempts against an outstanding code |
 | `auth.token_rejected` | `customerAuth.js` | Missing/invalid/expired JWT on a protected route (`reason`: `missing`/`invalid`/`expired`) |
 | `order.access_denied` | `orderController.js` | `GET /api/orders/:id` denied (`reason`: `not_found`/`not_owned`) |
-| `rate_limit.exceeded` | `rateLimiter.js` | Any of the three limiters trips (`limiter`: `chat`/`orders`/`account`/`auth`) |
+| `rate_limit.exceeded` | `rateLimiter.js` | Any of the four limiters trips (`limiter`: `chat`/`orders`/`account`/`auth`) |
 | `account.profile_updated` | `accountController.js` | A customer saved profile changes |
 | `account.address_updated` | `accountController.js` | A customer saved address changes |
 | `account.address_removed` | `accountController.js` | A customer cleared their saved address |
@@ -228,7 +236,7 @@ Measured, not assumed, given this project's own standing "measure before optimiz
 
 ### Frontend routing
 
-`react-router-dom` (`BrowserRouter`), not just conditionally-rendered state. Four real routes, each with a distinct URL, browser back/forward, and direct-link support:
+`react-router-dom` (`BrowserRouter`), not just conditionally-rendered state. Seven real routes, each with a distinct URL, browser back/forward, and direct-link support:
 
 | Route | Page | Access |
 |---|---|---|
@@ -236,6 +244,9 @@ Measured, not assumed, given this project's own standing "measure before optimiz
 | `/orders` | `OrdersPage` | Protected - lists the customer's orders (`GET /api/orders`) |
 | `/orders/:orderNumber` | `OrderDetailPage` | Protected - single order (`GET /api/orders/:id`); a different customer's order number 404s here the same as it does over the API |
 | `/chat` | `ChatPage` | Protected |
+| `/profile` | `ProfilePage` | Protected - saved profile settings (`GET`/`PUT /api/account/profile`) |
+| `/address` | `AddressPage` | Protected - saved address settings (`GET`/`PUT`/`DELETE /api/account/address`) |
+| `/payment` | `PaymentPage` | Protected - saved payment method settings (`GET`/`PUT`/`DELETE /api/account/payment-method`) |
 
 `AuthContext` (`frontend/src/context/AuthContext.jsx`) holds the token and is read by `ProtectedRoute`/`PublicOnlyRoute` to decide whether to render the route or `<Navigate>` elsewhere. Since `express.static` alone 404s on a hard refresh of a client-side route like `/orders/ORD-1001` (no such file exists), `src/app.js` has a catch-all `app.get('*', ...)` after every real route that serves `frontend/dist/index.html` and lets React Router take over - verified working for both in-app navigation and direct/hard-loaded URLs.
 

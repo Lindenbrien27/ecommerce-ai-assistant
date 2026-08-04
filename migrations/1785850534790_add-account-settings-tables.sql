@@ -34,6 +34,6 @@ CREATE TABLE customer_payment_methods (
 
 -- Down Migration
 
-DROP TABLE customer_payment_methods;
-DROP TABLE customer_addresses;
-DROP TABLE customer_profiles;
+DROP TABLE IF EXISTS customer_payment_methods;
+DROP TABLE IF EXISTS customer_addresses;
+DROP TABLE IF EXISTS customer_profiles;

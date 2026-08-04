@@ -126,7 +126,11 @@ export function ProfilePage() {
             <button type="submit" className="settings-save-btn" disabled={saving}>
               {saving ? 'Saving...' : 'Save changes'}
             </button>
-            {savedAt && <span className="settings-saved-note">Saved</span>}
+            {savedAt && (
+              <span className="settings-saved-note" role="status">
+                Saved
+              </span>
+            )}
           </div>
         </>
       )}

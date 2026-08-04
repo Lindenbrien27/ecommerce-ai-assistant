@@ -180,7 +180,11 @@ export function PaymentPage() {
             <button type="button" className="settings-remove-btn" onClick={handleRemove} disabled={saving}>
               Remove
             </button>
-            {savedAt && <span className="settings-saved-note">Saved</span>}
+            {savedAt && (
+              <span className="settings-saved-note" role="status">
+                Saved
+              </span>
+            )}
           </div>
         </>
       )}
