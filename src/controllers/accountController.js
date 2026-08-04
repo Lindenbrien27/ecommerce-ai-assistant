@@ -20,7 +20,7 @@ function cleanOptionalText(value, maxLength) {
 
 function cleanRequiredText(value, maxLength) {
   if (typeof value !== 'string' || value.trim().length === 0 || value.length > maxLength) return undefined;
-  return value;
+  return value.trim();
 }
 
 function validateProfileInput(body) {
@@ -183,9 +183,4 @@ module.exports = {
   getPaymentMethod,
   updatePaymentMethod,
   deletePaymentMethod,
-  // Exported for direct unit testing of the validation rules in Task 4's
-  // integration tests without needing a live request for every edge case.
-  validateProfileInput,
-  validateAddressInput,
-  validatePaymentInput,
 };
