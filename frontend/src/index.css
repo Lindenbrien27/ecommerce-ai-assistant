@@ -3566,3 +3566,98 @@ body:has(.storefront-shell) {
      shorter labels either side of it don't need. */
   .order-route-label { font-size: 0.68rem; }
 }
+
+/* Account settings forms (Profile/Address/Payment Method) */
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+}
+
+.settings-note {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.settings-field input,
+.settings-field select,
+.settings-field textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel-bg);
+  color: var(--color-text);
+}
+
+.settings-field textarea {
+  resize: vertical;
+}
+
+.settings-field input:focus-visible,
+.settings-field select:focus-visible,
+.settings-field textarea:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.settings-save-btn {
+  font: inherit;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  cursor: pointer;
+}
+
+.settings-save-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.settings-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.settings-remove-btn {
+  font: inherit;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings-remove-btn:hover:not(:disabled) {
+  background: var(--color-panel-bg);
+}
+
+.settings-remove-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.settings-saved-note {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
