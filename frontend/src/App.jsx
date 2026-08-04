@@ -4,7 +4,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
-import { CardIcon, HeartIcon, PersonIcon, PinIcon, ShopIcon, TicketIcon } from './components/icons.jsx';
+import { CardIcon, HeartIcon, PersonIcon, ShopIcon, TicketIcon } from './components/icons.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -18,6 +18,7 @@ const OrderDetailPage = lazy(() =>
 );
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx').then((m) => ({ default: m.ProfilePage })));
+const AddressPage = lazy(() => import('./pages/AddressPage.jsx').then((m) => ({ default: m.AddressPage })));
 const ComingSoonPage = lazy(() =>
   import('./pages/ComingSoonPage.jsx').then((m) => ({ default: m.ComingSoonPage }))
 );
@@ -68,16 +69,7 @@ export default function App() {
                     />
                   }
                 />
-                <Route
-                  path="/address"
-                  element={
-                    <ComingSoonPage
-                      icon={PinIcon}
-                      title="Address"
-                      text="Saved shipping addresses will show up here once this is built."
-                    />
-                  }
-                />
+                <Route path="/address" element={<AddressPage />} />
                 <Route
                   path="/payment"
                   element={
