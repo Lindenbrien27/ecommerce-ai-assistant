@@ -10,7 +10,7 @@ const { pool } = require('../config/db');
 
 async function getProfile(email) {
   const normalized = email.toLowerCase();
-  const { rows } = await pool.query('SELECT * FROM customer_profiles WHERE email = $1', [normalized]);
+  const { rows } = await pool.query('SELECT email, name, username, role, bio, photo_url FROM customer_profiles WHERE email = $1', [normalized]);
   return (
     rows[0] || { email: normalized, name: null, username: null, role: null, bio: null, photo_url: null }
   );
@@ -31,7 +31,7 @@ async function upsertProfile(email, { name, username, role, bio, photo_url }) {
 
 async function getAddress(email) {
   const normalized = email.toLowerCase();
-  const { rows } = await pool.query('SELECT * FROM customer_addresses WHERE email = $1', [normalized]);
+  const { rows } = await pool.query('SELECT email, line1, line2, city, state, postal_code, country, phone FROM customer_addresses WHERE email = $1', [normalized]);
   return (
     rows[0] || {
       email: normalized,
@@ -65,7 +65,7 @@ async function deleteAddress(email) {
 
 async function getPaymentMethod(email) {
   const normalized = email.toLowerCase();
-  const { rows } = await pool.query('SELECT * FROM customer_payment_methods WHERE email = $1', [normalized]);
+  const { rows } = await pool.query('SELECT email, brand, last4, expiry_month, expiry_year, billing_name FROM customer_payment_methods WHERE email = $1', [normalized]);
   return (
     rows[0] || {
       email: normalized,
