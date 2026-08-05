@@ -41,9 +41,15 @@ function App() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">Border</h2>
-        <Accordion type="single" collapsible className="rounded-xl border border-border px-4">
+        {/* px-4 lives on each item (padding, not margin), not on the Accordion
+            wrapper - that way the item's own border-b still spans the full
+            box (flush with the rounded border on both sides); only the
+            trigger/content text is inset. Padding on the wrapper instead
+            would leave the divider stopping short of the border on both
+            ends, which is the bug this fixes. */}
+        <Accordion type="single" collapsible className="rounded-xl border border-border">
           {FAQ_ITEMS.map((item) => (
-            <AccordionItem key={item.value} value={item.value} className="last:border-b-0">
+            <AccordionItem key={item.value} value={item.value} className="px-4 last:border-b-0">
               <AccordionTrigger>{item.trigger}</AccordionTrigger>
               <AccordionContent>{item.content}</AccordionContent>
             </AccordionItem>
