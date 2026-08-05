@@ -1,4 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/accordion";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const FAQ_ITEMS = [
   {
@@ -21,7 +22,10 @@ const FAQ_ITEMS = [
 function App() {
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col gap-10 px-6 py-16">
-      <h1 className="text-lg font-medium text-foreground">Accordion sandbox</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-medium text-foreground">Accordion sandbox</h1>
+        <ThemeToggle />
+      </div>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">Basic</h2>
