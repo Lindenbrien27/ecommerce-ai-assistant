@@ -1,5 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/accordion";
 import { Pattern as AccordionWithBorders } from "@/components/accordion/c-accordion-3";
+import { Alert, AlertAction, AlertDescription, AlertIcon, AlertTitle } from "@/components/alert";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const FAQ_ITEMS = [
@@ -81,6 +82,63 @@ function App() {
           ReUI c-accordion-3 (borders and rounded corners)
         </h2>
         <AccordionWithBorders />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-muted-foreground">Alert</h2>
+
+        <Alert>
+          <AlertIcon />
+          <AlertTitle>License Info</AlertTitle>
+        </Alert>
+
+        <Alert>
+          <AlertIcon />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <AlertTitle>License Info</AlertTitle>
+            <AlertDescription>Your license will expire on October 17th, 2027 at midnight</AlertDescription>
+          </div>
+        </Alert>
+
+        <Alert>
+          <AlertIcon />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <AlertTitle>License Info</AlertTitle>
+            <AlertDescription>Your license will expire on October 17th, 2027 at midnight</AlertDescription>
+          </div>
+          <AlertAction>
+            <button
+              type="button"
+              className="flex h-7 items-center justify-center rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground shadow-2xs"
+            >
+              Review
+            </button>
+          </AlertAction>
+        </Alert>
+
+        <Alert variant="destructive">
+          <AlertIcon />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <AlertTitle>License Info</AlertTitle>
+            <AlertDescription>Your license will expire on October 17th, 2027 at midnight</AlertDescription>
+          </div>
+        </Alert>
+
+        <Alert variant="destructive">
+          <AlertIcon />
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <AlertTitle>License Info</AlertTitle>
+            <AlertDescription>Your license will expire on October 17th, 2027 at midnight</AlertDescription>
+          </div>
+          <AlertAction>
+            <button
+              type="button"
+              className="flex h-7 items-center justify-center rounded-md bg-destructive/10 px-2.5 text-xs font-medium text-destructive"
+            >
+              Decline
+            </button>
+          </AlertAction>
+        </Alert>
       </section>
 
       <section className="flex flex-col gap-3">

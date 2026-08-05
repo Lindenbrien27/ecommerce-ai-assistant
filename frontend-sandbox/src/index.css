@@ -18,6 +18,13 @@
   --border: oklch(0.92 0.004 286.32);
   --muted-foreground: oklch(0.552 0.016 285.938);
   --ring: oklch(0.705 0.015 286.067);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  /* #e7000b is the exact value the Alert design context gave for
+     state/destructive - kept literal since it's what was specified,
+     rather than swapped for shadcn's own (very close but not identical)
+     default destructive red. */
+  --destructive: #e7000b;
 }
 
 .dark {
@@ -28,6 +35,13 @@
   --border: oklch(1 0 0 / 10%);
   --muted-foreground: oklch(0.705 0.015 286.067);
   --ring: oklch(0.552 0.016 285.938);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.21 0.006 285.885);
+  /* No dark-theme token was in the Figma design context for this
+     component - follows shadcn/ui's own standard dark destructive red
+     (lighter/desaturated for legibility on a dark background) rather
+     than being guessed from scratch. */
+  --destructive: oklch(0.704 0.191 22.216);
 }
 
 @theme inline {
@@ -42,6 +56,9 @@
   --color-border: var(--border);
   --color-muted-foreground: var(--muted-foreground);
   --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
