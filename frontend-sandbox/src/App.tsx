@@ -1,4 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/accordion";
+import { Pattern as AccordionWithBorders } from "@/components/accordion/c-accordion-3";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const FAQ_ITEMS = [
@@ -73,6 +74,13 @@ function App() {
             ))}
           </Accordion>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-muted-foreground">
+          ReUI c-accordion-3 (borders and rounded corners)
+        </h2>
+        <AccordionWithBorders />
       </section>
 
       <section className="flex flex-col gap-3">
