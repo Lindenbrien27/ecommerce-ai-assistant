@@ -55,12 +55,6 @@ flowchart LR
 | GET    | `/api/orders/:id` | Fetch a single order by order number - only if it belongs to the authenticated customer (requires `Authorization: Bearer <token>`) |
 | GET    | `/api/account/profile` | Fetch the authenticated customer's saved profile (name/username/role/bio/photo URL) (requires `Authorization: Bearer <token>`) |
 | PUT    | `/api/account/profile` | Save profile changes (requires `Authorization: Bearer <token>`) |
-| GET    | `/api/account/address` | Fetch the authenticated customer's saved address (requires `Authorization: Bearer <token>`) |
-| PUT    | `/api/account/address` | Save address changes (requires `Authorization: Bearer <token>`) |
-| DELETE | `/api/account/address` | Remove the saved address (requires `Authorization: Bearer <token>`) |
-| GET    | `/api/account/payment-method` | Fetch the authenticated customer's saved payment method (brand/last 4/expiry/billing name - never a full card number) (requires `Authorization: Bearer <token>`) |
-| PUT    | `/api/account/payment-method` | Save payment method changes (requires `Authorization: Bearer <token>`) |
-| DELETE | `/api/account/payment-method` | Remove the saved payment method (requires `Authorization: Bearer <token>`) |
 | GET    | `/openapi.json`   | The machine-readable spec this table is generated from - see [API documentation](#api-documentation) (no auth) |
 | GET    | `/api-docs`       | Interactive, browsable version of the same spec (no auth) |
 
@@ -150,7 +144,7 @@ Live-verified against the real Neon database (not just mocked): authenticating a
 - `/api/auth/otp/request` and `/api/auth/otp/verify` are both capped at `RATE_LIMIT_AUTH_MAX` requests (default 10) per `RATE_LIMIT_AUTH_WINDOW_MS` (default 60s) per client, to slow down code-request spamming and code-guessing respectively.
 - `/api/chat` is capped at `RATE_LIMIT_MAX` requests (default 20) per `RATE_LIMIT_WINDOW_MS` (default 60s) per client, to bound Claude API cost under abuse or accidental retry loops.
 - `/api/orders/:id` is capped at `RATE_LIMIT_ORDERS_MAX` requests (default 30) per `RATE_LIMIT_ORDERS_WINDOW_MS` (default 60s) per client, to slow down order-number enumeration/scanning attempts.
-- `/api/account/*` (profile/address/payment-method) is capped at `RATE_LIMIT_ACCOUNT_MAX` requests (default 30) per `RATE_LIMIT_ACCOUNT_WINDOW_MS` (default 60s) per client.
+- `/api/account/*` (profile) is capped at `RATE_LIMIT_ACCOUNT_MAX` requests (default 30) per `RATE_LIMIT_ACCOUNT_WINDOW_MS` (default 60s) per client.
 
 Each is an independent limiter (separate quota). Exceeding any of them returns `429`.
 
@@ -192,10 +186,6 @@ Logging runs on [pino](https://getpino.io) (`src/config/logger.js`), emitting st
 | `order.access_denied` | `orderController.js` | `GET /api/orders/:id` denied (`reason`: `not_found`/`not_owned`) |
 | `rate_limit.exceeded` | `rateLimiter.js` | Any of the four limiters trips (`limiter`: `chat`/`orders`/`account`/`auth`) |
 | `account.profile_updated` | `accountController.js` | A customer saved profile changes |
-| `account.address_updated` | `accountController.js` | A customer saved address changes |
-| `account.address_removed` | `accountController.js` | A customer cleared their saved address |
-| `account.payment_method_updated` | `accountController.js` | A customer saved payment method changes |
-| `account.payment_method_removed` | `accountController.js` | A customer cleared their saved payment method |
 
 `order.access_denied` is the one worth calling out specifically: the HTTP response is a `404` regardless of whether the order doesn't exist or belongs to someone else - deliberately, so a client can't use it to enumerate real order numbers (see [Authorization](#authorization)). The audit log entry still tells the two apart internally, and for the `not_owned` case, records *which other customer's* order was requested (`actualOwner`) - an authenticated customer's token hitting an order that genuinely belongs to someone else is meaningfully different signal (possible token leakage/reuse, or targeted probing) than one that just doesn't exist, even though neither is visible to the requester. This is the general shape of audit logging: the external response stays minimal, the internal record stays complete.
 

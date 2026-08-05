@@ -189,21 +189,3 @@ test('saving a profile logs account.profile_updated', async (t) => {
   assert.ok(call, 'expected an account.profile_updated audit log entry');
   assert.equal(call.arguments[0].email, 'jane@example.com');
 });
-
-test('removing a saved address logs account.address_removed', async (t) => {
-  t.mock.method(pool, 'query', async () => ({ rows: [] }));
-  t.mock.method(auditLogger, 'info', () => {});
-
-  const token = issueToken('jane@example.com');
-
-  await withServer(t, async (base) => {
-    await fetch(`${base}/api/account/address`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  });
-
-  const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'account.address_removed');
-  assert.ok(call, 'expected an account.address_removed audit log entry');
-  assert.equal(call.arguments[0].email, 'jane@example.com');
-});

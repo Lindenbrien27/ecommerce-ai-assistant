@@ -10,7 +10,7 @@
     { "name": "Health", "description": "Liveness/readiness checks - no auth" },
     { "name": "Auth", "description": "Order-ownership verification and token issuance" },
     { "name": "Orders", "description": "A customer's own orders - requires a bearer token" },
-    { "name": "Account", "description": "A customer's own profile, address, and saved payment method - requires a bearer token" },
+    { "name": "Account", "description": "A customer's own profile - requires a bearer token" },
     { "name": "Chat", "description": "AI assistant chat - requires a bearer token" }
   ],
   "components": {
@@ -55,31 +55,6 @@
           "bio": { "type": ["string", "null"], "maxLength": 500 },
           "photo_url": { "type": ["string", "null"], "format": "uri", "maxLength": 2048 }
         }
-      },
-      "Address": {
-        "type": "object",
-        "properties": {
-          "email": { "type": "string", "format": "email" },
-          "line1": { "type": ["string", "null"], "maxLength": 200 },
-          "line2": { "type": ["string", "null"], "maxLength": 200 },
-          "city": { "type": ["string", "null"], "maxLength": 200 },
-          "state": { "type": ["string", "null"], "maxLength": 200 },
-          "postal_code": { "type": ["string", "null"], "maxLength": 20 },
-          "country": { "type": ["string", "null"], "maxLength": 200 },
-          "phone": { "type": ["string", "null"], "maxLength": 30 }
-        }
-      },
-      "PaymentMethod": {
-        "type": "object",
-        "properties": {
-          "email": { "type": "string", "format": "email" },
-          "brand": { "type": ["string", "null"], "enum": ["Visa", "Mastercard", "Amex", "Discover", null] },
-          "last4": { "type": ["string", "null"], "pattern": "^[0-9]{4}$" },
-          "expiry_month": { "type": ["integer", "null"], "minimum": 1, "maximum": 12 },
-          "expiry_year": { "type": ["integer", "null"] },
-          "billing_name": { "type": ["string", "null"], "maxLength": 100 }
-        },
-        "description": "Display-only card data. This app never stores a full card number or CVV - see README > Security for why."
       },
       "Error": {
         "type": "object",
@@ -304,80 +279,6 @@
         "responses": {
           "200": { "description": "Saved profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Profile" } } } },
           "400": { "description": "Invalid profile data", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "429": { "$ref": "#/components/responses/TooManyRequests" }
-        }
-      }
-    },
-    "/api/account/address": {
-      "get": {
-        "tags": ["Account"],
-        "summary": "Get the current customer's saved address",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Address (all fields null if nothing saved yet)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Address" } } } },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "429": { "$ref": "#/components/responses/TooManyRequests" }
-        }
-      },
-      "put": {
-        "tags": ["Account"],
-        "summary": "Save the current customer's address",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Address" } } }
-        },
-        "responses": {
-          "200": { "description": "Saved address", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Address" } } } },
-          "400": { "description": "Invalid address data", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "429": { "$ref": "#/components/responses/TooManyRequests" }
-        }
-      },
-      "delete": {
-        "tags": ["Account"],
-        "summary": "Remove the current customer's saved address",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "204": { "description": "Address removed" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "429": { "$ref": "#/components/responses/TooManyRequests" }
-        }
-      }
-    },
-    "/api/account/payment-method": {
-      "get": {
-        "tags": ["Account"],
-        "summary": "Get the current customer's saved payment method",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": { "description": "Payment method (all fields null if nothing saved yet)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethod" } } } },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "429": { "$ref": "#/components/responses/TooManyRequests" }
-        }
-      },
-      "put": {
-        "tags": ["Account"],
-        "summary": "Save the current customer's payment method",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethod" } } }
-        },
-        "responses": {
-          "200": { "description": "Saved payment method", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMethod" } } } },
-          "400": { "description": "Invalid payment method data", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "429": { "$ref": "#/components/responses/TooManyRequests" }
-        }
-      },
-      "delete": {
-        "tags": ["Account"],
-        "summary": "Remove the current customer's saved payment method",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "204": { "description": "Payment method removed" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "429": { "$ref": "#/components/responses/TooManyRequests" }
         }
