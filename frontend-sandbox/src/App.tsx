@@ -1,6 +1,8 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/accordion";
 import { Pattern as AccordionWithBorders } from "@/components/accordion/c-accordion-3";
 import { Alert, AlertAction, AlertDescription, AlertIcon, AlertTitle } from "@/components/alert";
+import { FileTypesGrid } from "@/components/file-types";
+import { PaymentMethodsGrid } from "@/components/payment-methods";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const FAQ_ITEMS = [
@@ -139,6 +141,18 @@ function App() {
             </button>
           </AlertAction>
         </Alert>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-muted-foreground">File Types</h2>
+        <FileTypesGrid />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-muted-foreground">
+          Payment Methods (4 of 9 - see component comment)
+        </h2>
+        <PaymentMethodsGrid />
       </section>
 
       <section className="flex flex-col gap-3">
