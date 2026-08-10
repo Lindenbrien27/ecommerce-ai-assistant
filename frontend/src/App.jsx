@@ -4,7 +4,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
-import { CardIcon, HeartIcon, PinIcon, ShopIcon, TicketIcon } from './components/icons.jsx';
+import { CardIcon, HeartIcon, PinIcon, TicketIcon } from './components/icons.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -17,9 +17,17 @@ const OrderDetailPage = lazy(() =>
   import('./pages/OrderDetailPage.jsx').then((m) => ({ default: m.OrderDetailPage }))
 );
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx').then((m) => ({ default: m.ChatPage })));
+const ShopPage = lazy(() => import('./pages/ShopPage.jsx').then((m) => ({ default: m.ShopPage })));
+const ProductDetailPage = lazy(() =>
+  import('./pages/ProductDetailPage.jsx').then((m) => ({ default: m.ProductDetailPage }))
+);
 const ComingSoonPage = lazy(() =>
   import('./pages/ComingSoonPage.jsx').then((m) => ({ default: m.ComingSoonPage }))
 );
+const CheckoutPage = lazy(() =>
+  import('./pages/CheckoutPage.jsx').then((m) => ({ default: m.CheckoutPage }))
+);
+const BagPage = lazy(() => import('./pages/BagPage.jsx').then((m) => ({ default: m.BagPage })));
 
 export default function App() {
   return (
@@ -56,16 +64,10 @@ export default function App() {
                     />
                   }
                 />
-                <Route
-                  path="/shop"
-                  element={
-                    <ComingSoonPage
-                      icon={ShopIcon}
-                      title="Shop"
-                      text="Browsing and buying new products will be available here once this is built."
-                    />
-                  }
-                />
+                <Route path="/shop" element={<ShopPage />} />
+                <Route path="/shop/:productId" element={<ProductDetailPage />} />
+                <Route path="/bag" element={<BagPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
                 <Route
                   path="/address"
                   element={

@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { PRODUCT_ICONS } from './icons.jsx';
 
@@ -26,20 +27,39 @@ export function CategoryBadgesEditor() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => new Set(selectedCategories));
   const cardRef = useRef(null);
-  const [maxHeight, setMaxHeight] = useState(null);
+  // Replaces the old maxHeight-only state - the popover is now portaled to
+  // <body> and position: fixed (see index.css's .edit-popover comment), so
+  // it needs its own top/left in addition to maxHeight, all measured live
+  // from this card's own getBoundingClientRect() every time it opens.
+  // Keeps the footer's own Save button reachable regardless of where the
+  // card sits or how short the window is, same reasoning the old
+  // maxHeight-only version already had.
+  const [popoverStyle, setPopoverStyle] = useState(null);
 
-  // The sidebar this card lives in is now position: sticky (see
-  // index.css) - once stuck, the page can no longer be scrolled to bring
-  // an overflowing popover into view the way it could when the sidebar
-  // scrolled along with everything else. Measuring the real remaining
-  // viewport space below this card every time the popover opens - instead
-  // of the flat "min(420px, 70vh)" CSS ceiling alone - keeps the footer's
-  // own Save button reachable regardless of where the card sits or how
-  // short the window is.
   useLayoutEffect(() => {
     if (!open || !cardRef.current) return;
-    const { top } = cardRef.current.getBoundingClientRect();
-    setMaxHeight(Math.max(200, window.innerHeight - top - 16));
+    const rect = cardRef.current.getBoundingClientRect();
+    setPopoverStyle({
+      top: rect.top,
+      left: rect.right + 12,
+      maxHeight: Math.max(200, window.innerHeight - rect.top - 16),
+    });
+  }, [open]);
+
+  // .storefront-sidenav (this card's real parent) scrolls internally now
+  // (see its own comment in index.css) - the popover's fixed top/left
+  // above is only measured once, at open, so scrolling the nav out from
+  // under an open popover would otherwise leave it visibly floating next
+  // to the wrong spot instead of tracking the card. Closing it on scroll
+  // is simpler and more honest than trying to keep it glued to a card
+  // that's no longer even in the same place.
+  useEffect(() => {
+    if (!open) return;
+    const scrollParent = cardRef.current?.closest('.storefront-sidenav');
+    if (!scrollParent) return;
+    const closeOnScroll = () => setOpen(false);
+    scrollParent.addEventListener('scroll', closeOnScroll);
+    return () => scrollParent.removeEventListener('scroll', closeOnScroll);
   }, [open]);
 
   function openEditor() {
@@ -93,7 +113,7 @@ export function CategoryBadgesEditor() {
         )}
       </div>
 
-      {open && (
+      {open && popoverStyle && createPortal(
         <>
           {/* Closes on outside click without saving - the same "discard,
               don't silently apply" behavior as the ✕ button. */}
@@ -101,7 +121,11 @@ export function CategoryBadgesEditor() {
           <aside
             className="edit-popover open"
             aria-label="Edit category badges"
-            style={maxHeight ? { maxHeight: `${maxHeight}px` } : undefined}
+            style={{
+              top: `${popoverStyle.top}px`,
+              left: `${popoverStyle.left}px`,
+              maxHeight: `${popoverStyle.maxHeight}px`,
+            }}
           >
             <div className="popover-head">
               <h2>Edit Category Badges</h2>
@@ -174,7 +198,8 @@ export function CategoryBadgesEditor() {
               </button>
             </div>
           </aside>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

@@ -281,7 +281,7 @@
     --color-error-text: #fca5a5;
     --color-error-border: #7f1d1d;
     --color-success-surface: #112319;
-    --color-success-text: #86efac;
+    --color-success-text: #00bd7d;
     --color-warning-surface: #2a2110;
     --color-warning-text: #fcd34d;
     --color-active-surface: #15233f;
@@ -322,7 +322,7 @@
   --color-error-text: #fca5a5;
   --color-error-border: #7f1d1d;
   --color-success-surface: #112319;
-  --color-success-text: #86efac;
+  --color-success-text: #00bd7d;
   --color-warning-surface: #2a2110;
   --color-warning-text: #fcd34d;
   --color-active-surface: #15233f;
@@ -442,7 +442,9 @@
    --color-panel-bg) - background/border/radius, not padding or shadow,
    since those genuinely vary per card (a sidebar has no shadow at rest,
    an order card does; padding ranges from 12px to 20px depending on what
-   the card holds). */
+   the card holds). .product-card (ShopPage) used to join this group too,
+   but needs its own much larger 24px radius per its own reference design,
+   not this file's usual 12px --radius-lg - see its own rule below. */
 .surface-card,
 .storefront-sidebar,
 .ai-panel,
@@ -1470,6 +1472,31 @@ body:has(.storefront-shell) {
      than snapping. */
   transition: width var(--duration-base) var(--ease-out-bezier);
 }
+/* Wraps everything in the sidebar that actually changes shape between
+   expanded/collapsed (head, Shop Now, nav) - ProfileMenu stays outside
+   this box (see Layout.jsx's own comment) since its popover isn't
+   portaled and needs to render past this column's edge. flex: 1 1 0 +
+   min-height: 0, the same sizing .storefront-sidenav had directly before
+   this wrapper existed (see that rule's own comment on why), now one
+   level up so .storefront-sidenav's own flex/scroll math still resolves
+   the same way nested inside it. overflow: hidden is the actual fix:
+   without it, content that only *snaps* to display: none on the
+   collapsed class (brand-name, nav labels, etc. below) rather than
+   fading could visibly spill past the still-animating width for a frame,
+   reading as a stutter instead of one clean slide - the same "overflow:
+   hidden clips the panel as its width collapses" idiom .ai-drawer's own
+   rule already documents. Safe here for the same reason .storefront-
+   sidenav's own overflow-y already is: the one popover that used to need
+   to escape this region (CategoryBadgesEditor's edit-popover) is
+   portaled to <body> now, so nothing inside this box needs to render
+   outside it. */
+.storefront-sidebar-clip {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .storefront-sidebar-head {
   display: flex;
   align-items: center;
@@ -1505,32 +1532,52 @@ body:has(.storefront-shell) {
   padding: 0 16px;
   margin-bottom: 24px;
   border-radius: 10px;
-  /* var(--color-cta), not --color-solid-bg - Shop Now is this sidebar's one
-     purchase-driving CTA, called out in the same fixed orange as order
-     history's own "Buy again" (see .order-history-detail-btn.buy-again)
-     rather than this app's monochrome near-black/-white "selected state"
-     tone, so the two read as one deliberate accent wherever a customer can
-     go buy something. color: #fff, not var(--color-primary-text) - that
-     token flips per theme (assumes it's sitting on --color-solid-bg, which
-     itself flips), but this fixed orange fill doesn't flip, so its text
-     can't either - same reasoning as .badge--danger/.spotlight-banner
-     elsewhere in this file. */
-  background: var(--color-cta);
-  color: #fff;
+  /* var(--color-solid-bg), not var(--color-cta) - Shop Now used to share
+     order history's fixed "Buy again" orange (see
+     .order-history-detail-btn.buy-again, which keeps that color
+     unchanged), but the ShopPage it now links to (see ShopPage.jsx) is
+     modeled on a monochrome black/white reference design, and the two
+     read as inconsistent sitting next to each other - this button now
+     uses the same theme-flipping near-black/-white "solid" tone every
+     other solid button in this file already uses (.popover-save,
+     .chat-send-button--active), rather than a fixed color of its own. */
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color var(--duration-fast) ease, transform 0.1s ease, box-shadow var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) ease, transform 0.1s ease, box-shadow var(--duration-fast) ease,
+    padding var(--duration-base) var(--ease-out-bezier), gap var(--duration-base) var(--ease-out-bezier);
 }
 /* A real shadow lift on hover, not just the flat color swap this used to
    be - approved via a states-redesign mockup showing Shop Now as the one
    high-commitment, solid button on this sidebar, so it's the one that
    should visibly rise under the cursor rather than just re-tint. */
-.storefront-shop-now:hover { background: var(--color-cta-hover); box-shadow: var(--shadow-hover-lift); }
-.storefront-shop-now:active { background: var(--color-cta); transform: scale(0.97); box-shadow: none; }
+.storefront-shop-now:hover { background: var(--color-solid-bg-hover); box-shadow: var(--shadow-hover-lift); }
+.storefront-shop-now:active { background: var(--color-solid-bg); transform: scale(0.97); box-shadow: none; }
 
-.storefront-sidenav { flex-shrink: 0; }
+/* flex: 1 1 0 + min-height: 0 + overflow-y: auto, not the old flex-shrink:
+   0 alone - that left this column sized to its own content with nowhere
+   to shrink, so on a short viewport the Dashboard/Category content simply
+   overflowed .storefront-sidebar's fixed height (clipped by
+   .storefront-body's own overflow: hidden, since .storefront-shell no
+   longer allows outer page scroll - see its own comment above), taking
+   the sidebar's pinned-to-the-floor ProfileMenu down with it. This column
+   now grows to fill whatever's left below the header/Shop Now button and
+   above ProfileMenu when content is short (same empty-space rhythm as
+   before), and shrinks + scrolls internally once it's not. Safe to add
+   overflow-y here (unlike the whole sidebar, see .storefront-sidebar's
+   own comment on why *that* stays overflow: visible) because the one
+   popover that used to escape this column to the right
+   (CategoryBadgesEditor's edit-popover) is portaled to <body> now - see
+   that component - so nothing inside here needs to render outside this
+   box anymore. */
+.storefront-sidenav {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
 /* position: relative so the Dashboard glide indicator (absolutely
    positioned, see below) can sit behind these three rows. */
 .storefront-sidenav-section {
@@ -1615,8 +1662,12 @@ body:has(.storefront-shell) {
      states-redesign mockup) - background-color/color transitions weren't
      here before either, just relying on the browser's own instant default,
      which is why hover used to feel like a harder snap than every other
-     control in this file that already had one. */
-  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, transform 0.1s ease;
+     control in this file that already had one. padding/gap added so the
+     collapsed rail's row-shape change (see .storefront-sidebar--collapsed
+     below) animates in step with the sidebar's own width transition
+     instead of snapping. */
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, transform 0.1s ease,
+    padding var(--duration-base) var(--ease-out-bezier), gap var(--duration-base) var(--ease-out-bezier);
 }
 /* --icon-size-sm (16px), not each icon's own inline default (Orders/Ticket
    ship at 18px, Heart at 16px - a small pre-existing inconsistency) - one
@@ -1627,6 +1678,23 @@ body:has(.storefront-shell) {
 .storefront-sidenav a svg,
 .storefront-sidenav span svg,
 .storefront-sidenav-item svg { flex-shrink: 0; width: var(--icon-size-sm); height: var(--icon-size-sm); }
+/* Shared by every icon+label row's own label (My Orders/Coupons/Wishlist/
+   Shop Now - see Layout.jsx). overflow: hidden + white-space: nowrap
+   always, not just once collapsed, so the label can never wrap or squish
+   as its own max-width shrinks - it just gets progressively clipped by
+   its own right edge, with opacity fading in step to keep that clipping
+   from reading as an abrupt truncation. 160px comfortably exceeds this
+   rail's longest label ("My Orders") at this row's font-size, so it's
+   never a real constraint at rest - see the collapsed override below for
+   the actual 0 target. */
+.storefront-sidenav-label {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  transition: max-width var(--duration-base) var(--ease-out-bezier), opacity var(--duration-base) var(--ease-out-bezier);
+}
 /* The label text sits in its own nested <span> (see Layout.jsx - needed so
    the mobile breakpoint can hide just the label, not the icon), which the
    base ".storefront-sidenav span" rule above also matches directly, even
@@ -1831,114 +1899,29 @@ body:has(.storefront-shell) {
   box-shadow: none;
 }
 
-/* Manual "minimize sidebar" toggle (click the brand/logo itself - see
-   .storefront-brand-button above) - a narrow icon-only rail showing just
-   Shop Now, the Dashboard nav icons, and the account menu's avatar,
-   matching the <=700px responsive collapse's own icon-only look but
-   user-toggled at any viewport width and kept in the vertical (not
-   wrapped-row) layout. Text labels use the same visually-hidden clip
-   technique as that breakpoint (see its own comment below) rather than
-   display: none, since the element behind them (My Orders/Coupons/
-   Wishlist/Shop Now) is a real control. */
-.storefront-sidebar--collapsed { width: 76px; padding: 16px 8px 12px; }
-.storefront-sidebar--collapsed .brand-name { display: none; }
-/* .storefront-brand-button is a width: 100% flex row (see its own rule
-   above), but .brand itself never sets justify-content - a real, plain-flex-
-   row default of flex-start, which reads fine next to the wordmark in the
-   expanded rail but left the logo mark sitting ~15px off the collapsed
-   rail's own center once the wordmark's gone, while every row below it
-   (Shop Now, the Dashboard icons) already centers correctly. Found by
-   comparing measured centers: 31px vs. the rail's true center at 46px. */
-.storefront-sidebar--collapsed .storefront-brand-button {
-  justify-content: center;
-}
-/* .brand-sm's own margin-right (see its rule above) exists to space the
-   wordmark away from whatever sits next to it in the expanded rail - with
-   the wordmark gone here (Brand.jsx doesn't render it at all when
-   collapsed, not just hide it), that margin still counts as real occupied
-   space for justify-content: center's math, quietly shifting the logo
-   mark 6px left of true center instead of removing itself along with the
-   text it used to separate. Found by comparing measured centers again:
-   flex-centering a 32px box plus a 12px trailing margin against a 58px-wide
-   button lands the visible icon 6px off from centering the icon alone. */
-.storefront-sidebar--collapsed .brand-sm {
-  margin-right: 0;
-}
-/* Bigger + a bigger box to match, not just the SVG alone - a larger glyph
-   floating in the old 28px box would crowd its own corners instead of
-   keeping the same breathing room the smaller icon had. */
-.storefront-sidebar--collapsed .brand-mark {
-  width: 32px;
-  height: 32px;
-}
-.storefront-sidebar--collapsed .brand-mark svg {
-  width: 22px;
-  height: 22px;
-}
-.storefront-sidebar--collapsed .storefront-shop-now { padding: 0; }
-.storefront-sidebar--collapsed .storefront-shop-now span { display: none; }
-/* Every collapsed-rail glyph at one shared size - Shop Now's "+", My
-   Orders/Coupons/Wishlist - rather than each one keeping whatever size it
-   happens to render at inline next to a label (16-18px, inconsistent from
-   icon to icon). A uniform, larger size reads as one deliberate icon rail
-   instead of a row of mismatched leftovers from the expanded layout. */
-.storefront-sidebar--collapsed .storefront-shop-now svg,
-.storefront-sidebar--collapsed .storefront-sidenav-item svg {
-  width: 20px;
-  height: 20px;
-}
-.storefront-sidebar--collapsed .storefront-sidenav-heading,
-.storefront-sidebar--collapsed .badges-card {
-  display: none;
-}
-.storefront-sidebar--collapsed .storefront-sidenav a,
-.storefront-sidebar--collapsed .storefront-sidenav-item {
-  justify-content: center;
-  padding: 0;
-}
-.storefront-sidebar--collapsed .storefront-sidenav a span,
-.storefront-sidebar--collapsed .storefront-sidenav-item span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+/* Manual "minimize sidebar" toggle - collapses to width: 0, fully hidden
+   and unreachable, rather than the narrow icon-only rail this used to
+   degrade to. Nothing inside needs its own collapsed-state styling
+   anymore (no icon recentering, no label clip-hack, no compacted account
+   menu): everything just gets progressively clipped from view as the
+   column's own width animates shut, the same "overflow: hidden clips the
+   panel as its width collapses" idiom .storefront-sidebar-clip already
+   uses for its own children. overflow: hidden is added here too (only in
+   this state, not the base rule) so that clipping also reaches
+   ProfileMenu, which normally sits outside .storefront-sidebar-clip
+   specifically so its popover can overflow this column while expanded
+   (see that rule's own comment) - once collapsed, ProfileMenu's own
+   trigger is unreachable anyway, so there's nothing left needing to
+   escape. .storefront-brand-button still toggles this (a convenience
+   while expanded), but the one control guaranteed to stay reachable when
+   collapsed is the header's own toggle (see Layout.jsx's page-header,
+   next to the AI toggle) - a control living inside the box it collapses
+   would vanish along with everything else. */
+.storefront-sidebar--collapsed {
+  width: 0;
+  padding: 16px 0 12px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
-/* The icon-wrap/badge pair (see .storefront-sidenav-icon-wrap above) are
-   also <span>s, so the visually-hidden clip rule directly above would
-   otherwise clip the icon itself into invisibility along with the real
-   labels - these two need to opt back out of it explicitly (one class
-   more than the rule they're beating, same pattern as the rest of this
-   collapsed-rail section). The badge is what this rail is *for* showing
-   here, so it flips from display: none (see its own base rule) to a real
-   pill anchored on the icon's corner. */
-.storefront-sidebar--collapsed .storefront-sidenav .storefront-sidenav-icon-wrap {
-  position: relative;
-  width: auto;
-  height: auto;
-  padding: 0;
-  margin: 0;
-  overflow: visible;
-  clip: auto;
-  white-space: normal;
-}
-.storefront-sidebar--collapsed .storefront-sidenav .storefront-sidenav-badge {
-  display: flex;
-  position: absolute;
-  width: auto;
-  height: 17px;
-  margin: 0;
-  overflow: visible;
-  clip: auto;
-  white-space: nowrap;
-}
-.storefront-sidebar--collapsed .profile-menu-trigger { justify-content: center; padding: 0.4rem; gap: 0; }
-.storefront-sidebar--collapsed .storefront-profile-text,
-.storefront-sidebar--collapsed .profile-menu-trigger > svg { display: none; }
 
 /* CategoryBadgesEditor.jsx - the sidebar's Category filter. Replaces the
    old always-all-5-visible multi-select chip grid: the main view only
@@ -2028,13 +2011,19 @@ body:has(.storefront-shell) {
 .badge-pill svg { width: 13px; height: 13px; }
 .badges-empty-note { margin: 0; color: var(--color-text-muted); font-size: 0.8rem; padding: 0.2rem 0; }
 
-/* Floating editor popover - anchored to .badges-card (position: relative,
-   above), top-aligned with the card it edits (top: 0 here means "level
-   with the card's own top edge") so the two read as one unit, rather than
-   a full-height drawer sliding in from the edge of the screen. Pops in
-   with a quick scale+fade from its own top-left corner (where it meets
-   the card), not a slide - "floating next to the thing it edits" reads as
-   a popover, not a drawer. */
+/* Floating editor popover - portaled to <body> (see CategoryBadgesEditor.jsx)
+   and position: fixed at top/left computed live from .badges-card's own
+   getBoundingClientRect() (passed as inline style), rather than position:
+   absolute anchored to .badges-card itself - .storefront-sidenav (the
+   card's actual parent) scrolls internally now (see its own comment in
+   this file), and a popover that's a descendant of a scrolling box either
+   gets clipped by it or scrolls out of sync with the card it edits. The
+   portal keeps the same "top-aligned, floating next to the card it edits"
+   look (top: card's own top edge, left: just past the card's right edge)
+   without being in that box's DOM subtree at all. Pops in with a quick
+   scale+fade from its own top-left corner (where it meets the card), not
+   a slide - "floating next to the thing it edits" reads as a popover, not
+   a drawer. */
 .popover-catcher {
   position: fixed;
   inset: 0;
@@ -2042,9 +2031,7 @@ body:has(.storefront-shell) {
   z-index: 40;
 }
 .edit-popover {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 12px);
+  position: fixed;
   width: min(280px, 84vw);
   max-height: min(420px, 70vh);
   background: var(--color-bg);
@@ -2236,7 +2223,10 @@ body:has(.storefront-shell) {
   min-height: 0;
   overflow-y: auto;
   padding-bottom: var(--space-4);
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
 }
+.page-body::-webkit-scrollbar { display: none; } /* Chrome/Safari/Chromium Edge */
 /* The routed page's own icon+title (left) and the search bar/theme toggle
    (right) on one row - previously just the search/toggle on their own row,
    with every page's <h1> stacked below it instead of beside it (see
@@ -2287,6 +2277,29 @@ body:has(.storefront-shell) {
   white-space: nowrap;
 }
 .page-header-title svg { flex-shrink: 0; width: 20px; height: 20px; }
+/* The sidebar's reopen control (see Layout.jsx's own comment on why it
+   lives here, not inside the sidebar it toggles) - same bordered-square
+   treatment as .ai-toggle across the row on the other side of this
+   header, just without that button's .on solid-fill state (this one's
+   binary icon swap, via PanelLeftIcon's own open prop, already reads the
+   current state without needing a second visual treatment). */
+.sidebar-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.sidebar-toggle svg { flex-shrink: 0; width: 16px; height: 16px; }
+.sidebar-toggle:hover:not(:disabled) { background: var(--color-surface); }
+.sidebar-toggle:active { transform: scale(0.95); }
 .page-header-actions {
   flex-shrink: 0;
   display: flex;
@@ -2538,7 +2551,18 @@ body:has(.storefront-shell) {
   .storefront-sidenav-indicator { display: none; }
   .storefront-sidenav-heading,
   .badges-card { display: none; }
-  .storefront-sidenav { flex-direction: row; flex-wrap: wrap; }
+  /* Reset the desktop column's flex/scroll (see the base .storefront-
+     sidenav rule) - .storefront-sidebar itself goes height: auto/overflow:
+     visible up above at this width, so there's no fixed viewport-height
+     column left for this to scroll within, and flex: 1 1 0 would fight the
+     row-wrap layout below by trying to grow along the row's main axis. */
+  .storefront-sidenav {
+    flex: 0 1 auto;
+    min-height: auto;
+    overflow-y: visible;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
   /* Same .sr-only technique as the rule of that name near the top of this
      file, not display: none - a real <a> (My Orders) with display: none
      on its only text content has no accessible name at all,
@@ -3327,6 +3351,16 @@ body:has(.storefront-shell) {
 .product-image-md svg { width: 26px; height: 26px; }
 .product-image-lg { width: 88px; height: 88px; border-radius: 16px; }
 .product-image-lg svg { width: 44px; height: 44px; }
+/* ShopPage's card image - the one size in this family meant to fill a
+   responsive grid cell rather than sit at a fixed px square, so it scales
+   with the card via aspect-ratio instead of a hardcoded width/height like
+   every size above. */
+/* Asymmetric radius, not a uniform one like every size above - top corners
+   match .product-card's own 24px so the image reads as flush with the
+   card's top edge, bottom corners a smaller 14px before transitioning
+   into the card body below (per the reference design's own spec). */
+.product-image-xl { width: 100%; aspect-ratio: 3 / 4; border-radius: 24px 24px 14px 14px; }
+.product-image-xl svg { width: 64px; height: 64px; }
 
 .order-product-row {
   flex: 1;
@@ -3468,7 +3502,7 @@ body:has(.storefront-shell) {
 /* Dark mode's own approved palette for this page too (see order history's
    own comment on why this is a deliberate, approved exception rather than
    a reskin of the shared --color-bg/-surface/-success/-warning/-error
-   tokens) - the receipt/journey/details cards get the same zinc-900 panel
+me zinc-900 panel
    the order history card uses, and the status badge gets the matching
    emerald/rose/blue-950/60+400 literals instead of this file's usual
    theme-aware success/error/active tokens. */
@@ -3566,3 +3600,1411 @@ body:has(.storefront-shell) {
      shorter labels either side of it don't need. */
   .order-route-label { font-size: 0.68rem; }
 }
+
+/* ---------------------------------------------------------------------
+   Shop page (ShopPage.jsx / ProductCard.jsx)
+
+   Layout.jsx's shared .page-header already renders this route's compact
+   icon+"Shop" title (see PAGE_HEADERS) - everything here is this page's
+   OWN content underneath that, starting with its own bigger breadcrumb/
+   title/subtitle "hero" block, which is what actually replicates the
+   reference design's look. Two stacked headers, by design.
+
+   Most rules below reuse an existing shape rather than inventing a
+   parallel one: the discount badge applies the existing .badge/.badge--
+   danger classes directly in JSX and only adds its own position here;
+   the filter toggle and sort trigger copy .badges-edit-btn's bordered-
+   pill recipe; the sort popover copies .profile-menu-popover's exact
+   scale+fade recipe; filter chips build on .pill plus the same .active
+   idiom .order-filter-tab/.profile-menu-theme-btn already use, with the
+   existing --color-chip-selected-* tokens for the selected state.
+   .product-card itself and its wishlist button are the two deliberate
+   exceptions - a 24px radius and a 12px-radius squircle button, both
+   bigger/different-shaped than this file's usual --radius-lg/circular
+   .icon-btn conventions, per the reference design's own spec (see each
+   rule's own comment). Grid columns are 2-vs-3 based on the AI drawer's
+   real width (see Layout.jsx's ai-panel-collapsed), with this file's
+   existing 480px mobile stop underneath as a hard floor.
+   --------------------------------------------------------------------- */
+
+.shop-page-root {
+  display: flex;
+  flex-direction: column;
+}
+
+.shop-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0 0 var(--space-2);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.shop-breadcrumb svg { width: 12px; height: 12px; }
+.shop-breadcrumb [aria-current="page"] { color: var(--color-text); font-weight: 600; }
+
+.shop-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.shop-hero-title { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+.shop-hero-subtitle { margin: 0.3rem 0 0; font-size: 0.9rem; color: var(--color-text-muted); }
+.shop-hero-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+/* Bordered-pill trigger recipe, same shape as .badges-edit-btn. */
+.shop-filter-toggle,
+.shop-sort-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+/* :hover:not(:disabled), not just :hover - the generic button:hover:
+   not(:disabled) rule (index.css's base `button` block) ties this on
+   specificity and wins the tiebreak via its own `button` element term,
+   silently keeping --color-solid-bg-hover instead of this rule's
+   --color-surface otherwise. Same recurring gotcha this file already
+   flags in several other spots (search "generic button:hover"). */
+.shop-filter-toggle:hover:not(:disabled),
+.shop-sort-trigger:hover:not(:disabled) { background: var(--color-surface); }
+.shop-filter-toggle.active {
+  background: var(--color-chip-selected-bg);
+  border-color: var(--color-chip-selected-border);
+  color: var(--color-chip-selected-text);
+}
+
+.shop-sort { position: relative; }
+/* Scale+fade recipe copied from .profile-menu-popover/.edit-popover -
+   top-anchored (not bottom, unlike the sidebar's own account popover)
+   since this trigger sits near the top of the page, not the bottom. */
+.sort-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(220px, 84vw);
+  padding: 0.4rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  transform-origin: top right;
+  transform: scale(0.94);
+  opacity: 0;
+  transition: transform 0.18s var(--ease-out-bezier), opacity 0.15s ease;
+  z-index: 41;
+}
+.sort-popover.open { transform: scale(1); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .sort-popover { transition: none; }
+}
+/* Same row shape as .profile-menu-item. */
+.sort-popover-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+/* :hover:not(:disabled) - same generic button:hover:not(:disabled)
+   specificity tiebreak this file keeps flagging (search "generic
+   button:hover"); .sort-popover-item is a real <button> (see
+   ShopPage.jsx), so it's exposed to the exact same bug. */
+.sort-popover-item:hover:not(:disabled) { background: var(--color-surface); }
+.sort-popover-item.active { color: var(--color-chip-selected-text); font-weight: 600; }
+
+.shop-filter-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 var(--space-4); }
+/* .pill supplies display/align-items/gap/border-radius/font-weight. */
+.shop-filter-chip {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.shop-filter-chip:hover { background: var(--color-surface); }
+.shop-filter-chip.active {
+  background: var(--color-chip-selected-bg);
+  border-color: var(--color-chip-selected-border);
+  color: var(--color-chip-selected-text);
+}
+
+/* 2 columns by default (the AI drawer's docked 320px + gap genuinely
+   takes up real width - see Layout.jsx's ai-panel-collapsed comment), 3
+   once that space is actually free, so images stay equally-weighted
+   instead of shrinking into a cramped third column while the drawer is
+   still open. 480px mobile fallback underneath both - a narrow phone
+   viewport gets 1 column regardless of drawer state, same as this file's
+   other grids collapsing at its own existing breakpoint. */
+.shop-grid {
+  display: grid;
+  /* minmax(0, 1fr), not plain 1fr - a bare 1fr track still floors at its
+     content's min-content width (here, the card's own text/padding), so
+     below ~1024px the grid stopped shrinking and .page-body grew a real
+     horizontal scrollbar instead of letting cards compress. minmax(0, 1fr)
+     lets the track shrink past that floor, same fix as this file's other
+     min-width: 0 flex/grid children. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.storefront-content.ai-panel-collapsed .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 480px) { .shop-grid { grid-template-columns: minmax(0, 1fr) !important; } }
+
+/* 24px, not var(--radius-lg) (12px) like every other card in this file -
+   an intentionally bigger, softer radius per the reference design this
+   card is modeled on. Own background/border rather than joining the
+   shared surface-card group above, since the radius no longer matches. */
+.product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  padding: 20px 20px 24px;
+  transition: box-shadow var(--duration-fast) ease;
+}
+.product-card:hover { box-shadow: var(--shadow-hover-lift); }
+/* 500ms, not var(--duration-slow) (400ms) - the reference calls out this
+   exact duration (Tailwind's duration-500) for the image zoom specifically,
+   distinct from every other transition's timing in this file. .product-
+   image already has overflow: hidden, so the scaled-up photo clips to the
+   card's own rounded corners instead of spilling past them. */
+.product-card:hover .product-card-media img { transform: scale(1.1); }
+@media (prefers-reduced-motion: reduce) {
+  .product-card-media img { transition: none; }
+}
+
+.product-card-media { position: relative; margin-bottom: 20px; }
+.product-card-media img { transition: transform 500ms ease; transform: scale(1); }
+/* The double-tap-to-like hit target - wraps just the photo (not the whole
+   .product-card-media, which also holds the discount badge and wishlist
+   button), so double-clicking the button never bubbles into this and
+   fires a second, redundant burst on top of the button's own contained
+   pop/celebrate. */
+.product-card-image-tap { position: relative; user-select: none; }
+/* Like Reaction Floating Particle Effect (TikTok/IG Live-style) - the
+   shared flying-heart flurry ProductCard (photo tap + corner button) and
+   ShopNowDialog (Wishlist button) spawn on tap. Every visual/motion
+   attribute is randomized per particle and passed in as inline style by
+   whichever component spawned it (one set per tap - see each file's
+   spawnHeart): --burst-color (bright hue), width/height (32-64px sizing),
+   --burst-x (sway amplitude), --burst-rot (tilt, -15..15deg),
+   --burst-rise (upward travel), --burst-duration (1.5-3s, longer when
+   spam-tapping). left/top are set inline too - the photo spawns at the
+   exact tap coordinates (a "video"), the two buttons spawn from their own
+   fixed anchor point (a "LIVE" control) - see .heart-burst--center vs.
+   --button/--dialog below. One keyframe animation reads off all the
+   custom properties rather than generating one per tap. */
+.heart-burst {
+  position: absolute;
+  fill: var(--burst-color, var(--color-badge-danger));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+  transform-origin: center;
+  animation-name: heart-burst-fly;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-duration: var(--burst-duration, 1.8s);
+}
+/* Tapping the ProductCard photo (handleImageDoubleClick) - left/top are
+   set inline to the exact tap coordinates (clientX/Y relative to
+   .product-card-image-tap), not a fixed point, so repeated taps in
+   different spots each spawn their own heart exactly where the finger
+   landed - the "tap a video" case. translate(-50%,-50%) in the keyframe
+   below centers the (randomly sized) heart on that point regardless of
+   its own width/height. */
+.heart-burst--center {}
+/* Single-tapping ProductCard's corner button (handleWishlistClick) -
+   fixed anchor near the button itself (see .product-card-wishlist below)
+   rather than per-tap coordinates, matching a persistent "LIVE" control
+   you spam-tap in place instead of a surface you tap all over. */
+.heart-burst--button {
+  /* Just above the button's own top edge (top:16px/right:16px, 36px box -
+     see .product-card-wishlist below), not its center. Centering it on the
+     button (the original anchor here) put the particle directly on top of
+     the button's own heart icon for the whole early portion of its 1.5-3s
+     flight - by the 8% keyframe it's already scale(1.2) and barely risen,
+     and --burst-x's random -45..45px horizontal drift means it could
+     still be sitting immediately beside the button a moment later either
+     way. Read as two heart icons shown at once, not a single icon
+     transitioning - anchoring above the box instead means the particle
+     starts already clear of the button's own glyph, whichever way it
+     drifts from there. */
+  top: 8px;
+  right: 16px;
+}
+/* ShopNowDialog's Wishlist button - same fixed-anchor "LIVE control"
+   reasoning as --button above, anchored inside .shop-now-wishlist-icon
+   (the same 16px positioned span the outline/filled/celebrate trio
+   already anchors to) instead of the button's own edge, since this
+   button is a wide labeled pill, not a small square icon. */
+.heart-burst--dialog {
+  top: 50%;
+  left: 50%;
+}
+@keyframes heart-burst-fly {
+  /* Elastic pop-in (0 -> 1.2 -> 1.0), then a sine-like left/right sway
+     riding on top of a steadily increasing rise, with rotation
+     oscillating in the same direction as the sway (a "falling leaf" read
+     rather than a straight diagonal line) - opacity stays near-full
+     through midflight and only starts decaying past the 60% mark, so it
+     genuinely fades out approaching the top of its path instead of
+     vanishing in one step at the very end. */
+  0% { transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(0); opacity: 0; }
+  8% {
+    transform: translate(-50%, -50%) translate(calc(var(--burst-x, 20px) * 0.08), calc(var(--burst-rise, -160px) * 0.04))
+      rotate(calc(var(--burst-rot, 10deg) * 0.3)) scale(1.2);
+    opacity: 1;
+  }
+  18% {
+    transform: translate(-50%, -50%) translate(calc(var(--burst-x, 20px) * 0.2), calc(var(--burst-rise, -160px) * 0.12))
+      rotate(calc(var(--burst-rot, 10deg) * 0.5)) scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(-50%, -50%) translate(calc(var(--burst-x, 20px) * -0.6), calc(var(--burst-rise, -160px) * 0.4))
+      rotate(calc(var(--burst-rot, 10deg) * -0.7)) scale(1);
+    opacity: 1;
+  }
+  62% {
+    transform: translate(-50%, -50%) translate(calc(var(--burst-x, 20px) * 0.9), calc(var(--burst-rise, -160px) * 0.68))
+      rotate(calc(var(--burst-rot, 10deg) * 0.8)) scale(1);
+    opacity: 0.85;
+  }
+  85% {
+    transform: translate(-50%, -50%) translate(calc(var(--burst-x, 20px) * -0.25), calc(var(--burst-rise, -160px) * 0.9))
+      rotate(calc(var(--burst-rot, 10deg) * -0.4)) scale(0.95);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(var(--burst-x, 20px), var(--burst-rise, -160px)) rotate(var(--burst-rot, 10deg))
+      scale(0.85);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-burst { animation: none; opacity: 0; }
+}
+/* Position/size only - the red gradient/shadow come from the existing
+   .badge.badge--danger classes this is combined with in JSX. */
+.product-card-discount { position: absolute; top: 16px; left: 16px; padding: 6px 12px; font-size: 0.7rem; }
+/* A squircle (12px radius), not the circular .icon-btn treatment most
+   other icon-only buttons in this file use - deliberately its own full
+   geometry rather than joining .icon-btn, since overriding that shared
+   rule's border-radius: 50% for just this one button would be more
+   confusing than just not sharing it. --color-badge-danger (this app's
+   only "alert" red) doubles as the wishlist heart's fill, rather than a
+   new wishlist-specific token. */
+.product-card-wishlist {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cccccc;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0d0d0d;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease, background var(--duration-fast) ease, transform 0.1s ease;
+}
+.product-card-wishlist:hover { color: var(--color-badge-danger); background: #262626; }
+.product-card-wishlist.active { color: var(--color-badge-danger); }
+.product-card-wishlist:active { transform: scale(0.9); }
+/* Without this, the flex-centered button squeezes HeartIcon's intrinsic
+   16px width down to a sub-pixel sliver (measured ~0.8px) - the same
+   flex-shrink bug already fixed once for the AI toggle's SparkleIcon, and
+   the actual root cause of "the heart icon isn't visible in either theme"
+   rather than a color/contrast problem. */
+.product-card-wishlist svg { flex-shrink: 0; }
+
+/* Outline/filled are mutually exclusive (only one in flow at a time), so
+   neither needs position: absolute to overlap the other - only the
+   celebrate burst overlaps a visible heart, so only it needs it. Its
+   top/left stay auto: the button's own flex centering positions an
+   absolutely-positioned child at the center of the 36px box, so the 100px
+   burst radiates evenly past the button's edges instead of pinning to a
+   corner. */
+.product-card-wishlist .svg-outline,
+.shop-now-wishlist-icon .svg-outline,
+.product-detail-wishlist-icon .svg-outline { fill: currentColor; }
+.product-card-wishlist .svg-filled,
+.shop-now-wishlist-icon .svg-filled,
+.product-detail-wishlist-icon .svg-filled {
+  display: none;
+  fill: var(--color-badge-danger);
+  animation: wishlist-heart-pop 0.4s ease;
+}
+.product-card-wishlist.active .svg-outline,
+.shop-now-wishlist-btn.active .svg-outline,
+.product-detail-wishlist-btn.active .svg-outline { display: none; }
+.product-card-wishlist.active .svg-filled,
+.shop-now-wishlist-btn.active .svg-filled,
+.product-detail-wishlist-btn.active .svg-filled { display: block; }
+.product-card-wishlist .svg-celebrate,
+.shop-now-wishlist-icon .svg-celebrate,
+.product-detail-wishlist-icon .svg-celebrate {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  stroke: var(--color-badge-danger);
+  fill: var(--color-badge-danger);
+  stroke-width: 2px;
+}
+.product-card-wishlist.active .svg-celebrate,
+.shop-now-wishlist-btn.active .svg-celebrate,
+.product-detail-wishlist-btn.active .svg-celebrate {
+  display: block;
+  animation: wishlist-heart-celebrate 0.5s forwards;
+}
+@keyframes wishlist-heart-pop {
+  0% { transform: scale(0); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(1); filter: brightness(1.5); }
+}
+@keyframes wishlist-heart-celebrate {
+  0% { transform: scale(0); }
+  50% { opacity: 1; filter: brightness(1.5); }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-card-wishlist .svg-filled,
+  .product-card-wishlist .svg-celebrate,
+  .shop-now-wishlist-icon .svg-filled,
+  .shop-now-wishlist-icon .svg-celebrate,
+  .product-detail-wishlist-icon .svg-filled,
+  .product-detail-wishlist-icon .svg-celebrate { animation: none; }
+}
+
+/* ShopNowDialog - a promotional quick-view modal that auto-opens once when
+   ShopPage mounts (see ShopPage.jsx). Sizing/blur/close affordance match
+   the approved design preview exactly; colors/spacing reuse this file's
+   existing tokens rather than introducing a parallel palette for one
+   dialog. */
+.shop-now-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  /* Fixed rgba, not a --color-x token - same "reads as darker than its
+     surroundings in both themes" reasoning as --color-shadow, but this
+     needs a stronger flat scrim than that token's subtle elevation use,
+     so it's its own literal rather than overloading that one. */
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+}
+.shop-now-dialog {
+  position: relative;
+  width: 70vw;
+  height: 70vh;
+  max-width: 1180px;
+  min-width: 640px;
+  min-height: 480px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  box-shadow: var(--shadow-popover);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: clamp(20px, 3vw, 40px);
+  padding: clamp(20px, 3vw, 40px);
+}
+.shop-now-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* :hover:not(:disabled), not just :hover - the generic button:hover:
+   not(:disabled) rule (index.css's base `button` block) ties this on
+   specificity and wins the tiebreak via its own `button` element term,
+   silently keeping --color-solid-bg-hover instead of this rule's
+   --color-surface otherwise. Same recurring gotcha this file already
+   flags in several other spots (search "generic button:hover"). */
+.shop-now-close:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text); }
+
+.shop-now-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.shop-now-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+.shop-now-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: default;
+}
+/* Hover/focus-only reveal (no JS) - the wrap is the positioning anchor,
+   the badge itself stays untouched so its own hover/active states (none,
+   today) never fight the tooltip's. Same --shadow-popover/--color-bg
+   elevation this file already uses for the sort/badges popovers, so it
+   reads as "this app's floating panel," not a one-off. */
+.shop-now-tooltip-wrap { position: relative; display: inline-flex; }
+.shop-now-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 220px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-popover);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+  z-index: 1;
+}
+.shop-now-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--color-bg);
+}
+.shop-now-tooltip-wrap:hover .shop-now-tooltip,
+.shop-now-stock-badge:focus-visible ~ .shop-now-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .shop-now-tooltip { transition: opacity var(--duration-fast) ease; }
+}
+.shop-now-title {
+  margin: 14px 0 10px;
+  font-size: clamp(1.5rem, 2.6vw, 2.05rem);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.shop-now-desc {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  max-width: 42ch;
+}
+.shop-now-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+.shop-now-stars {
+  display: flex;
+  gap: 2px;
+  /* Fixed in both themes, same reasoning as this file's other "landmark"
+     accents (--color-cta/-badge-danger/-progress-accent) - a rating's
+     gold shouldn't shift with light/dark. */
+  color: #d99a1b;
+}
+.shop-now-rating-score { font-weight: 700; }
+.shop-now-rating-count { color: var(--color-text-muted); }
+.shop-now-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.shop-now-discount { padding: 3px 10px; font-size: 0.72rem; }
+.shop-now-price-now { font-size: 1.5rem; font-weight: 700; }
+.shop-now-price-was { color: var(--color-text-muted); text-decoration: line-through; }
+.shop-now-features {
+  list-style: none;
+  margin: 0 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.shop-now-features li { display: flex; align-items: center; gap: 10px; }
+.shop-now-features svg { color: var(--color-text-muted); flex-shrink: 0; }
+
+.shop-now-finish-block { margin-top: 28px; }
+.shop-now-finish-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.shop-now-finish-head span:first-child { font-size: 0.82rem; font-weight: 700; }
+.shop-now-tech-specs { font-size: 0.8rem; color: var(--color-text-muted); }
+.shop-now-swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.shop-now-swatch {
+  position: relative;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+/* Same hover treatment as .shop-filter-chip (this file's other bordered
+   text-pill toggle) - this dialog was missing it entirely, the only
+   interactive control here that gave zero feedback before the pointer
+   actually landed on the active state. */
+.shop-now-swatch:hover:not(:disabled) { background: var(--color-surface); border-color: var(--color-text-muted); }
+.shop-now-swatch.active { background: var(--color-page-bg); border-color: var(--color-text-muted); }
+.shop-now-swatch.active:hover:not(:disabled) { background: var(--color-surface); }
+.shop-now-swatch-check {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  box-sizing: border-box;
+}
+
+.shop-now-actions { display: flex; gap: 12px; margin-top: 26px; }
+.shop-now-add-btn,
+.shop-now-wishlist-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 20px;
+  border-radius: var(--radius-lg);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  font-family: inherit;
+}
+.shop-now-add-btn {
+  flex: 1;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+}
+.shop-now-add-btn:hover { background: var(--color-solid-bg-hover); }
+.shop-now-wishlist-btn {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.shop-now-wishlist-btn:hover:not(:disabled) { background: var(--color-surface); }
+.shop-now-wishlist-btn.active { border-color: var(--color-badge-danger); color: var(--color-badge-danger); }
+.shop-now-wishlist-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.shop-now-wishlist-icon svg { flex-shrink: 0; }
+
+.shop-now-media {
+  position: relative;
+  border-radius: 24px 96px 24px 24px;
+  overflow: hidden;
+  background: var(--color-page-bg);
+}
+.shop-now-media img { width: 100%; height: 100%; object-fit: cover; }
+
+@media (max-width: 860px) {
+  .shop-now-dialog {
+    width: 90vw;
+    height: 86vh;
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .shop-now-media { min-height: 220px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shop-now-scrim { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* gap: 16px covers every section-to-section spacing in the spec (category
+   -> swatches, swatches -> heading, heading -> price) in one declaration -
+   .product-card-heading's own tighter 6px only needs overriding for the
+   one pair (title -> description) that reads as a single unit rather than
+   separate sections. */
+.product-card-body { display: flex; flex-direction: column; gap: 16px; }
+.product-card-category {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast) ease;
+}
+/* Reference calls for #dddddd specifically - a light gray that reads as
+   "brighter than resting" on the reference's dark surface, but would be
+   near-invisible on this app's light-theme card background. var(--color-
+   text) is the theme-aware equivalent: it's already this file's "muted ->
+   full-strength on interaction" idiom, and lands on the same "gets more
+   prominent" effect in both themes rather than only in dark mode. */
+.product-card-category:hover { color: var(--color-text); text-decoration: underline; }
+.product-card-name:hover { text-decoration: underline; }
+.product-card-swatches { display: flex; align-items: center; justify-content: space-between; }
+.product-card-swatch-group { display: flex; align-items: center; gap: 10px; }
+.product-card-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+/* Ring sits outside the swatch (outline, not border) so it never eats
+   into the 20px dot itself - offset gives it visible daylight from the
+   color it's marking as selected rather than hugging its edge. */
+.product-card-swatch.active { outline: 2px solid var(--color-text-muted); outline-offset: 2px; }
+.product-card-swatch-label { font-size: 14px; color: var(--color-text-muted); text-align: right; }
+.product-card-heading { display: flex; flex-direction: column; gap: 6px; }
+/* Every card renders this variant now - all six products have a
+   PRODUCT_DETAILS entry (see ProductCard.jsx's own check) - resets the
+   <a> defaults (color/text-decoration) so it reads as plain heading text
+   at rest, letting .product-card-name:hover's own existing underline (above) be
+   the only visible "this is clickable" signal, same restrained hover
+   language the category text already uses. */
+.product-card-heading-link { color: inherit; text-decoration: none; cursor: pointer; }
+.product-card-name { margin: 0; font-size: 0.95rem; font-weight: 600; }
+.product-card-description {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.product-card-price {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: #e8595a;
+}
+/* color/opacity both, not one or the other - --color-text-muted alone (a
+   solid, theme-aware gray) is this file's usual "secondary text" token,
+   but the reference spec calls for a translucent original price
+   specifically, so opacity: 0.6 layers on top of that same token rather
+   than introducing a one-off hardcoded gray. */
+.product-card-price-original {
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* ProductDetailPage - Cloud Shift Runner's own full page (see
+   ProductDetailPage.jsx), reachable only from its ProductCard heading
+   link. Reuses this file's real tokens/patterns throughout (badge--danger
+   for the discount pill, the .heart-burst particle system, the same
+   swatch/size-pill/solid-button shapes ShopNowDialog already established)
+   rather than a new visual language, per the approved design preview. */
+/* No max-width/centering here, unlike the design preview this was built
+   from - .shop-page-root (this app's own sibling content page) has none
+   either, and fills .page-body fluidly instead. A capped width meant the
+   page was already sitting at its ceiling in most real viewport/panel
+   states, so toggling the sidebar or AI drawer had no visible effect on
+   the hero below even though its own aspect-ratio sizing (see
+   .product-detail-hero) was already correctly fluid - it just never
+   actually got more or less room to respond to. */
+.product-detail-root {
+  padding-bottom: var(--space-5);
+}
+.product-detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+}
+.product-detail-breadcrumb a { color: inherit; text-decoration: none; }
+.product-detail-breadcrumb a:hover { color: var(--color-text); text-decoration: underline; }
+.product-detail-breadcrumb span[aria-current] { color: var(--color-text); }
+.product-detail-breadcrumb svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+.product-detail-main {
+  display: grid;
+  grid-template-columns: 84px 1fr 440px;
+  gap: 20px;
+}
+/* Monitor is the one product with an empty colorways array (see
+   shopProducts.js's own comment on why) - no colors means no per-color
+   thumbnail rail either, so this drops the thumbs column entirely rather
+   than reserving 84px + gap of empty space next to a single fixed hero. */
+.product-detail-main.no-thumbs { grid-template-columns: 1fr 440px; }
+.product-detail-thumbs { display: flex; flex-direction: column; gap: 10px; }
+.product-detail-thumb {
+  width: 84px;
+  height: 84px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background: var(--color-surface);
+  transition: border-color var(--duration-fast) ease;
+}
+.product-detail-thumb.active { border-color: var(--color-text); }
+.product-detail-thumb-fill { display: block; width: 100%; height: 100%; }
+
+/* A CSS grid item stretches to fill its row's height by default
+   (align-items: stretch, never overridden on .product-detail-main), so
+   with no height/max-height this column would keep matching whatever
+   height the info column's content (down through the Free shipping/
+   returns/warranty row) needs - exactly right on most screens, but on a
+   short viewport that height can exceed what's actually visible. 60vh
+   caps it there instead: still stretches to match the info column up to
+   that limit, just stops short of it (top-aligned, not stretched past
+   the cap) rather than ever growing past the visible screen. min-height
+   is an unrelated floor for the opposite case - a short info column
+   (Monitor, with no colors/sizes sections) stretching this too short. */
+.product-detail-hero {
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 60vh;
+  min-height: 280px;
+  overflow: hidden;
+  transition: background var(--duration-base) ease;
+}
+.product-detail-hero-shoe { width: 78%; }
+/* The five real-photo products (headphones/keyboard/chair/monitor/cable -
+   see PRODUCT_PHOTOS in ProductImage.jsx) get an actual photo here
+   instead of Cloud Shift Runner's color-tinted illustration, since a real
+   photo doesn't need (and can't take) a colorway-driven gradient behind
+   it - the same neutral --color-page-bg every other photo tile in this
+   file already rests on. */
+.product-detail-hero-photo { background: var(--color-page-bg); }
+/* contain, not cover - the hero's own height now comes from the grid row
+   (see .product-detail-hero's own comment), which won't generally match
+   each photo's native aspect ratio, and cover would silently crop
+   whatever doesn't fit instead of showing the whole product. */
+.product-detail-hero-photo img { width: 100%; height: 100%; object-fit: contain; }
+
+.product-detail-info { display: flex; flex-direction: column; min-width: 0; }
+.product-detail-eyebrow { color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 10px; }
+.product-detail-title { font-size: 2rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 12px; text-wrap: balance; }
+.product-detail-rating { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 0.9rem; }
+.product-detail-stars { display: flex; gap: 2px; color: #d99a1b; }
+.product-detail-stars svg { width: 16px; height: 16px; }
+.product-detail-rating-score { font-weight: 700; }
+.product-detail-rating-count { color: var(--color-text-muted); }
+.product-detail-desc { color: var(--color-text-muted); font-size: 0.95rem; line-height: 1.6; margin: 0 0 22px; max-width: 46ch; }
+
+.product-detail-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--color-border);
+}
+.product-detail-price-now { font-size: 1.7rem; font-weight: 700; }
+.product-detail-price-was { color: var(--color-text-muted); text-decoration: line-through; }
+.product-detail-discount { padding: 3px 10px; font-size: 0.72rem; }
+
+.product-detail-section-label { font-size: 0.85rem; margin: 0 0 12px; }
+.product-detail-colors { display: flex; gap: 10px; margin-bottom: 24px; }
+.product-detail-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 2px;
+  cursor: pointer;
+  background-clip: content-box;
+  transition: border-color var(--duration-fast) ease;
+}
+.product-detail-color-swatch.active { border-color: var(--color-text); }
+
+.product-detail-size-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.product-detail-size-guide { color: var(--color-text-muted); font-size: 0.82rem; }
+.product-detail-sizes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.product-detail-size {
+  position: relative;
+  width: 56px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.product-detail-size:hover:not(:disabled):not(.active) { background: var(--color-surface); }
+.product-detail-size.active { background: var(--color-page-bg); border-color: var(--color-text); }
+.product-detail-size-check {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 16px;
+  height: 16px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  box-sizing: border-box;
+}
+.product-detail-size.unavailable { color: var(--color-text-muted); text-decoration: line-through; opacity: 0.5; cursor: not-allowed; }
+
+.product-detail-add-btn,
+.product-detail-wishlist-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-lg);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  height: 50px;
+  margin-bottom: 12px;
+  text-decoration: none;
+  font-family: inherit;
+}
+.product-detail-add-btn { background: var(--color-solid-bg); color: var(--color-primary-text); border-color: transparent; }
+.product-detail-add-btn:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+.product-detail-wishlist-btn { background: transparent; color: var(--color-text); }
+.product-detail-wishlist-btn:hover:not(:disabled) { background: var(--color-surface); }
+.product-detail-wishlist-btn.active { border-color: var(--color-badge-danger); color: var(--color-badge-danger); }
+.product-detail-add-btn svg, .product-detail-wishlist-btn > svg { width: 17px; height: 17px; }
+.product-detail-wishlist-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+}
+.product-detail-wishlist-icon svg { flex-shrink: 0; }
+
+.product-detail-perks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.product-detail-perk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 14px 8px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.product-detail-perk svg { width: 18px; height: 18px; color: var(--color-text); }
+
+.product-detail-tabs { margin-top: 48px; border-top: 1px solid var(--color-border); }
+.product-detail-tab-row { display: flex; gap: 40px; }
+.product-detail-tab {
+  background: none;
+  border: none;
+  padding: 16px 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  position: relative;
+  font-family: inherit;
+}
+.product-detail-tab:hover:not(:disabled) { color: var(--color-text); }
+.product-detail-tab.active { color: var(--color-text); }
+.product-detail-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-text);
+}
+.product-detail-tab-panel {
+  padding: 28px 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 65ch;
+}
+.product-detail-spec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.product-detail-spec-list li { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--color-border); }
+.product-detail-spec-list li span:first-child { color: var(--color-text); font-weight: 600; }
+.product-detail-reviews-summary { display: flex; align-items: center; gap: 10px; }
+
+@media (max-width: 860px) {
+  .product-detail-main { grid-template-columns: 1fr; }
+  .product-detail-thumbs { flex-direction: row; order: 2; }
+  .product-detail-hero { order: 1; }
+}
+
+/* CheckoutPage - approved design preview ported to real tokens/markup.
+   Only the Customer step (1 of 4) has real content (see CheckoutPage.jsx's
+   own comment); Delivery/Payment/Review exist as labels in .checkout-steps
+   only. Cart items/totals are fabricated, same tier as ShopNowDialog's
+   AirBuds White - no real cart backend exists to read from. */
+.checkout-root { padding-bottom: var(--space-5); }
+.checkout-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.checkout-heading h1 { margin: 0 0 4px; font-size: var(--font-size-lg); font-weight: 700; letter-spacing: -0.01em; }
+.checkout-heading p { margin: 0; color: var(--color-text-muted); font-size: 0.95rem; }
+
+.checkout-btn-primary,
+.checkout-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) ease;
+}
+.checkout-btn-primary { background: var(--color-solid-bg); color: var(--color-primary-text); }
+.checkout-btn-primary:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+.checkout-btn-secondary { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); width: 100%; justify-content: center; margin-top: var(--space-2); }
+.checkout-btn-secondary:hover:not(:disabled) { background: var(--color-surface-hover); }
+.checkout-btn-primary svg, .checkout-btn-secondary svg { width: 14px; height: 14px; flex-shrink: 0; }
+/* Opacity dimming reads as "loading" for most disabled buttons in this
+   file, but here the spinner itself already communicates that - dimming
+   it too just makes it look broken rather than busy. */
+.checkout-btn-primary:disabled { opacity: 1; cursor: default; }
+
+/* The classic 12-spoke fading loader, ported from a plain div-based
+   reference (originally styled-components, not used anywhere else in
+   this app) down to this file's own CSS-variable convention - background:
+   currentColor instead of a hardcoded #fff, so it automatically matches
+   whichever button text color it's sitting in (--color-primary-text),
+   correct in both themes without its own token. Geometry is the
+   reference's own 80px version scaled by 0.25 (20px box, 10px transform-
+   origin, 1.5x4.5px spokes) rather than a CSS transform: scale() on the
+   whole thing, since scaling via transform still reserves the original
+   80px layout box unless paired with extra positioning tricks - simpler
+   to just do the arithmetic once. */
+.checkout-spinner {
+  position: relative;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+/* :not(.checkout-spinner-num) - a bare descendant "span" selector would
+   otherwise also match the center step-number span (see below), giving it
+   an unwanted spoke rectangle and fade animation that no lower-specificity
+   override on .checkout-spinner-num alone could actually beat (class+type
+   beats class-only on specificity regardless of source order - the same
+   class of bug this file has caught and fixed several times elsewhere). */
+.checkout-spinner span:not(.checkout-spinner-num) {
+  position: absolute;
+  inset: 0;
+  transform-origin: 10px 10px;
+  animation: checkout-spinner-fade 1.2s linear infinite;
+}
+.checkout-spinner span:not(.checkout-spinner-num)::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0.75px;
+  left: 9.25px;
+  width: 1.5px;
+  height: 4.5px;
+  border-radius: 20%;
+  background: currentColor;
+}
+.checkout-spinner span:nth-child(1) { transform: rotate(0deg); animation-delay: -1.1s; }
+.checkout-spinner span:nth-child(2) { transform: rotate(30deg); animation-delay: -1s; }
+.checkout-spinner span:nth-child(3) { transform: rotate(60deg); animation-delay: -0.9s; }
+.checkout-spinner span:nth-child(4) { transform: rotate(90deg); animation-delay: -0.8s; }
+.checkout-spinner span:nth-child(5) { transform: rotate(120deg); animation-delay: -0.7s; }
+.checkout-spinner span:nth-child(6) { transform: rotate(150deg); animation-delay: -0.6s; }
+.checkout-spinner span:nth-child(7) { transform: rotate(180deg); animation-delay: -0.5s; }
+.checkout-spinner span:nth-child(8) { transform: rotate(210deg); animation-delay: -0.4s; }
+.checkout-spinner span:nth-child(9) { transform: rotate(240deg); animation-delay: -0.3s; }
+.checkout-spinner span:nth-child(10) { transform: rotate(270deg); animation-delay: -0.2s; }
+.checkout-spinner span:nth-child(11) { transform: rotate(300deg); animation-delay: -0.1s; }
+.checkout-spinner span:nth-child(12) { transform: rotate(330deg); animation-delay: 0s; }
+@keyframes checkout-spinner-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* The step number, centered in the spinner rather than sitting beside it -
+   "current status" here means which step this processing belongs to, not
+   a generic unlabeled loading glyph. */
+.checkout-spinner-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkout-spinner span { animation: none; opacity: 0.35; }
+  .checkout-spinner span:nth-child(1) { opacity: 1; }
+}
+
+/* Dashed ring for steps not reached yet, solid for the active one - same
+   "not reached" vs. "current" distinction OrderProgress's own step markers
+   already use, just without that component's separate glyph-per-state
+   (this app has no real multi-step checkout flow yet for later steps to
+   need their own icons). */
+.checkout-steps {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+}
+.checkout-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.checkout-step.active { color: var(--color-text); }
+.checkout-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px dashed var(--color-border);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+.checkout-step.active .checkout-step-num { border-style: solid; border-color: var(--color-text); }
+.checkout-step-line { flex: 1; height: 1px; background: var(--color-border); margin: 0 var(--space-3); min-width: 40px; }
+
+.checkout-layout { display: grid; grid-template-columns: 1fr 380px; gap: var(--space-5); align-items: start; }
+
+.checkout-section-heading { margin: 0 0 2px; font-size: 1.1rem; font-weight: 700; }
+.checkout-section-sub { margin: 0 0 var(--space-3); color: var(--color-text-muted); font-size: 0.88rem; }
+
+.checkout-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3); }
+.checkout-field { display: block; margin-bottom: var(--space-3); font-size: 0.85rem; font-weight: 600; }
+.checkout-field input,
+.checkout-field select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 0.65rem var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-family: inherit;
+  font-weight: 400;
+}
+.checkout-field-country { max-width: 260px; }
+.checkout-field-hint { margin: -0.4rem 0 var(--space-3); font-size: 0.8rem; color: var(--color-text-muted); }
+.checkout-field-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+.checkout-field-label-row a { font-size: 0.8rem; font-weight: 500; color: var(--color-text-muted); text-decoration: none; }
+.checkout-field-label-row a:hover { color: var(--color-text); text-decoration: underline; }
+
+.checkout-divider { border: none; border-top: 1px solid var(--color-border); margin: var(--space-4) 0; }
+
+.checkout-account-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.checkout-account-card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-3); }
+.checkout-account-card h4 { margin: 0 0 2px; font-size: 0.95rem; font-weight: 700; }
+.checkout-account-card > p { margin: 0 0 var(--space-3); font-size: 0.82rem; color: var(--color-text-muted); }
+
+.checkout-check-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: var(--space-3); font-weight: 400; }
+.checkout-check-row input { margin-top: 3px; accent-color: var(--color-text); }
+.checkout-check-row span { display: flex; flex-direction: column; }
+.checkout-check-row strong { font-size: 0.85rem; font-weight: 600; }
+.checkout-check-row em { font-size: 0.78rem; font-style: normal; color: var(--color-text-muted); }
+
+.checkout-continue-row { display: flex; justify-content: flex-end; margin-top: var(--space-5); }
+
+/* Order summary sidebar */
+.checkout-summary { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-3); }
+.checkout-summary h3 { margin: 0 0 2px; font-size: 1.05rem; font-weight: 700; }
+.checkout-summary-sub { margin: 0 0 var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); }
+
+.checkout-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); padding: 0.6rem 0; }
+.checkout-item-name { font-size: 0.9rem; font-weight: 600; margin: 0 0 2px; }
+.checkout-item-meta { font-size: 0.8rem; color: var(--color-text-muted); margin: 0; }
+.checkout-item-price { text-align: right; font-size: 0.9rem; font-weight: 600; white-space: nowrap; }
+.checkout-item-was { display: block; font-size: 0.78rem; color: var(--color-text-muted); text-decoration: line-through; font-weight: 400; }
+.checkout-item-trash { display: flex; margin: 4px 0 0 auto; background: none; border: none; padding: 0; color: var(--color-text-muted); cursor: pointer; }
+.checkout-item-trash:hover:not(:disabled) { color: var(--color-badge-danger); background: none; }
+
+.checkout-promo-row { display: flex; gap: 8px; margin-top: 6px; }
+.checkout-promo-row input { flex: 1; margin-top: 0; }
+.checkout-promo-row .checkout-btn-secondary { width: auto; margin-top: 0; padding: 0.6rem 1rem; }
+.checkout-promo-applied { margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+
+.checkout-summary-row { display: flex; justify-content: space-between; font-size: 0.88rem; color: var(--color-text-muted); padding: 0.3rem 0; }
+.checkout-summary-row.discount { color: var(--color-success-text); }
+
+.checkout-total-box { margin-top: var(--space-3); border-radius: var(--radius-md); background: var(--color-solid-bg); color: var(--color-primary-text); padding: var(--space-3); }
+.checkout-total-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); }
+.checkout-total-top strong { font-size: 0.95rem; }
+.checkout-total-amount { font-size: 1.5rem; font-weight: 700; white-space: nowrap; }
+.checkout-total-sub { margin: 2px 0 0; font-size: 0.78rem; opacity: 0.7; max-width: 20ch; }
+.checkout-total-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); font-size: 0.8rem; opacity: 0.85; }
+.checkout-ready-pill { background: var(--color-success-surface); color: var(--color-success-text); font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; opacity: 1; }
+
+@media (max-width: 860px) {
+  .checkout-layout { grid-template-columns: 1fr; }
+  .checkout-account-grid { grid-template-columns: 1fr; }
+  .checkout-top { flex-direction: column; align-items: stretch; }
+}
+
+/* BagPage - approved design preview ported to real tokens/markup, reusing
+   3 of SHOP_PRODUCTS' real catalog entries rather than fabricated content
+   (see BagPage.jsx's own comment). Order Total is a live calculation
+   driven by each item's own checkbox/fulfillment/qty, not a static
+   number - see BagPage.jsx's subtotalCents/discountCents/etc. */
+.cart-root { padding-bottom: var(--space-5); }
+.cart-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-1); }
+.cart-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--font-size-lg); font-weight: 700; letter-spacing: -0.01em; }
+.cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.cart-fulfillment-sub { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: var(--color-text-muted); font-size: 0.9rem; }
+.cart-fulfillment-sub span { display: inline-flex; align-items: center; gap: 6px; }
+.cart-fulfillment-sub svg { width: 14px; height: 14px; }
+
+.cart-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-solid-bg);
+  color: var(--color-primary-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cart-btn-primary:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+.cart-btn-primary svg { width: 14px; height: 14px; flex-shrink: 0; }
+.cart-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.cart-layout { display: grid; grid-template-columns: 1fr 380px; gap: var(--space-5); align-items: start; margin-top: var(--space-4); }
+
+.cart-item-check { width: 18px; height: 18px; accent-color: var(--color-text); flex-shrink: 0; cursor: pointer; }
+.cart-select-all-row { display: flex; align-items: center; gap: 10px; padding-bottom: var(--space-2); margin-bottom: var(--space-1); border-bottom: 1px solid var(--color-border); }
+.cart-select-all-row label { font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); cursor: pointer; }
+
+/* opacity, not display:none/hidden - an unselected item stays fully
+   visible and editable (qty/fulfillment/remove all still work), it just
+   reads as "won't be charged" the same way a struck-through price does
+   elsewhere in this app, matching the "if none selected, still show every
+   row, just $0.00 in the total" requirement. */
+.cart-item { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); transition: opacity var(--duration-fast) ease; }
+.cart-item.unselected { opacity: 0.45; }
+.cart-item .cart-item-check { margin-top: 42px; }
+.cart-item .product-image { flex-shrink: 0; }
+.cart-item-body { flex: 1; min-width: 0; }
+.cart-item-top { display: flex; justify-content: space-between; gap: var(--space-2); }
+.cart-item-name { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.cart-item-color { margin: 2px 0 10px; font-size: 0.85rem; color: var(--color-text-muted); }
+.cart-item-remove { background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: 2px; display: flex; }
+.cart-item-remove:hover:not(:disabled) { color: var(--color-badge-danger); background: none; }
+.cart-item-remove svg { width: 14px; height: 14px; }
+
+.cart-fulfill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cart-fulfill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.cart-fulfill-badge:hover:not(:disabled) { border-color: var(--color-text-muted); }
+.cart-fulfill-badge.active { background: var(--color-solid-bg); color: var(--color-primary-text); border-color: transparent; }
+.cart-fulfill-badge.active:hover:not(:disabled) { background: var(--color-solid-bg-hover); }
+.cart-fulfill-badge svg { width: 13px; height: 13px; }
+
+.cart-item-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.cart-qty { display: inline-flex; align-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
+.cart-qty button { width: 28px; height: 28px; padding: 0; border: none; border-radius: 0; background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: 1rem; }
+.cart-qty button:hover:not(:disabled) { background: var(--color-surface-hover); }
+.cart-qty span { display: inline-block; width: 30px; text-align: center; font-size: 0.9rem; font-weight: 600; }
+.cart-item-price { font-size: 1.05rem; font-weight: 700; }
+
+.cart-empty { color: var(--color-text-muted); font-size: 0.9rem; padding: var(--space-3) 0; }
+
+.cart-footer-row { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); }
+.cart-footer-row a { color: var(--color-text); text-decoration: none; font-weight: 600; }
+.cart-footer-row a:hover { text-decoration: underline; }
+.cart-footer-row span { display: inline-flex; align-items: center; gap: 6px; }
+.cart-footer-row svg { width: 14px; height: 14px; }
+
+.cart-summary { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-3); background: var(--color-bg); }
+.cart-summary-head { display: flex; justify-content: space-between; align-items: baseline; }
+.cart-summary-head span { font-size: 0.8rem; color: var(--color-text-muted); }
+.cart-summary-total { font-size: 2.1rem; font-weight: 700; margin: 2px 0 10px; }
+.cart-saved-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-success-surface);
+  color: var(--color-success-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  margin-bottom: var(--space-3);
+}
+.cart-summary-row { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--color-text-muted); padding: 0.35rem 0; }
+.cart-summary-row.discount { color: var(--color-success-text); }
+.cart-promo-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--color-surface); border-radius: 999px; padding: 3px 10px; font-size: 0.8rem; font-weight: 600; color: var(--color-text); }
+/* Negative horizontal margins matching .cart-summary's own padding - a
+   plain <hr> inside a padded card only ever spans the padded content box,
+   inset from the card's actual edge by --space-3 on each side. Pulling it
+   out by that same amount is what makes it touch the real container edge
+   instead of floating inside it. */
+.cart-divider { border: none; border-top: 1px solid var(--color-border); margin: var(--space-2) calc(-1 * var(--space-3)); }
+.cart-summary-final { display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 700; padding: 0.4rem 0; }
+/* Wraps the Checkout Securely button + its own "Encrypted checkout" line -
+   a distinct nested surface (see dark-mode overrides below), same "one
+   tone step lighter than its own card" idiom .checkout-total-box already
+   uses on CheckoutPage. Light mode stays plain/transparent, matching
+   .cart-summary's own light background - the hardcoded dark values below
+   only ever make sense against this page's dark palette, not light mode's.
+   Negative left/right/bottom margins matching .cart-summary's own padding
+   (same full-bleed idiom .cart-divider already uses) - the background
+   color itself extends all the way to the card's real edges instead of
+   floating as an inset rounded rectangle; padding here is content spacing
+   inside that now-larger box, not a gap around the color. margin-top is
+   real space now, not a divider line - separates this box from the Total
+   row above with a plain gap instead of a rule. bottom-only border-radius
+   matches .cart-summary's own corners, since this is the one edge of the
+   box that's now also the card's own edge. */
+.cart-checkout-box {
+  margin: var(--space-3) calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+  padding: var(--space-3);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.cart-checkout-btn { width: 100%; justify-content: center; margin-top: 0; padding: 0.85rem; font-size: 0.95rem; }
+.cart-summary-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+.cart-summary-foot svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+@media (max-width: 860px) {
+  .cart-layout { grid-template-columns: 1fr; }
+  .cart-top { flex-direction: column; align-items: stretch; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cart-summary { background: #0a0a0a; }
+  :root:not([data-theme="light"]) .cart-checkout-box { background: #1c1c1c; }
+}
+:root[data-theme="dark"] .cart-summary { background: #0a0a0a; }
+:root[data-theme="dark"] .cart-checkout-box { background: #1c1c1c; }

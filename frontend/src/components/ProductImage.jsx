@@ -1,23 +1,17 @@
 import { PRODUCT_ICONS } from './icons.jsx';
 
-// Real photos, hotlinked from Wikimedia Commons - not photos of this app's
-// specific fictional orders (no such photos exist), but real, verified,
-// appropriately-licensed photos of the actual kind of product each one is.
-// Each URL was checked live (HTTP 200, image/jpeg, visually confirmed) and
-// each width (500px) is one of Wikimedia's fixed allowed thumbnail sizes
-// (arbitrary widths 400 error) - see README > Image credits for the
-// license/attribution each of these requires.
-const PRODUCT_PHOTOS = {
-  headphones:
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Sony_WH-CH510_Bluetooth_Over-Ear_Headphone.jpg/500px-Sony_WH-CH510_Bluetooth_Over-Ear_Headphone.jpg',
-  cable:
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Cavo_USB-C_%3D_USB-C_della_Samsung.jpg/500px-Cavo_USB-C_%3D_USB-C_della_Samsung.jpg',
-  keyboard:
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Keychron_K4_mechanical_keyboard.jpg/500px-Keychron_K4_mechanical_keyboard.jpg',
-  chair:
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Desk_chair.jpg/500px-Desk_chair.jpg',
-  monitor:
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Gigabyte_AORUS_AD27QD_20190601.jpg/500px-Gigabyte_AORUS_AD27QD_20190601.jpg',
+// Local photos, served from public/images/products (same-origin, no COEP/CORS
+// concerns) instead of the previous Wikimedia hotlinks. Exported (not just
+// used internally) so ProductDetailPage.jsx can render the same real
+// photos in its own differently-shaped hero, rather than duplicating this
+// map or wrapping <ProductImage> itself (whose sizing classes are tuned
+// for the grid card/order-row contexts, not a big detail-page hero).
+export const PRODUCT_PHOTOS = {
+  headphones: '/images/products/luke-peterson-lUMj2Zv5HUE-unsplash.jpg',
+  cable: '/images/products/homemade-media-6l5z2EPrnFc-unsplash.jpg',
+  keyboard: '/images/products/pparnxoxo-vdAR-KDxHNY-unsplash.jpg',
+  chair: '/images/products/effydesk-7mfNpV5eJH0-unsplash.jpg',
+  monitor: '/images/products/sebastian-bednarek-x2Z0uNj-Quo-unsplash.jpg',
 };
 
 // icon is the order's own product_icon value (a stable identifier, not
@@ -32,16 +26,7 @@ export function ProductImage({ icon, size = 'md' }) {
   return (
     <span className={`product-image product-image-${size}`} aria-hidden="true">
       {photoUrl ? (
-        // crossOrigin="anonymous", not a plain <img> - this app's COEP:
-        // require-corp (securityHeaders.js) blocks any cross-origin
-        // resource that doesn't complete a real CORS handshake, which a
-        // bare <img src> to another origin never does. Wikimedia sends
-        // Access-Control-Allow-Origin: * (verified live), so requesting it
-        // in CORS mode is what actually satisfies COEP - without this,
-        // the request silently fails (net::ERR_BLOCKED_BY_RESPONSE
-        // .NotSameOriginAfterDefaultedToSameOriginByCoep in Chromium),
-        // found live, not from reading the COEP spec in the abstract.
-        <img src={photoUrl} alt="" loading="lazy" crossOrigin="anonymous" />
+        <img src={photoUrl} alt="" loading="lazy" />
       ) : (
         Icon && <Icon />
       )}

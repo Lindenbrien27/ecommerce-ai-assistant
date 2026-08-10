@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
+import { CartProvider, useCart } from '../context/CartContext.jsx';
+import { SHOP_PRODUCTS } from '../data/shopProducts.js';
 import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
 import { ProfileMenu } from './ProfileMenu.jsx';
-import { CardIcon, ChatIcon, HeartIcon, OrdersIcon, PinIcon, PlusIcon, ShopIcon, SparkleIcon, TicketIcon } from './icons.jsx';
+import { CardIcon, CartIcon, ChatIcon, HeartIcon, OrdersIcon, PanelLeftIcon, PinIcon, PlusIcon, ShopIcon, SparkleIcon, TicketIcon } from './icons.jsx';
 
 // The routed page's own title/icon, keyed by path - not each page rendering
 // its own <h1> anymore. The header row now needs the title on the same
@@ -32,10 +34,17 @@ const PAGE_HEADERS = {
   '/shop': { icon: ShopIcon, title: 'Shop', docTitle: 'Shop' },
   '/address': { icon: PinIcon, title: 'Address', docTitle: 'Address' },
   '/payment': { icon: CardIcon, title: 'Payment Methods', docTitle: 'Payment Methods' },
+  '/bag': { icon: CartIcon, title: 'Shopping Bag', docTitle: 'Shopping Bag' },
+  '/checkout': { icon: CartIcon, title: 'Checkout', docTitle: 'Checkout' },
 };
 
 function getPageHeader(pathname, params) {
   if (params.orderNumber) return { icon: OrdersIcon, title: params.orderNumber, docTitle: params.orderNumber };
+  if (params.productId) {
+    const product = SHOP_PRODUCTS.find((p) => p.id === params.productId);
+    const title = product?.name ?? 'Product';
+    return { icon: ShopIcon, title, docTitle: title };
+  }
   return PAGE_HEADERS[pathname] || { icon: null, title: '', docTitle: '' };
 }
 
@@ -49,13 +58,17 @@ const NAV_ROW_STEP = 35;
 // - Coupons and Wishlist land on ComingSoonPage rather than a built-out
 // feature, but that's still a real page, not a fake local-only highlight).
 // The indicator's position is derived straight from the URL, same as any
-// other active-nav-link styling - -1 means "none of these three match",
+// other active-nav-link styling - -1 means "none of these four match",
 // which hides the indicator (see its own style below) instead of leaving
-// it parked under whichever row was last real.
+// it parked under whichever row was last real. Cart is index 0, not 3 -
+// it's the first row in the section now (see Layout's own JSX), and this
+// index has to match visual row order or the indicator glides to the
+// wrong row.
 function getDashboardNavIndex(pathname) {
-  if (pathname.startsWith('/orders')) return 0;
-  if (pathname.startsWith('/coupons')) return 1;
-  if (pathname.startsWith('/wishlist')) return 2;
+  if (pathname.startsWith('/bag')) return 0;
+  if (pathname.startsWith('/orders')) return 1;
+  if (pathname.startsWith('/coupons')) return 2;
+  if (pathname.startsWith('/wishlist')) return 3;
   return -1;
 }
 
@@ -79,13 +92,17 @@ function getDashboardNavIndex(pathname) {
 export function Layout() {
   return (
     <OrdersProvider>
-      <LayoutInner />
+      <CartProvider>
+        <LayoutInner />
+      </CartProvider>
     </OrdersProvider>
   );
 }
 
 function LayoutInner() {
   const { orders } = useOrders();
+  const { items: cartItems } = useCart();
+  const cartCount = cartItems.length;
   const location = useLocation();
   const params = useParams();
   const orderCount = orders ? orders.length : null;
@@ -124,88 +141,105 @@ function LayoutInner() {
           this shell is modeled on. */}
       <div className="storefront-body">
         <aside className={`storefront-sidebar${sidebarCollapsed ? ' storefront-sidebar--collapsed' : ''}`}>
-          <div className="storefront-sidebar-head">
-            {/* The brand itself is the toggle now - no separate chevron
-                button. Clicking the logo/wordmark is the only way to
-                minimize/expand the sidebar. */}
-            <button
-              type="button"
-              className="storefront-brand-button"
-              onClick={() => setSidebarCollapsed((c) => !c)}
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-pressed={sidebarCollapsed}
-            >
-              <Brand size="sm" showLabel={!sidebarCollapsed} />
-            </button>
-          </div>
-
-          {/* A real route now (see App.jsx's /shop), not a decorative span -
-              lands on the same honest ComingSoonPage as Coupons/Wishlist. */}
-          <NavLink to="/shop" className="storefront-shop-now">
-            <PlusIcon /> <span>Shop Now</span>
-          </NavLink>
-
-          <nav className="storefront-sidenav">
-            <p className="storefront-sidenav-heading">Dashboard</p>
-            <div className="storefront-sidenav-section">
-              <span
-                className="storefront-sidenav-indicator"
-                style={{
-                  transform: `translateY(${Math.max(navIndex, 0) * NAV_ROW_STEP}px)`,
-                  opacity: navIndex === -1 ? 0 : 1,
-                }}
-                aria-hidden="true"
-              />
-              <NavLink to="/orders" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
-                <span className="storefront-sidenav-icon-wrap">
-                  <OrdersIcon />
-                  {/* Collapsed-only stand-in for the count pill below, which
-                      the collapsed rail hides along with every other label -
-                      a small badge overlaid on the icon itself keeps the
-                      count visible even with no room for a full row. Hidden
-                      once loaded at 0, same as the full pill below - see
-                      that span's own comment for why. */}
-                  {orderCount === null ? (
-                    <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
-                  ) : (
-                    orderCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{orderCount}</span>
-                  )}
-                </span>
-                <span>My Orders</span>
-                {/* Hidden once loaded at 0, not just while loading - a real
-                    zero is still worth omitting here (there's nothing to
-                    draw the eye to), the same call this app already makes
-                    for e.g. the Category badges editor's own empty "Active
-                    Badges (0)" state not needing a pill of its own. */}
-                {orderCount === null ? (
-                  <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
-                ) : (
-                  orderCount > 0 && <span className="storefront-sidenav-count fade-in">{orderCount}</span>
-                )}
-              </NavLink>
-              <NavLink to="/coupons" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
-                <span className="storefront-sidenav-icon-wrap">
-                  <TicketIcon />
-                  {voucherCount === null ? (
-                    <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
-                  ) : (
-                    voucherCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{voucherCount}</span>
-                  )}
-                </span>
-                <span>Coupons</span>
-                {voucherCount === null ? (
-                  <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
-                ) : (
-                  voucherCount > 0 && <span className="storefront-sidenav-count fade-in">{voucherCount}</span>
-                )}
-              </NavLink>
-              <NavLink to="/wishlist" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
-                <HeartIcon /> <span>Wishlist</span>
-              </NavLink>
+          {/* Everything that actually changes shape between expanded/
+              collapsed lives in this inner clip box (see .storefront-
+              sidebar-clip's own comment in index.css) - ProfileMenu stays
+              outside it deliberately, since its popover isn't portaled and
+              needs to render past this column's own edge (most visibly in
+              the collapsed 76px rail, where the 288px popover necessarily
+              extends far beyond it). */}
+          <div className="storefront-sidebar-clip">
+            <div className="storefront-sidebar-head">
+              {/* The brand itself is the toggle now - no separate chevron
+                  button. Clicking the logo/wordmark is the only way to
+                  minimize/expand the sidebar. */}
+              <button
+                type="button"
+                className="storefront-brand-button"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-pressed={sidebarCollapsed}
+              >
+                <Brand size="sm" showLabel={!sidebarCollapsed} />
+              </button>
             </div>
 
-            <CategoryBadgesEditor />
-          </nav>
+            {/* A real route now (see App.jsx's /shop), not a decorative span -
+                lands on the same honest ComingSoonPage as Coupons/Wishlist. */}
+            <NavLink to="/shop" className="storefront-shop-now">
+              <PlusIcon /> <span className="storefront-sidenav-label">Shop Now</span>
+            </NavLink>
+
+            <nav className="storefront-sidenav">
+              <p className="storefront-sidenav-heading">Dashboard</p>
+              <div className="storefront-sidenav-section">
+                <span
+                  className="storefront-sidenav-indicator"
+                  style={{
+                    transform: `translateY(${Math.max(navIndex, 0) * NAV_ROW_STEP}px)`,
+                    opacity: navIndex === -1 ? 0 : 1,
+                  }}
+                  aria-hidden="true"
+                />
+                <NavLink to="/bag" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
+                  <span className="storefront-sidenav-icon-wrap">
+                    <CartIcon />
+                    {cartCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{cartCount}</span>}
+                  </span>
+                  <span className="storefront-sidenav-label">Cart</span>
+                  {cartCount > 0 && <span className="storefront-sidenav-count fade-in">{cartCount}</span>}
+                </NavLink>
+                <NavLink to="/orders" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
+                  <span className="storefront-sidenav-icon-wrap">
+                    <OrdersIcon />
+                    {/* Collapsed-only stand-in for the count pill below, which
+                        the collapsed rail hides along with every other label -
+                        a small badge overlaid on the icon itself keeps the
+                        count visible even with no room for a full row. Hidden
+                        once loaded at 0, same as the full pill below - see
+                        that span's own comment for why. */}
+                    {orderCount === null ? (
+                      <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
+                    ) : (
+                      orderCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{orderCount}</span>
+                    )}
+                  </span>
+                  <span className="storefront-sidenav-label">My Orders</span>
+                  {/* Hidden once loaded at 0, not just while loading - a real
+                      zero is still worth omitting here (there's nothing to
+                      draw the eye to), the same call this app already makes
+                      for e.g. the Category badges editor's own empty "Active
+                      Badges (0)" state not needing a pill of its own. */}
+                  {orderCount === null ? (
+                    <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
+                  ) : (
+                    orderCount > 0 && <span className="storefront-sidenav-count fade-in">{orderCount}</span>
+                  )}
+                </NavLink>
+                <NavLink to="/coupons" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
+                  <span className="storefront-sidenav-icon-wrap">
+                    <TicketIcon />
+                    {voucherCount === null ? (
+                      <span className="storefront-sidenav-badge skeleton" aria-hidden="true" />
+                    ) : (
+                      voucherCount > 0 && <span className="storefront-sidenav-badge" aria-hidden="true">{voucherCount}</span>
+                    )}
+                  </span>
+                  <span className="storefront-sidenav-label">Coupons</span>
+                  {voucherCount === null ? (
+                    <span className="storefront-sidenav-count skeleton" aria-hidden="true" />
+                  ) : (
+                    voucherCount > 0 && <span className="storefront-sidenav-count fade-in">{voucherCount}</span>
+                  )}
+                </NavLink>
+                <NavLink to="/wishlist" className={({ isActive }) => `storefront-sidenav-item${isActive ? ' active' : ''}`}>
+                  <HeartIcon /> <span className="storefront-sidenav-label">Wishlist</span>
+                </NavLink>
+              </div>
+
+              <CategoryBadgesEditor />
+            </nav>
+          </div>
 
           {/* Real account menu (avatar, email, theme, Help & Support, Sign
               Out) - see ProfileMenu.jsx. Replaces the old decorative chip +
@@ -213,9 +247,32 @@ function LayoutInner() {
           <ProfileMenu />
         </aside>
 
-        <main className="storefront-content">
+        {/* ai-panel-collapsed reflects real available width, not just a
+            visual state - the AI drawer collapses to width: 0 when closed
+            (see .ai-drawer.closed), so this column genuinely grows into
+            that freed space. ShopPage's product grid reads this class to
+            show 3 equal-width columns instead of 2 (see .shop-grid) -
+            true whenever the drawer isn't actually occupying room,
+            whether because this route never mounts it (showAiPanel) or
+            because it's mounted but closed (aiPanelOpen). */}
+        <main className={`storefront-content${!showAiPanel || !aiPanelOpen ? ' ai-panel-collapsed' : ''}`}>
           <div className="page-header">
             <div className="page-header-title">
+              {/* The sidebar's own reopen control once collapsed - the brand
+                  button that used to be the only toggle lives inside the
+                  sidebar itself, which is unreachable once its width
+                  animates to 0 (see .storefront-sidebar--collapsed). This
+                  one lives in the main header instead, so it's never the
+                  thing you can't get back to. */}
+              <button
+                type="button"
+                className="sidebar-toggle"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                aria-pressed={sidebarCollapsed}
+                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                <PanelLeftIcon open={!sidebarCollapsed} />
+              </button>
               {PageIcon && <PageIcon aria-hidden="true" />}
               <h1 ref={headingRef} tabIndex={-1}>
                 {pageTitle}

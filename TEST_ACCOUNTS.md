@@ -22,9 +22,9 @@ README > Auth for why).
 Jane and John each have two orders (good for testing the orders list). Ada has one cancelled order.
 dev@example.com is a dedicated throwaway account, not a repurposed real inbox - both its orders are
 seeded with a rolling `created_at` (relative to whenever the migration last ran, not a fixed date),
-so it's always the one account that naturally shows the Active Order Spotlight's stacked-deck
+so it's always the one account that naturally shows the Active Order Spotlight's stacked-deck  
 Delivered state (two-plus recent deliveries) without needing mocked data
 (migrations/1785631599842_add-dev-seed-account.sql).
 lindenbrien27@gmail.com is a real inbox, not a placeholder - added so the app's owner can log in with
 their own email and land on a populated dashboard instead of the honest-but-empty state described
-above (migrations/1785245334753_add-lindenbrien-seed-orders.sql).x
+above (migrations/1785245334753_add-lindenbrien-seed-orders.sql).x    
