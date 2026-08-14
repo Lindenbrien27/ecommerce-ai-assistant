@@ -8,8 +8,10 @@ const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const adminOrderRoutes = require('./routes/adminOrderRoutes');
 const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
+const { requireAdminAuth } = require('./middleware/adminAuth');
 const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
 const { securityHeaders, apiDocsStyleOverride, adminCspOverride, adminCoopOverride } = require('./middleware/securityHeaders');
@@ -96,6 +98,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
 app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/orders', requireAdminAuth, adminOrderRoutes);
 
 // Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
 // also the source of truth /api-docs below renders from.
