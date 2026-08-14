@@ -7968,3 +7968,41 @@ box that's now also the card's own edge. */
 .admin-orders-table tbody tr:last-child td {
   border-bottom: none;
 }
+
+.admin-order-detail-page {
+  padding: var(--space-4);
+  max-width: 480px;
+}
+
+.admin-order-detail-field {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.admin-order-detail-field span:first-child {
+  color: var(--color-text-muted);
+}
+
+.admin-order-detail-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.admin-order-detail-status select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.admin-order-detail-saved {
+  margin-top: var(--space-2);
+  color: var(--color-success-text);
+  font-size: var(--font-size-sm);
+}
