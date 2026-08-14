@@ -72,6 +72,67 @@ it('surfaces an error when the fetch fails', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i);
 });
 
+it('logs out (redirecting to /admin/login via AdminProtectedRoute) on a 401 from the list fetch', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/auth/logout' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: true });
+    }
+    if (String(url).startsWith('/api/admin/orders')) {
+      return Promise.resolve({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+
+  await waitFor(() => {
+    const loggedOut = global.fetch.mock.calls.some(
+      ([url, opts]) => url === '/api/admin/auth/logout' && opts?.method === 'POST'
+    );
+    expect(loggedOut).toBe(true);
+  });
+
+  // A 401 should route the admin to sign in again, not show a generic error.
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('logs out on a 401 from the "load more" fetch', async () => {
+  const initialOrders = [
+    { order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', status: 'shipped', created_at: '2026-01-01T00:00:00Z' },
+  ];
+  let fetchCallCount = 0;
+
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/auth/logout' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: true });
+    }
+    if (String(url).startsWith('/api/admin/orders')) {
+      fetchCallCount += 1;
+      if (fetchCallCount === 1) {
+        return Promise.resolve({ ok: true, json: async () => ({ orders: initialOrders, nextCursor: 'cursor-1' }) });
+      }
+      return Promise.resolve({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('ORD-1001');
+
+  fireEvent.click(screen.getByRole('button', { name: /load more/i }));
+
+  await waitFor(() => {
+    const loggedOut = global.fetch.mock.calls.some(
+      ([url, opts]) => url === '/api/admin/auth/logout' && opts?.method === 'POST'
+    );
+    expect(loggedOut).toBe(true);
+  });
+
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 it('ignores a stale "load more" response if the filter changes before it resolves', async () => {
   const initialOrders = [
     { order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', status: 'shipped', created_at: '2026-01-01T00:00:00Z' },

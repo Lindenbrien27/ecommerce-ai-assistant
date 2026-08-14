@@ -8,7 +8,7 @@ const STATUS_OPTIONS = ['processing', 'shipped', 'out_for_delivery', 'delivered'
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export function AdminOrderDetailPage() {
-  useAdminAuth();
+  const { logout } = useAdminAuth();
   const { orderNumber } = useParams();
   const [order, setOrder] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -22,6 +22,10 @@ export function AdminOrderDetailPage() {
     setOrder(null);
     fetch(`/api/admin/orders/${orderNumber}`)
       .then(async (res) => {
+        if (res.status === 401) {
+          if (!cancelled) logout();
+          return null;
+        }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || 'Something went wrong looking up that order.');
@@ -29,7 +33,7 @@ export function AdminOrderDetailPage() {
         return res.json();
       })
       .then((data) => {
-        if (cancelled) return;
+        if (cancelled || !data) return;
         setOrder(data);
         setSelectedStatus(data.status);
       })
@@ -51,6 +55,10 @@ export function AdminOrderDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: selectedStatus }),
       });
+      if (res.status === 401) {
+        logout();
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Something went wrong updating that order.');

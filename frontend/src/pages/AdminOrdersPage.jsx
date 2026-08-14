@@ -35,7 +35,7 @@ function buildQuery({ status, q, cursor }) {
 }
 
 export function AdminOrdersPage() {
-  useAdminAuth();
+  const { logout } = useAdminAuth();
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
   const [orders, setOrders] = useState([]);
@@ -58,6 +58,10 @@ export function AdminOrdersPage() {
     setError(null);
     fetch(`/api/admin/orders?${buildQuery({ status, q })}`)
       .then(async (res) => {
+        if (res.status === 401) {
+          if (!cancelled) logout();
+          return null;
+        }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || 'Something went wrong looking up orders.');
@@ -65,7 +69,7 @@ export function AdminOrdersPage() {
         return res.json();
       })
       .then((data) => {
-        if (cancelled) return;
+        if (cancelled || !data) return;
         setOrders(data.orders);
         setNextCursor(data.nextCursor);
       })
@@ -87,6 +91,10 @@ export function AdminOrdersPage() {
     setLoadingMore(true);
     try {
       const res = await fetch(`/api/admin/orders?${buildQuery({ status, q, cursor: nextCursor })}`);
+      if (res.status === 401) {
+        logout();
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Something went wrong looking up orders.');

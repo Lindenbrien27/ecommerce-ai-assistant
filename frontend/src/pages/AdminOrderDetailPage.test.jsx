@@ -74,6 +74,60 @@ it('updates the status and reflects the new value on success', async () => {
   expect(await screen.findByText(/status updated/i)).toBeInTheDocument();
 });
 
+it('logs out (redirecting to /admin/login via AdminProtectedRoute) on a 401 from the order fetch', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/auth/logout' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: true });
+    }
+    if (url === '/api/admin/orders/ORD-1001' && (!opts || opts.method === undefined)) {
+      return Promise.resolve({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+
+  await waitFor(() => {
+    const loggedOut = global.fetch.mock.calls.some(
+      ([url, opts]) => url === '/api/admin/auth/logout' && opts?.method === 'POST'
+    );
+    expect(loggedOut).toBe(true);
+  });
+
+  // A 401 should route the admin to sign in again, not show a generic error.
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('logs out on a 401 from the status update', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/auth/logout' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: true });
+    }
+    if (url === '/api/admin/orders/ORD-1001' && !opts) {
+      return Promise.resolve({ ok: true, json: async () => ORDER });
+    }
+    if (opts?.method === 'PATCH') {
+      return Promise.resolve({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Sneakers');
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => {
+    const loggedOut = global.fetch.mock.calls.some(
+      ([url, opts]) => url === '/api/admin/auth/logout' && opts?.method === 'POST'
+    );
+    expect(loggedOut).toBe(true);
+  });
+
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 it('surfaces an error when the status update fails', async () => {
   global.fetch = vi.fn((url, opts) => {
     if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
