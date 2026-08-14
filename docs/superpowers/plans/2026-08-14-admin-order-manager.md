@@ -23,11 +23,31 @@
 **Files:**
 - Create: `src/services/adminOrderService.js`
 - Modify: `src/config/cache.js:3-12` (update the stale "orders are effectively read-only" comment)
+- Modify: `src/services/orderService.js:109-116` (export `encodeCursor`/`decodeCursor`, see Step 0)
 - Test: `test/adminOrderService.test.js`
 
 **Interfaces:**
 - Consumes: `pool` from `src/config/db.js`; `orderCache` from `src/config/cache.js`; `encodeCursor`, `decodeCursor`, `InvalidCursorError`, `DEFAULT_PAGE_SIZE`, `MAX_PAGE_SIZE` re-exported from `src/services/orderService.js` (import and re-use directly, do not redefine).
 - Produces: `ORDER_STATUSES` (array of the five real status strings, frozen), `getAdminOrders(({ status, q, cursor, limit } = {}))` → `Promise<{ orders: object[], nextCursor: string|null }>`, throws `InvalidCursorError` on a bad cursor; `updateOrderStatus(orderNumber, status)` → `Promise<object|null>` (the updated row, or `null` if `orderNumber` doesn't exist), throws `Error` if `status` isn't in `ORDER_STATUSES`.
+
+- [ ] **Step 0: Export `encodeCursor`/`decodeCursor` from `orderService.js`**
+
+`src/services/orderService.js`'s current `module.exports` (lines 109-116) only exports `getOrderByNumber`, `getOrdersByEmail`, `getOrderByTrackingNumber`, `InvalidCursorError`, `DEFAULT_PAGE_SIZE`, `MAX_PAGE_SIZE` — `encodeCursor` and `decodeCursor` are defined in that file but not exported. Task 1 needs both (Step 3 below imports them). Add them to the existing export object rather than redefining the same keyset-pagination logic a second time in `adminOrderService.js`:
+
+```js
+module.exports = {
+  getOrderByNumber,
+  getOrdersByEmail,
+  getOrderByTrackingNumber,
+  InvalidCursorError,
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  encodeCursor,
+  decodeCursor,
+};
+```
+
+This is a pure additive export change — no existing behavior changes. Run `node --test test/orderService.test.js` afterward to confirm nothing broke, then proceed to Step 1.
 
 - [ ] **Step 1: Write the failing tests for `getAdminOrders`**
 
@@ -296,7 +316,7 @@ Expected: PASS (all existing tests plus the 11 new ones, no regressions)
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/services/adminOrderService.js src/config/cache.js test/adminOrderService.test.js
+git add src/services/adminOrderService.js src/config/cache.js src/services/orderService.js test/adminOrderService.test.js
 git commit -m "Add adminOrderService: admin-wide order queries and status updates"
 ```
 
