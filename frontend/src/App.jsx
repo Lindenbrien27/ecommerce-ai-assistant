@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
-import { CardIcon, HeartIcon, PinIcon, TicketIcon } from './components/icons.jsx';
+import { CardIcon, PinIcon, TicketIcon } from './components/icons.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -28,6 +29,9 @@ const CheckoutPage = lazy(() =>
   import('./pages/CheckoutPage.jsx').then((m) => ({ default: m.CheckoutPage }))
 );
 const BagPage = lazy(() => import('./pages/BagPage.jsx').then((m) => ({ default: m.BagPage })));
+const WishlistPage = lazy(() =>
+  import('./pages/WishlistPage.jsx').then((m) => ({ default: m.WishlistPage }))
+);
 
 export default function App() {
   return (
@@ -54,16 +58,7 @@ export default function App() {
                     />
                   }
                 />
-                <Route
-                  path="/wishlist"
-                  element={
-                    <ComingSoonPage
-                      icon={HeartIcon}
-                      title="Wishlist"
-                      text="Products you save for later will show up here once this is built."
-                    />
-                  }
-                />
+                <Route path="/wishlist" element={<WishlistPage />} />
                 <Route path="/shop" element={<ShopPage />} />
                 <Route path="/shop/:productId" element={<ProductDetailPage />} />
                 <Route path="/bag" element={<BagPage />} />
@@ -95,6 +90,13 @@ export default function App() {
             <Route path="*" element={<Navigate to="/orders" replace />} />
           </Routes>
         </Suspense>
+        {/* Mounted once at the root, not per-page - toasts (e.g. BagPage's
+            remove/undo) need to survive whichever route triggered them and
+            outlive a navigation away from that page. gap/offset match this
+            app's own --space-3 rhythm; toastOptions.unstyled lets each call
+            site fully own its markup (see UndoToast in BagPage.jsx) instead
+            of fighting Sonner's own default toast chrome. */}
+        <Toaster position="bottom-center" gap={12} toastOptions={{ unstyled: true }} />
       </BrowserRouter>
     </AuthProvider>
   );
