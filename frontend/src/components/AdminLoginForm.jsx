@@ -4,10 +4,32 @@ import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 
 const GSI_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
+// Module-level singleton, not per-call - React 18 StrictMode mounts this
+// component's effect twice in dev (mount, cleanup, remount). Resolving as
+// soon as a <script src="..."> tag merely *exists* in the DOM (the
+// previous version of this function) is a false positive: the first
+// mount's tag can still be mid-flight when the second mount checks for
+// it, so the second mount's promise would resolve before window.google
+// actually exists, its callback would bail on the !window.google guard,
+// and the first mount's callback - which DOES eventually fire for real -
+// has already been marked cancelled by its own cleanup. Net effect: the
+// button silently never renders, with no error anywhere. One shared
+// promise per script load, resolved only once window.google.accounts.id
+// genuinely exists, fixes this regardless of how many times this effect
+// runs.
+let gsiScriptPromise = null;
+
 function loadGsiScript() {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${GSI_SCRIPT_SRC}"]`)) {
+  if (gsiScriptPromise) return gsiScriptPromise;
+  gsiScriptPromise = new Promise((resolve, reject) => {
+    if (window.google?.accounts?.id) {
       resolve();
+      return;
+    }
+    const existing = document.querySelector(`script[src="${GSI_SCRIPT_SRC}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Failed to load Google Sign-In')));
       return;
     }
     const script = document.createElement('script');
@@ -15,9 +37,21 @@ function loadGsiScript() {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Sign-In'));
+    script.onerror = () => {
+      gsiScriptPromise = null;
+      reject(new Error('Failed to load Google Sign-In'));
+    };
     document.head.appendChild(script);
   });
+  return gsiScriptPromise;
+}
+
+// Test-only: clears the module-level singleton between test cases, so each
+// test can simulate its own fresh page load (Vitest reuses one module
+// instance across every test in a file, unlike a real browser navigation).
+// Never called from application code.
+export function __resetGsiScriptStateForTests() {
+  gsiScriptPromise = null;
 }
 
 // Split out from the useEffect below so it's directly testable without

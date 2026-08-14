@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminAuthProvider } from '../context/AdminAuthContext.jsx';
-import { AdminLoginForm, handleGoogleCredential } from './AdminLoginForm.jsx';
+import { AdminLoginForm, handleGoogleCredential, __resetGsiScriptStateForTests } from './AdminLoginForm.jsx';
 
 const GSI_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
@@ -64,6 +64,7 @@ describe('AdminLoginForm', () => {
   beforeEach(() => {
     document.head.querySelectorAll('script').forEach((el) => el.remove());
     delete window.google;
+    __resetGsiScriptStateForTests();
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
     // AdminAuthProvider fires its own GET /me on mount - default this to a
     // harmless "not logged in" response so it doesn't interfere with the
@@ -95,10 +96,10 @@ describe('AdminLoginForm', () => {
     });
 
     renderForm();
-    await waitFor(() => expect(getGsiScript()).toBeTruthy());
-    await act(async () => {
-      getGsiScript().onload();
-    });
+    // window.google is already present (mocked above), so loadGsiScript()
+    // resolves via its fast path - no <script> tag is ever created here,
+    // matching what actually happens on a real page navigation that isn't
+    // the very first one to load the GSI script.
     await waitFor(() => expect(capturedCallback).toBeTypeOf('function'));
 
     await act(async () => {
