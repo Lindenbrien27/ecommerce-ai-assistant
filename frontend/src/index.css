@@ -7893,3 +7893,13 @@ box that's now also the card's own edge. */
   margin: 0 0 0.35rem;
   font-size: var(--font-size-lg);
 }
+
+.admin-login-error {
+  margin: var(--space-2) 0 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--font-size-sm, 0.875rem);
+}

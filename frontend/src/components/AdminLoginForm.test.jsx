@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { handleGoogleCredential } from './AdminLoginForm.jsx';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { AdminAuthProvider } from '../context/AdminAuthContext.jsx';
+import { AdminLoginForm, handleGoogleCredential } from './AdminLoginForm.jsx';
+
+const GSI_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
 beforeEach(() => {
   global.fetch = vi.fn();
@@ -32,5 +37,97 @@ describe('handleGoogleCredential', () => {
     expect(result).toBe(false);
     expect(login).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+// Component-level tests below cover the gaps the standalone handleGoogleCredential
+// tests above can't reach: nothing in the component previously read
+// handleGoogleCredential's return value, loadGsiScript() had no .catch, and
+// nothing checked VITE_GOOGLE_CLIENT_ID was actually set before calling
+// Google's initialize(). Rendering through AdminLoginForm (not just calling
+// the exported function directly) is what exercises those wiring gaps.
+function renderForm() {
+  return render(
+    <AdminAuthProvider>
+      <MemoryRouter>
+        <AdminLoginForm />
+      </MemoryRouter>
+    </AdminAuthProvider>
+  );
+}
+
+function getGsiScript() {
+  return document.querySelector(`script[src="${GSI_SCRIPT_SRC}"]`);
+}
+
+describe('AdminLoginForm', () => {
+  beforeEach(() => {
+    document.head.querySelectorAll('script').forEach((el) => el.remove());
+    delete window.google;
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
+    // AdminAuthProvider fires its own GET /me on mount - default this to a
+    // harmless "not logged in" response so it doesn't interfere with the
+    // fetch mocks each test below sets up for the Google credential POST.
+    global.fetch.mockResolvedValue({ ok: false });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('surfaces an error when the backend rejects the Google credential (handleGoogleCredential returning false is actually read)', async () => {
+    let capturedCallback;
+    window.google = {
+      accounts: {
+        id: {
+          initialize: vi.fn(({ callback }) => {
+            capturedCallback = callback;
+          }),
+          renderButton: vi.fn(),
+        },
+      },
+    };
+    global.fetch.mockImplementation((url) => {
+      if (url === '/api/admin/auth/google') {
+        return Promise.resolve({ ok: false, json: async () => ({ error: 'Not authorized.' }) });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    renderForm();
+    await waitFor(() => expect(getGsiScript()).toBeTruthy());
+    await act(async () => {
+      getGsiScript().onload();
+    });
+    await waitFor(() => expect(capturedCallback).toBeTypeOf('function'));
+
+    await act(async () => {
+      await capturedCallback({ credential: 'fake-id-token' });
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/sign-in was rejected/i);
+  });
+
+  it('surfaces an error when the Google Sign-In script fails to load', async () => {
+    renderForm();
+    await waitFor(() => expect(getGsiScript()).toBeTruthy());
+    await act(async () => {
+      getGsiScript().onerror();
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load google sign-in/i);
+  });
+
+  it('surfaces an error and never loads the Google script when VITE_GOOGLE_CLIENT_ID is not configured', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderForm();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/isn't configured/i);
+    expect(consoleError).toHaveBeenCalled();
+    expect(getGsiScript()).toBeNull();
+
+    consoleError.mockRestore();
   });
 });

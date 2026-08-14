@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 
@@ -43,22 +43,55 @@ export function AdminLoginForm() {
   const buttonRef = useRef(null);
   const { login } = useAdminAuth();
   const navigate = useNavigate();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadGsiScript().then(() => {
-      if (cancelled || !window.google || !buttonRef.current) return;
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: (response) => handleGoogleCredential(response, { login, navigate }),
+
+    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      // A missing build-time env var, not a runtime failure a normal error
+      // boundary would explain well - log clearly for whoever's debugging a
+      // deploy, and surface something readable to whoever's stuck on the page.
+      // eslint-disable-next-line no-console
+      console.error('VITE_GOOGLE_CLIENT_ID is not set - admin Google Sign-In cannot be initialized.');
+      setError("Admin sign-in isn't configured. Contact an administrator.");
+      return undefined;
+    }
+
+    loadGsiScript()
+      .then(() => {
+        if (cancelled || !window.google || !buttonRef.current) return;
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: async (response) => {
+            const ok = await handleGoogleCredential(response, { login, navigate });
+            if (!cancelled && !ok) {
+              setError('Sign-in was rejected. Contact an administrator if you believe this is a mistake.');
+            }
+          },
+        });
+        window.google.accounts.id.renderButton(buttonRef.current, { theme: 'outline', size: 'large' });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError("Couldn't load Google Sign-In. Please refresh and try again.");
+        }
       });
-      window.google.accounts.id.renderButton(buttonRef.current, { theme: 'outline', size: 'large' });
-    });
+
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div ref={buttonRef} data-testid="google-signin-button" />;
+  return (
+    <div>
+      <div ref={buttonRef} data-testid="google-signin-button" />
+      {error && (
+        <p role="alert" className="admin-login-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }

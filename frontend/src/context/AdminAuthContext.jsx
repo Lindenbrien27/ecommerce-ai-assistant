@@ -34,7 +34,16 @@ export function AdminAuthProvider({ children }) {
   }
 
   async function logout() {
-    await fetch('/api/admin/auth/logout', { method: 'POST' });
+    // Fail open on the client side: if the network call itself fails, the
+    // user's local state should still clear rather than leave them looking
+    // logged in. Worst case they have to re-authenticate, which is safe -
+    // and letting the rejection go unhandled would be a console error for
+    // no benefit.
+    try {
+      await fetch('/api/admin/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore - clear local state regardless
+    }
     setEmail(null);
   }
 
