@@ -7866,3 +7866,30 @@ box that's now also the card's own edge. */
   height: 100px;
   background: linear-gradient(to top, var(--color-panel-bg), transparent);
 }
+
+/* Shared shell for the admin-only pages (AdminLoginPage/AdminDashboardPage)
+   - deliberately its own small block, not reusing .verify-*'s customer
+   auth styles, since the two auth systems don't share a trust boundary
+   and shouldn't visually imply they're the same flow. */
+.admin-login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-page-bg);
+}
+
+.admin-login-card {
+  width: min(360px, calc(100vw - 2.5rem));
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-resting);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.admin-login-card h1 {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-size-lg);
+}

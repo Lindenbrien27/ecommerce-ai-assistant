@@ -1,11 +1,13 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
 import { CardIcon, PinIcon, TicketIcon } from './components/icons.jsx';
+import { AdminAuthProvider } from './context/AdminAuthContext.jsx';
+import { AdminProtectedRoute } from './components/AdminProtectedRoute.jsx';
 
 // Route-level code splitting - each page (and whatever it alone depends on)
 // ships as its own chunk, fetched only when that route is actually visited,
@@ -31,6 +33,12 @@ const CheckoutPage = lazy(() =>
 const BagPage = lazy(() => import('./pages/BagPage.jsx').then((m) => ({ default: m.BagPage })));
 const WishlistPage = lazy(() =>
   import('./pages/WishlistPage.jsx').then((m) => ({ default: m.WishlistPage }))
+);
+const AdminLoginPage = lazy(() =>
+  import('./pages/AdminLoginPage.jsx').then((m) => ({ default: m.AdminLoginPage }))
+);
+const AdminDashboardPage = lazy(() =>
+  import('./pages/AdminDashboardPage.jsx').then((m) => ({ default: m.AdminDashboardPage }))
 );
 
 export default function App() {
@@ -83,6 +91,20 @@ export default function App() {
                     />
                   }
                 />
+              </Route>
+            </Route>
+
+            <Route
+              path="/admin/*"
+              element={
+                <AdminAuthProvider>
+                  <Outlet />
+                </AdminAuthProvider>
+              }
+            >
+              <Route path="login" element={<AdminLoginPage />} />
+              <Route element={<AdminProtectedRoute />}>
+                <Route index element={<AdminDashboardPage />} />
               </Route>
             </Route>
 
