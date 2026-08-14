@@ -7,10 +7,12 @@ const openApiSpec = require('../openapi.json');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
-const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
-const { securityHeaders, apiDocsStyleOverride } = require('./middleware/securityHeaders');
+const { securityHeaders, apiDocsStyleOverride, adminCspOverride } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
 const { logError } = require('./utils/logger');
 const Sentry = require('./config/sentry');
@@ -37,6 +39,7 @@ if (process.env.NODE_ENV === 'production') {
 app.use(pinoHttp({ logger }));
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Gzips/brotli-compresses JSON and static responses based on the client's
 // Accept-Encoding - without this, the ~189KB JS bundle (and every API
@@ -92,6 +95,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
 app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
+app.use('/api/admin/auth', adminLoginLimiter, adminAuthRoutes);
 
 // Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
 // also the source of truth /api-docs below renders from.
@@ -121,6 +125,17 @@ app.get('/api-docs', (req, res) => {
 <script src="./swagger-ui-init.js"></script>
 </body>
 </html>`);
+});
+
+// Same index.html every other client route gets (see the fallback just
+// below), but with the relaxed CSP the admin login page's Google Sign-In
+// button needs (see adminCspOverride's own comment). Must be registered
+// before the generic '*' fallback below - Express matches routes in
+// registration order, and the generic one would otherwise catch /admin
+// first and serve it with the strict default policy instead.
+app.get(['/admin', '/admin/*'], adminCspOverride, (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(INDEX_HTML);
 });
 
 // SPA fallback: anything that isn't a static asset or an API route is a

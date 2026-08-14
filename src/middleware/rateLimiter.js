@@ -61,4 +61,16 @@ const authLimiter = rateLimit({
   handler: auditedHandler('auth'),
 });
 
-module.exports = { chatLimiter, ordersLimiter, authLimiter };
+// Tighter than authLimiter above - a compromised admin account is worth
+// more to an attacker than one customer's order history, and this endpoint
+// accepts arbitrary Google ID tokens before any allowlist check runs.
+const adminLoginLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_ADMIN_LOGIN_WINDOW_MS) || 15 * 60_000,
+  max: Number(process.env.RATE_LIMIT_ADMIN_LOGIN_MAX) || 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later.' },
+  handler: auditedHandler('admin_login'),
+});
+
+module.exports = { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter };
