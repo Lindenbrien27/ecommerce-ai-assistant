@@ -37,8 +37,11 @@ const WishlistPage = lazy(() =>
 const AdminLoginPage = lazy(() =>
   import('./pages/AdminLoginPage.jsx').then((m) => ({ default: m.AdminLoginPage }))
 );
-const AdminDashboardPage = lazy(() =>
-  import('./pages/AdminDashboardPage.jsx').then((m) => ({ default: m.AdminDashboardPage }))
+const AdminOrdersPage = lazy(() =>
+  import('./pages/AdminOrdersPage.jsx').then((m) => ({ default: m.AdminOrdersPage }))
+);
+const AdminOrderDetailPage = lazy(() =>
+  import('./pages/AdminOrderDetailPage.jsx').then((m) => ({ default: m.AdminOrderDetailPage }))
 );
 
 export default function App() {
@@ -104,7 +107,8 @@ export default function App() {
             >
               <Route path="login" element={<AdminLoginPage />} />
               <Route element={<AdminProtectedRoute />}>
-                <Route index element={<AdminDashboardPage />} />
+                <Route index element={<AdminOrdersPage />} />
+                <Route path="orders/:orderNumber" element={<AdminOrderDetailPage />} />
               </Route>
             </Route>
 
