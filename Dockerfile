@@ -17,6 +17,14 @@ COPY frontend/ ./
 # everything else Sentry-related here.
 ARG VITE_SENTRY_DSN
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+# Same "build ARG is the only way this reaches vite build" reasoning as
+# VITE_SENTRY_DSN just above - the admin login page's Google Sign-In button
+# needs this Client ID baked in at build time too. Unset, admin login simply
+# can't complete client-side (same as the backend's own GOOGLE_CLIENT_ID
+# degrading POST /api/admin/auth/google to a 500 rather than crashing) -
+# this app still builds and runs fine without it.
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 # Stage 2: runtime
