@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { pool } = require('../config/db');
 
 // Half the customer token's 1h TTL (authService.js) - an admin session is a
 // higher-value target (can edit the catalog), so it stays valid for a
@@ -24,4 +25,9 @@ function verifyAdminToken(token) {
   return payload;
 }
 
-module.exports = { issueAdminToken, verifyAdminToken, ADMIN_TOKEN_TTL };
+async function findAdminByEmail(email) {
+  const { rows } = await pool.query('SELECT id, email FROM admins WHERE LOWER(email) = LOWER($1)', [email]);
+  return rows[0] || null;
+}
+
+module.exports = { issueAdminToken, verifyAdminToken, findAdminByEmail, ADMIN_TOKEN_TTL };
