@@ -113,4 +113,6 @@ module.exports = {
   InvalidCursorError,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  encodeCursor,
+  decodeCursor,
 };
