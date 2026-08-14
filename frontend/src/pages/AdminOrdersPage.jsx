@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 import { SearchIcon } from '../components/icons.jsx';
@@ -43,6 +43,12 @@ export function AdminOrdersPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
 
+  // Always mirrors the latest status/q from the render that just happened
+  // (assigned during render, not in an effect, so it's current the instant
+  // a loadMore response comes back - see loadMore below).
+  const filtersRef = useRef({ status, q });
+  filtersRef.current = { status, q };
+
   // Re-fetches page one whenever the status filter or search text changes -
   // this table is admin-wide and can be large, so filtering happens
   // server-side (unlike OrdersPage.jsx's client-side filter over one
@@ -72,6 +78,12 @@ export function AdminOrdersPage() {
   }, [status, q]);
 
   async function loadMore() {
+    // Snapshot the filters this request is *for*. If status/q change before
+    // the response lands (e.g. the admin picks a new status filter while a
+    // "Load more" fetch is still in flight), filtersRef.current will have
+    // moved on by the time we get here and we drop the stale response
+    // instead of appending wrong-filter rows or clobbering nextCursor.
+    const requestFilters = { status, q };
     setLoadingMore(true);
     try {
       const res = await fetch(`/api/admin/orders?${buildQuery({ status, q, cursor: nextCursor })}`);
@@ -80,10 +92,13 @@ export function AdminOrdersPage() {
         throw new Error(body.error || 'Something went wrong looking up orders.');
       }
       const data = await res.json();
+      const stale = filtersRef.current.status !== requestFilters.status || filtersRef.current.q !== requestFilters.q;
+      if (stale) return;
       setOrders((prev) => [...prev, ...data.orders]);
       setNextCursor(data.nextCursor);
     } catch (err) {
-      setError(err.message);
+      const stale = filtersRef.current.status !== requestFilters.status || filtersRef.current.q !== requestFilters.q;
+      if (!stale) setError(err.message);
     } finally {
       setLoadingMore(false);
     }
@@ -161,7 +176,7 @@ export function AdminOrdersPage() {
         </table>
       )}
 
-      {nextCursor && (
+      {!error && nextCursor && (
         <button type="button" className="order-cards-load-more" onClick={loadMore} disabled={loadingMore}>
           {loadingMore ? 'Loading...' : 'Load more'}
         </button>
