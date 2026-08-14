@@ -48,12 +48,32 @@ test('verifyGoogleIdToken returns the email from a valid Google ID token payload
   t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async ({ idToken, audience }) => {
     assert.equal(idToken, 'a-real-looking-id-token');
     assert.equal(audience, 'test-client-id');
-    return { getPayload: () => ({ email: 'admin@example.com' }) };
+    return { getPayload: () => ({ email: 'admin@example.com', email_verified: true }) };
   });
 
   const { verifyGoogleIdToken } = require('../src/services/adminAuthService');
   const email = await verifyGoogleIdToken('a-real-looking-id-token');
   assert.equal(email, 'admin@example.com');
+});
+
+test('verifyGoogleIdToken rejects a payload with email_verified: false', async (t) => {
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+  t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async () => ({
+    getPayload: () => ({ email: 'admin@example.com', email_verified: false }),
+  }));
+
+  const { verifyGoogleIdToken } = require('../src/services/adminAuthService');
+  await assert.rejects(() => verifyGoogleIdToken('a-real-looking-id-token'));
+});
+
+test('verifyGoogleIdToken rejects a payload with no email_verified claim at all', async (t) => {
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+  t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async () => ({
+    getPayload: () => ({ email: 'admin@example.com' }),
+  }));
+
+  const { verifyGoogleIdToken } = require('../src/services/adminAuthService');
+  await assert.rejects(() => verifyGoogleIdToken('a-real-looking-id-token'));
 });
 
 test('verifyGoogleIdToken propagates a rejection from google-auth-library on an invalid token', async (t) => {

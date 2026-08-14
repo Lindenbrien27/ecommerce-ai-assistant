@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
 const { orderCache } = require('../src/config/cache');
 const { issueToken } = require('../src/services/authService');
+const { OAuth2Client } = require('google-auth-library');
 const app = require('../src/app');
 
 // orderService caches order lookups (src/config/cache.js) - doesn't change
@@ -125,4 +126,52 @@ test('returns 429 once a client exceeds RATE_LIMIT_AUTH_MAX requests to /api/aut
 
   const res = await fetch(`${base}/api/auth/otp/request`, { method: 'POST', headers, body });
   assert.equal(res.status, 429);
+});
+
+// adminLoginLimiter is mounted on just POST /api/admin/auth/google (see
+// adminAuthRoutes.js) - it used to be mounted on the whole
+// /api/admin/auth router in app.js, which meant GET /me (polled on every
+// page load by the frontend's AdminAuthContext) counted against the same
+// tiny 5-attempts-per-window budget as actual login attempts, locking the
+// admin out after ~4 page reloads.
+test('returns 429 once a client exceeds RATE_LIMIT_ADMIN_LOGIN_MAX requests to POST /api/admin/auth/google', async (t) => {
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+  t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async () => ({
+    getPayload: () => ({ email: 'lindenbrien27@gmail.com', email_verified: true }),
+  }));
+  t.mock.method(pool, 'query', async () => ({ rows: [{ id: 1, email: 'lindenbrien27@gmail.com' }] }));
+
+  const server = app.listen(0);
+  t.after(() => server.close());
+  const { port } = server.address();
+  const base = `http://localhost:${port}`;
+
+  const max = Number(process.env.RATE_LIMIT_ADMIN_LOGIN_MAX);
+  assert.ok(max > 0, 'RATE_LIMIT_ADMIN_LOGIN_MAX must be set for this test');
+
+  const headers = { 'Content-Type': 'application/json' };
+  const body = JSON.stringify({ idToken: 'a-real-looking-id-token' });
+
+  for (let i = 0; i < max; i += 1) {
+    const res = await fetch(`${base}/api/admin/auth/google`, { method: 'POST', headers, body });
+    assert.notEqual(res.status, 429, `request ${i + 1} should not be rate limited yet`);
+  }
+
+  const res = await fetch(`${base}/api/admin/auth/google`, { method: 'POST', headers, body });
+  assert.equal(res.status, 429);
+});
+
+test('GET /api/admin/auth/me is never rate limited, even well past RATE_LIMIT_ADMIN_LOGIN_MAX requests', async (t) => {
+  const server = app.listen(0);
+  t.after(() => server.close());
+  const { port } = server.address();
+  const base = `http://localhost:${port}`;
+
+  const max = Number(process.env.RATE_LIMIT_ADMIN_LOGIN_MAX);
+  assert.ok(max > 0, 'RATE_LIMIT_ADMIN_LOGIN_MAX must be set for this test');
+
+  for (let i = 0; i < max + 5; i += 1) {
+    const res = await fetch(`${base}/api/admin/auth/me`);
+    assert.notEqual(res.status, 429, `request ${i + 1} should not be rate limited`);
+  }
 });

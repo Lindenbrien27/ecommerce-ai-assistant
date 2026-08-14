@@ -114,7 +114,11 @@ const apiDocsStyleOverride = helmet.contentSecurityPolicy({
 const adminCspOverride = helmet.contentSecurityPolicy({
   directives: {
     ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-    'style-src': ["'self'"],
+    // Google's gsi/client script injects its own <link>/<style> for the
+    // rendered button/One Tap UI from this specific accounts.google.com
+    // path - the strict 'self'-only style-src (still in effect everywhere
+    // else) blocked it outright.
+    'style-src': ["'self'", 'https://accounts.google.com/gsi/style'],
     'font-src': ["'self'"],
     'frame-ancestors': ["'none'"],
     'script-src': ["'self'", 'https://accounts.google.com/gsi/client'],
@@ -124,4 +128,16 @@ const adminCspOverride = helmet.contentSecurityPolicy({
   },
 });
 
-module.exports = { securityHeaders, apiDocsStyleOverride, adminCspOverride };
+// Helmet's global default (applied via securityHeaders above) sets
+// Cross-Origin-Opener-Policy: same-origin, which severs window.opener and
+// breaks Google Identity Services' popup-based sign-in fallback (used when
+// FedCM/One Tap isn't available). helmet.contentSecurityPolicy() instances
+// like adminCspOverride above only touch the Content-Security-Policy header,
+// so this needs its own small middleware, applied alongside adminCspOverride
+// on the /admin* route only - every other route keeps the strict default.
+function adminCoopOverride(req, res, next) {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+}
+
+module.exports = { securityHeaders, apiDocsStyleOverride, adminCspOverride, adminCoopOverride };

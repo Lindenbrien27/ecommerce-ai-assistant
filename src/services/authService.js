@@ -27,7 +27,17 @@ function issueToken(email) {
 // same code path, which doesn't exist here today, but "doesn't exist today"
 // isn't a property this one line should be relied on to keep true.
 function verifyToken(token) {
-  return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  // Customer tokens have never carried a role claim - an admin token
+  // (adminAuthService.js's issueAdminToken) does, so rejecting any payload
+  // that has one keeps the two token shapes from being interchangeable in
+  // both directions (verifyAdminToken already rejects a customer token the
+  // other way). Can't break any existing valid customer token, since none
+  // of them have ever had this claim.
+  if (payload.role) {
+    throw new Error('Not a customer token');
+  }
+  return payload;
 }
 
 module.exports = { issueToken, verifyToken };

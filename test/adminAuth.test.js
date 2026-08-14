@@ -16,7 +16,7 @@ async function withServer(t, run) {
 function mockGoogleEmail(t, email) {
   process.env.GOOGLE_CLIENT_ID = 'test-client-id';
   t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async () => ({
-    getPayload: () => ({ email }),
+    getPayload: () => ({ email, email_verified: true }),
   }));
 }
 
@@ -140,6 +140,9 @@ test('GET /admin/login serves the app with a relaxed CSP allowing Google Sign-In
     const csp = res.headers.get('content-security-policy');
     assert.match(csp, /script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client/);
     assert.match(csp, /frame-src 'self' https:\/\/accounts\.google\.com/);
+    // Google's gsi/client script injects its own stylesheet from this path -
+    // a 'self'-only style-src blocks it outright.
+    assert.match(csp, /style-src 'self' https:\/\/accounts\.google\.com\/gsi\/style/);
   });
 });
 
@@ -150,3 +153,27 @@ test('GET /orders keeps the strict CSP - the admin override is scoped to /admin 
     assert.doesNotMatch(csp, /accounts\.google\.com/);
   });
 });
+
+test('GET /admin/login relaxes COOP to allow the Google Sign-In popup fallback', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/admin/login`);
+    assert.equal(res.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+  });
+});
+
+test('GET /orders keeps the strict default COOP - the admin override is scoped to /admin only', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/orders`);
+    assert.equal(res.headers.get('cross-origin-opener-policy'), 'same-origin');
+  });
+});
+
+// The admin-login-specific rate limit tests (POST /google trips it, GET /me
+// doesn't share its budget) live in test/rateLimiter.test.js instead of
+// here - node:test isolates each file into its own process, so a fresh file
+// gets a fresh adminLoginLimiter counter. Kept in this file, the tests above
+// (four of which already POST to /google) would eat into the same budget
+// this test needs to measure precisely, an artifact of the limiter being a
+// module-level singleton shared across every test in one process, same
+// reasoning rateLimiter.test.js's own comments already document for
+// chatLimiter/ordersLimiter/authLimiter.

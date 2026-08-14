@@ -10,9 +10,9 @@ const orderRoutes = require('./routes/orderRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
-const { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter } = require('./middleware/rateLimiter');
+const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
-const { securityHeaders, apiDocsStyleOverride, adminCspOverride } = require('./middleware/securityHeaders');
+const { securityHeaders, apiDocsStyleOverride, adminCspOverride, adminCoopOverride } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
 const { logError } = require('./utils/logger');
 const Sentry = require('./config/sentry');
@@ -95,7 +95,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
 app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
-app.use('/api/admin/auth', adminLoginLimiter, adminAuthRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
 
 // Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
 // also the source of truth /api-docs below renders from.
@@ -133,7 +133,7 @@ app.get('/api-docs', (req, res) => {
 // before the generic '*' fallback below - Express matches routes in
 // registration order, and the generic one would otherwise catch /admin
 // first and serve it with the strict default policy instead.
-app.get(['/admin', '/admin/*'], adminCspOverride, (req, res) => {
+app.get(['/admin', '/admin/*'], adminCspOverride, adminCoopOverride, (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(INDEX_HTML);
 });

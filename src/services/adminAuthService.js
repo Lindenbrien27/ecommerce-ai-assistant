@@ -56,7 +56,17 @@ function getGoogleClient() {
 async function verifyGoogleIdToken(idToken) {
   const client = getGoogleClient();
   const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
-  return ticket.getPayload().email;
+  const payload = ticket.getPayload();
+  // email_verified === true (not just truthy/present) is the actual
+  // guarantee Google's signature covers - trusting an unverified email
+  // isn't exploitable today (the one seeded admin is a gmail.com address
+  // Google itself controls verification for), but becomes exploitable the
+  // moment a second admin is allowlisted on a domain Google doesn't control
+  // verification for.
+  if (!payload.email || payload.email_verified !== true) {
+    throw new Error('Unverified Google email');
+  }
+  return payload.email;
 }
 
 module.exports = {
