@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
+const { OAuth2Client } = require('google-auth-library');
 
 // Half the customer token's 1h TTL (authService.js) - an admin session is a
 // higher-value target (can edit the catalog), so it stays valid for a
@@ -30,4 +31,39 @@ async function findAdminByEmail(email) {
   return rows[0] || null;
 }
 
-module.exports = { issueAdminToken, verifyAdminToken, findAdminByEmail, ADMIN_TOKEN_TTL };
+// Same "isConfigured() lets the caller decide" shape as emailService.js's
+// SMTP check - a missing GOOGLE_CLIENT_ID degrades POST /api/admin/auth/google
+// to a clear 500 (see adminAuthController.js) instead of the app failing to
+// start, since nothing else in this app depends on it.
+function isGoogleAuthConfigured() {
+  return Boolean(process.env.GOOGLE_CLIENT_ID);
+}
+
+let googleClient = null;
+function getGoogleClient() {
+  if (!googleClient) {
+    googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  }
+  return googleClient;
+}
+
+// Throws if the token's signature, audience, or expiry don't check out -
+// callers are expected to catch this, the same "throws, caller catches"
+// contract verifyToken/verifyAdminToken above already use. audience is
+// re-read from process.env at call time (not captured at client-construction
+// time), so a test that sets GOOGLE_CLIENT_ID after this module first loads
+// still gets checked against the current value.
+async function verifyGoogleIdToken(idToken) {
+  const client = getGoogleClient();
+  const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
+  return ticket.getPayload().email;
+}
+
+module.exports = {
+  issueAdminToken,
+  verifyAdminToken,
+  findAdminByEmail,
+  verifyGoogleIdToken,
+  isGoogleAuthConfigured,
+  ADMIN_TOKEN_TTL,
+};

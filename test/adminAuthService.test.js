@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { issueToken } = require('../src/services/authService');
 const { issueAdminToken, verifyAdminToken } = require('../src/services/adminAuthService');
 const { pool } = require('../src/config/db');
+const { OAuth2Client } = require('google-auth-library');
 
 test('issueAdminToken/verifyAdminToken round-trip carries adminId, email, and role', () => {
   const token = issueAdminToken({ id: 1, email: 'admin@example.com' });
@@ -40,4 +41,41 @@ test('findAdminByEmail returns null when no row matches - an allowlist miss, not
   const { findAdminByEmail } = require('../src/services/adminAuthService');
   const admin = await findAdminByEmail('nobody@example.com');
   assert.equal(admin, null);
+});
+
+test('verifyGoogleIdToken returns the email from a valid Google ID token payload', async (t) => {
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+  t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async ({ idToken, audience }) => {
+    assert.equal(idToken, 'a-real-looking-id-token');
+    assert.equal(audience, 'test-client-id');
+    return { getPayload: () => ({ email: 'admin@example.com' }) };
+  });
+
+  const { verifyGoogleIdToken } = require('../src/services/adminAuthService');
+  const email = await verifyGoogleIdToken('a-real-looking-id-token');
+  assert.equal(email, 'admin@example.com');
+});
+
+test('verifyGoogleIdToken propagates a rejection from google-auth-library on an invalid token', async (t) => {
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+  t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async () => {
+    throw new Error('Wrong number of segments in token');
+  });
+
+  const { verifyGoogleIdToken } = require('../src/services/adminAuthService');
+  await assert.rejects(() => verifyGoogleIdToken('not-a-real-token'));
+});
+
+test('isGoogleAuthConfigured reflects whether GOOGLE_CLIENT_ID is set', () => {
+  const original = process.env.GOOGLE_CLIENT_ID;
+  const { isGoogleAuthConfigured } = require('../src/services/adminAuthService');
+
+  delete process.env.GOOGLE_CLIENT_ID;
+  assert.equal(isGoogleAuthConfigured(), false);
+
+  process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+  assert.equal(isGoogleAuthConfigured(), true);
+
+  if (original === undefined) delete process.env.GOOGLE_CLIENT_ID;
+  else process.env.GOOGLE_CLIENT_ID = original;
 });
