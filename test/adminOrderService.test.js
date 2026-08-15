@@ -106,6 +106,20 @@ test('updateOrderStatus invalidates the shared orderCache entry for that order n
   assert.equal(orderCache.has('order:ORD-1001'), false);
 });
 
+test('updateOrderStatus also invalidates that customer\'s cached order-history list entries', async (t) => {
+  orderCache.set('order:ORD-1001', { order_number: 'ORD-1001', status: 'processing' });
+  orderCache.set('list:jane.doe@example.com:20:', { orders: [{ order_number: 'ORD-1001', status: 'processing' }], nextCursor: null });
+  orderCache.set('list:someone.else@example.com:20:', { orders: [], nextCursor: null });
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', status: 'shipped', customer_email: 'jane.doe@example.com' }],
+  }));
+
+  await adminOrderService.updateOrderStatus('ORD-1001', 'shipped');
+
+  assert.equal(orderCache.has('list:jane.doe@example.com:20:'), false);
+  assert.equal(orderCache.has('list:someone.else@example.com:20:'), true);
+});
+
 test('updateOrderShipping runs the UPDATE and returns the updated row', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.match(sql, /UPDATE orders SET carrier = \$1, tracking_number = \$2 WHERE order_number = \$3/);
@@ -136,4 +150,15 @@ test('updateOrderShipping invalidates the shared orderCache entry for that order
   await adminOrderService.updateOrderShipping('ORD-1001', { carrier: 'UPS', trackingNumber: '1Z999AA10123456784' });
 
   assert.equal(orderCache.has('order:ORD-1001'), false);
+});
+
+test('updateOrderShipping also invalidates that customer\'s cached order-history list entries', async (t) => {
+  orderCache.set('list:jane.doe@example.com:20:', { orders: [{ order_number: 'ORD-1001', carrier: null }], nextCursor: null });
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', carrier: 'UPS', tracking_number: '1Z999', customer_email: 'jane.doe@example.com' }],
+  }));
+
+  await adminOrderService.updateOrderShipping('ORD-1001', { carrier: 'UPS', trackingNumber: '1Z999' });
+
+  assert.equal(orderCache.has('list:jane.doe@example.com:20:'), false);
 });

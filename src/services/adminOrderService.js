@@ -68,6 +68,17 @@ async function updateOrderStatus(orderNumber, status) {
   const order = rows[0] ?? null;
   if (order) {
     orderCache.delete(`order:${orderNumber}`);
+    // The customer's order-history list (orderService.getOrdersByEmail, reused
+    // by the admin customer-detail page) caches under a different key shape
+    // (`list:${email}:${pageSize}:${cursor}`) that the single-order delete
+    // above doesn't touch - without this, an admin editing an order from a
+    // customer's detail page can navigate back to that same page and still
+    // see the pre-edit status/tracking for up to the cache's TTL.
+    for (const key of orderCache.keys()) {
+      if (key.startsWith(`list:${order.customer_email}:`)) {
+        orderCache.delete(key);
+      }
+    }
   }
   return order;
 }
@@ -85,6 +96,17 @@ async function updateOrderShipping(orderNumber, { carrier, trackingNumber }) {
   const order = rows[0] ?? null;
   if (order) {
     orderCache.delete(`order:${orderNumber}`);
+    // The customer's order-history list (orderService.getOrdersByEmail, reused
+    // by the admin customer-detail page) caches under a different key shape
+    // (`list:${email}:${pageSize}:${cursor}`) that the single-order delete
+    // above doesn't touch - without this, an admin editing an order from a
+    // customer's detail page can navigate back to that same page and still
+    // see the pre-edit status/tracking for up to the cache's TTL.
+    for (const key of orderCache.keys()) {
+      if (key.startsWith(`list:${order.customer_email}:`)) {
+        orderCache.delete(key);
+      }
+    }
   }
   return order;
 }
