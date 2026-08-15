@@ -46,4 +46,22 @@ async function sendOtpEmail(email, code) {
   }
 }
 
-module.exports = { sendOtpEmail, isConfigured };
+async function sendShippingUpdateEmail(email, order) {
+  if (!isConfigured()) return false;
+
+  try {
+    await getTransporter().sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: `Your order ${order.order_number} has shipped`,
+      text: `Good news! Your order ${order.order_number} (${order.product_name}) has shipped via ${order.carrier}. Tracking number: ${order.tracking_number}.`,
+      html: `<p>Good news! Your order <strong>${order.order_number}</strong> (${order.product_name}) has shipped via ${order.carrier}.</p><p>Tracking number: <strong>${order.tracking_number}</strong></p>`,
+    });
+    return true;
+  } catch (err) {
+    logError('Failed to send shipping update email', err);
+    return false;
+  }
+}
+
+module.exports = { sendOtpEmail, sendShippingUpdateEmail, isConfigured };

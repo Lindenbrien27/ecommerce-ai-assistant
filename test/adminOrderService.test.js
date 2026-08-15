@@ -105,3 +105,35 @@ test('updateOrderStatus invalidates the shared orderCache entry for that order n
 
   assert.equal(orderCache.has('order:ORD-1001'), false);
 });
+
+test('updateOrderShipping runs the UPDATE and returns the updated row', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    assert.match(sql, /UPDATE orders SET carrier = \$1, tracking_number = \$2 WHERE order_number = \$3/);
+    assert.deepEqual(params, ['UPS', '1Z999AA10123456784', 'ORD-1001']);
+    return { rows: [{ order_number: 'ORD-1001', carrier: 'UPS', tracking_number: '1Z999AA10123456784' }] };
+  });
+
+  const order = await adminOrderService.updateOrderShipping('ORD-1001', {
+    carrier: 'UPS',
+    trackingNumber: '1Z999AA10123456784',
+  });
+  assert.equal(order.carrier, 'UPS');
+});
+
+test('updateOrderShipping returns null when the order number does not exist', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
+
+  const order = await adminOrderService.updateOrderShipping('NOPE', { carrier: 'UPS', trackingNumber: '123' });
+  assert.equal(order, null);
+});
+
+test('updateOrderShipping invalidates the shared orderCache entry for that order number', async (t) => {
+  orderCache.set('order:ORD-1001', { order_number: 'ORD-1001', carrier: null, tracking_number: null });
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', carrier: 'UPS', tracking_number: '1Z999AA10123456784' }],
+  }));
+
+  await adminOrderService.updateOrderShipping('ORD-1001', { carrier: 'UPS', trackingNumber: '1Z999AA10123456784' });
+
+  assert.equal(orderCache.has('order:ORD-1001'), false);
+});

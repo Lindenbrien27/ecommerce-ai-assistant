@@ -72,9 +72,27 @@ async function updateOrderStatus(orderNumber, status) {
   return order;
 }
 
+// The second write path through this file - same cache-invalidation
+// reasoning updateOrderStatus already established (see its own comment
+// above): getOrderByNumber and the chat tool both read through the same
+// `order:${orderNumber}` cache key, so a carrier/tracking change needs
+// the identical treatment.
+async function updateOrderShipping(orderNumber, { carrier, trackingNumber }) {
+  const { rows } = await pool.query(
+    'UPDATE orders SET carrier = $1, tracking_number = $2 WHERE order_number = $3 RETURNING *',
+    [carrier, trackingNumber, orderNumber]
+  );
+  const order = rows[0] ?? null;
+  if (order) {
+    orderCache.delete(`order:${orderNumber}`);
+  }
+  return order;
+}
+
 module.exports = {
   ORDER_STATUSES,
   InvalidCursorError,
   getAdminOrders,
   updateOrderStatus,
+  updateOrderShipping,
 };
