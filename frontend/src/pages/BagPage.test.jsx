@@ -68,3 +68,48 @@ it('omits a seeded cart item whose product was deleted from the catalog, without
   // Subtotal should only reflect headphones (14999) + cable (1999) = 16998.
   expect(screen.getByText('$169.98')).toBeInTheDocument();
 });
+
+it('excludes a deleted item\'s delivery surcharge and count from cart totals, not just its row', async () => {
+  // CartContext's INITIAL_CART_ITEMS gives 'headphones' the cart's only
+  // non-zero surcharge (surchargeCents: 900, fulfillment: 'delivery').
+  // Deleting it from the fetched catalog reproduces the exact regression a
+  // prior fix left open: the row itself was correctly omitted, but the
+  // header count, select-all state, and delivery total were still derived
+  // from the raw, unfiltered items array, so headphones' $9.00 surcharge
+  // (and its slot in the count) kept flowing into the displayed totals even
+  // though the product itself no longer existed.
+  global.fetch = vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: async () => ({ products: PRODUCTS.filter((p) => p.slug !== 'headphones') }),
+    })
+  );
+  renderPage();
+  await screen.findByText('Mechanical Keyboard');
+  expect(screen.queryByText('Wireless Noise-Cancelling Headphones')).not.toBeInTheDocument();
+
+  // Only keyboard + cable remain resolvable - count and select-all must
+  // reflect 2, not the raw cart's 3.
+  expect(screen.getByText('2 item(s)')).toBeInTheDocument();
+  expect(screen.getByText('Select all (2/2)')).toBeInTheDocument();
+
+  // Subtotal: keyboard (8999) + cable (1999) = 10998, with no phantom
+  // headphones price mixed in.
+  expect(screen.getByText('$109.98')).toBeInTheDocument();
+
+  // Delivery must show Free (keyboard's own surcharge is 0) - not the
+  // phantom headphones surcharge.
+  const deliveryLabel = screen.getByText(/^Delivery/);
+  expect(deliveryLabel.nextSibling).toHaveTextContent('Free');
+  expect(screen.queryByText('+$9.00')).not.toBeInTheDocument();
+});
+
+it('shows the empty-bag state when every cart item\'s product has been deleted from the catalog', async () => {
+  global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ products: [] }) }));
+  renderPage();
+  expect(await screen.findByText('Your bag is empty.')).toBeInTheDocument();
+  expect(screen.getByText('0 item(s)')).toBeInTheDocument();
+  // The select-all row only renders when there's at least one resolvable
+  // item - none here, so it must not render at all.
+  expect(screen.queryByLabelText(/select all/i)).not.toBeInTheDocument();
+});

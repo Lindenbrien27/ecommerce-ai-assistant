@@ -95,19 +95,31 @@ export function BagPage() {
   const [holding, setHolding] = useState(false);
   const holdTimerRef = useRef(null);
 
-  const selectedCount = items.filter((it) => it.selected).length;
+  // Joins every cart entry to its live catalog product once, up front -
+  // every display/calculation value below (count, totals, surcharge sum)
+  // reads from this instead of the raw, unfiltered items array, so a
+  // seeded entry whose product the admin has since deleted (findProduct
+  // misses) can't silently skew a total or count while still going undone
+  // (see completeRemoval) via raw items. Cart-mutation calls (setItems)
+  // intentionally keep operating on raw items - this is a display/calc
+  // derivation only, not a replacement for cart state itself.
+  const resolvedItems = items
+    .map((it) => ({ ...it, product: findProduct(it.productId) }))
+    .filter((it) => it.product);
+
+  const selectedCount = resolvedItems.filter((it) => it.selected).length;
 
   // indeterminate has no JSX/HTML attribute equivalent - it only exists as
   // a DOM property, so it has to be set imperatively here rather than
   // passed as a prop the way checked is below.
   useEffect(() => {
     if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = selectedCount > 0 && selectedCount < items.length;
+      selectAllRef.current.indeterminate = selectedCount > 0 && selectedCount < resolvedItems.length;
     }
-  }, [selectedCount, items.length]);
+  }, [selectedCount, resolvedItems.length]);
 
   function handleSelectAllClick() {
-    const allSelected = items.every((it) => it.selected);
+    const allSelected = resolvedItems.every((it) => it.selected);
     setItems((prev) => prev.map((it) => ({ ...it, selected: !allSelected })));
   }
 
@@ -213,17 +225,13 @@ export function BagPage() {
 
   const confirmProduct = confirmProductId ? findProduct(confirmProductId) : null;
 
-  const deliveryTotal = items.filter((it) => it.fulfillment === 'delivery').length;
-  const pickupTotal = items.filter((it) => it.fulfillment === 'pickup').length;
+  const deliveryTotal = resolvedItems.filter((it) => it.fulfillment === 'delivery').length;
+  const pickupTotal = resolvedItems.filter((it) => it.fulfillment === 'pickup').length;
 
-  const selectedItems = items.filter((it) => it.selected);
-  // findProduct can miss (see completeRemoval above) if the admin deleted
-  // the product a seeded cart entry points at - treat that entry as if it
-  // weren't in the cart for the subtotal instead of throwing.
-  const subtotalCents = selectedItems.reduce((sum, it) => {
-    const product = findProduct(it.productId);
-    return product ? sum + product.price_cents * it.qty : sum;
-  }, 0);
+  // resolvedItems already excludes entries findProduct couldn't resolve
+  // (see the derivation above), so it.product is guaranteed here.
+  const selectedItems = resolvedItems.filter((it) => it.selected);
+  const subtotalCents = selectedItems.reduce((sum, it) => sum + it.product.price_cents * it.qty, 0);
   const deliverySelected = selectedItems.filter((it) => it.fulfillment === 'delivery');
   const pickupSelected = selectedItems.filter((it) => it.fulfillment === 'pickup');
   const deliveryCents = deliverySelected.reduce((sum, it) => sum + it.surchargeCents, 0);
@@ -246,10 +254,10 @@ export function BagPage() {
               <HeartIcon aria-hidden="true" />
             </Link>
             <h1 className="cart-title">
-              Shopping Bag <span className="cart-count">{items.length} item(s)</span>
+              Shopping Bag <span className="cart-count">{resolvedItems.length} item(s)</span>
             </h1>
           </div>
-          {items.length > 0 && (
+          {resolvedItems.length > 0 && (
             <p className="cart-fulfillment-sub">
               {deliveryTotal > 0 && (
                 <span>
@@ -272,28 +280,24 @@ export function BagPage() {
 
       <div className="cart-layout">
         <div>
-          {items.length > 0 && (
+          {resolvedItems.length > 0 && (
             <div className="cart-select-all-row">
               <input
                 type="checkbox"
                 ref={selectAllRef}
-                checked={selectedCount === items.length}
+                checked={selectedCount === resolvedItems.length}
                 onChange={handleSelectAllClick}
                 id="cart-select-all"
                 className="cart-item-check"
               />
               <label htmlFor="cart-select-all">
-                Select all ({selectedCount}/{items.length})
+                Select all ({selectedCount}/{resolvedItems.length})
               </label>
             </div>
           )}
 
-          {items.map((item) => {
-            const product = findProduct(item.productId);
-            // A seeded cart entry can point at a slug the admin has since
-            // deleted from the catalog - silently omit that row instead of
-            // throwing on product.name/product.price_cents below.
-            if (!product) return null;
+          {resolvedItems.map((item) => {
+            const { product } = item;
             return (
               <div
                 className={`cart-item${item.selected ? '' : ' unselected'}${item.productId === leavingProductId ? ' leaving' : ''}`}
@@ -360,7 +364,7 @@ export function BagPage() {
             );
           })}
 
-          {items.length === 0 && <p className="cart-empty">Your bag is empty.</p>}
+          {resolvedItems.length === 0 && <p className="cart-empty">Your bag is empty.</p>}
 
           <div className="cart-footer-row">
             <Link to="/shop">&larr; Back to Catalog</Link>
