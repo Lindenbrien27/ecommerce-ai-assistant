@@ -183,13 +183,19 @@ it('Clear resets status and search, and is disabled with no active filters', asy
 
   fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'shipped' } });
   await waitFor(() => expect(screen.getByRole('button', { name: /clear/i })).not.toBeDisabled());
+  await waitFor(() => {
+    const filteredCallMade = global.fetch.mock.calls.some(([url]) => String(url).includes('status=shipped'));
+    expect(filteredCallMade).toBe(true);
+  });
 
+  const callsBeforeClear = global.fetch.mock.calls.length;
   fireEvent.click(screen.getByRole('button', { name: /clear/i }));
 
   expect(screen.getByLabelText(/filter by status/i).value).toBe('');
   await waitFor(() => {
-    const called = global.fetch.mock.calls.some(([url]) => !String(url).includes('status='));
-    expect(called).toBe(true);
+    const callsAfterClear = global.fetch.mock.calls.slice(callsBeforeClear);
+    const clearedCallMade = callsAfterClear.some(([url]) => !String(url).includes('status='));
+    expect(clearedCallMade).toBe(true);
   });
 });
 
