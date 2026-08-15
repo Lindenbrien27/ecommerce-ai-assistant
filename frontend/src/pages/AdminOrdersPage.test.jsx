@@ -73,6 +73,50 @@ it('computes and displays the order total from pricing fields', async () => {
   expect(await screen.findByText('$167.98')).toBeInTheDocument();
 });
 
+it('shows an em dash in the Total column when an order has no pricing data', async () => {
+  global.fetch = vi.fn((url) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (String(url).startsWith('/api/admin/orders')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          orders: [
+            {
+              order_number: 'ORD-1001',
+              customer_email: 'jane@example.com',
+              product_name: 'Sneakers',
+              status: 'shipped',
+              created_at: '2026-01-01T00:00:00Z',
+              unit_price_cents: null,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+        }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('ORD-1001');
+  expect(screen.getByText('—')).toBeInTheDocument();
+});
+
+it('shows the empty-filters message when no orders match', async () => {
+  global.fetch = vi.fn((url) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (String(url).startsWith('/api/admin/orders')) {
+      return Promise.resolve({ ok: true, json: async () => ({ orders: [], total: 0, page: 1, pageSize: 10 }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  expect(await screen.findByText('No orders match these filters.')).toBeInTheDocument();
+});
+
 it('re-fetches page 1 with the status filter when changed', async () => {
   renderPage();
   await screen.findByText('ORD-1001');

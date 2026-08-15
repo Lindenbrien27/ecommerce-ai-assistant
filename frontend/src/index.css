@@ -7907,7 +7907,7 @@ box that's now also the card's own edge. */
 .admin-orders-page {
   padding: 2rem 1.75rem 3rem;
   background: #0a0a0a;
-  min-height: 100%;
+  min-height: 100vh;
   color: #fafafa;
 }
 
@@ -7916,6 +7916,10 @@ box that's now also the card's own edge. */
   outline-offset: 2px;
 }
 
+/* The universal *:focus-visible rule above loses specificity to the
+   site-wide input[type="text"]:focus-visible rule for this page's search
+   input specifically - this rule ties it and wins on source order. Do not
+   remove as "redundant" without checking that specificity fight first. */
 .admin-orders-page input:focus-visible {
   outline: 2px solid #fafafa;
   outline-offset: 2px;
@@ -8100,17 +8104,17 @@ box that's now also the card's own edge. */
    these three classes - this page is always-dark regardless of the
    site's light/dark toggle, so it can't rely on that toggle's state to
    pick the right colors. */
-.admin-orders-page .order-history-badge.status-delivered {
+.admin-orders-page .order-history-badge.status-delivered.status-delivered {
   background: rgba(6, 78, 59, 0.6);
   color: #34d399;
 }
 
-.admin-orders-page .order-history-badge.status-cancelled {
+.admin-orders-page .order-history-badge.status-cancelled.status-cancelled {
   background: rgba(76, 5, 25, 0.6);
   color: #fb7185;
 }
 
-.admin-orders-page .order-history-badge.status-active {
+.admin-orders-page .order-history-badge.status-active.status-active {
   background: rgba(23, 37, 84, 0.6);
   color: #60a5fa;
 }
@@ -8321,6 +8325,11 @@ box that's now also the card's own edge. */
 .admin-nav-logout:hover {
   color: #fafafa;
   border-color: #a1a1a1;
+}
+
+.admin-nav-bar :focus-visible {
+  outline: 2px solid #fafafa;
+  outline-offset: 2px;
 }
 
 .admin-products-new-link {
