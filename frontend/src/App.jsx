@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute.jsx';
 import { Layout } from './components/Layout.jsx';
+import { AdminNav } from './components/AdminNav.jsx';
 import { CardIcon, PinIcon, TicketIcon } from './components/icons.jsx';
 import { AdminAuthProvider } from './context/AdminAuthContext.jsx';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute.jsx';
@@ -42,6 +43,12 @@ const AdminOrdersPage = lazy(() =>
 );
 const AdminOrderDetailPage = lazy(() =>
   import('./pages/AdminOrderDetailPage.jsx').then((m) => ({ default: m.AdminOrderDetailPage }))
+);
+const AdminCustomersPage = lazy(() =>
+  import('./pages/AdminCustomersPage.jsx').then((m) => ({ default: m.AdminCustomersPage }))
+);
+const AdminCustomerDetailPage = lazy(() =>
+  import('./pages/AdminCustomerDetailPage.jsx').then((m) => ({ default: m.AdminCustomerDetailPage }))
 );
 
 export default function App() {
@@ -107,8 +114,12 @@ export default function App() {
             >
               <Route path="login" element={<AdminLoginPage />} />
               <Route element={<AdminProtectedRoute />}>
-                <Route index element={<AdminOrdersPage />} />
-                <Route path="orders/:orderNumber" element={<AdminOrderDetailPage />} />
+                <Route element={<AdminNav />}>
+                  <Route index element={<AdminOrdersPage />} />
+                  <Route path="orders/:orderNumber" element={<AdminOrderDetailPage />} />
+                  <Route path="customers" element={<AdminCustomersPage />} />
+                  <Route path="customers/:email" element={<AdminCustomerDetailPage />} />
+                </Route>
               </Route>
             </Route>
 
