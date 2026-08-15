@@ -42,3 +42,12 @@ it('shows the correct discounted price using price_cents/original_price_cents', 
   expect(await screen.findByText('$89.99')).toBeInTheDocument();
   expect(screen.getByText('$119.99')).toBeInTheDocument();
 });
+
+it('renders an inline error instead of an empty grid when the product fetch fails', async () => {
+  global.fetch = vi.fn(() =>
+    Promise.resolve({ ok: false, json: async () => ({ error: 'Something went wrong loading products.' }) })
+  );
+  renderPage();
+  expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i);
+  expect(screen.queryByText('Wireless Noise-Cancelling Headphones')).not.toBeInTheDocument();
+});

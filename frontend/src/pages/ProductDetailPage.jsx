@@ -27,7 +27,7 @@ function randomBetween(min, max) {
 // White - this app has no real reviews table or spec sheet anywhere.
 export function ProductDetailPage() {
   const { productId } = useParams();
-  const { products, findProduct } = useProducts();
+  const { products, error, findProduct } = useProducts();
   const product = findProduct(productId);
   const detail = PRODUCT_DETAILS[productId];
 
@@ -60,6 +60,19 @@ export function ProductDetailPage() {
 
   function removeHeart(id) {
     setHearts((prev) => prev.filter((h) => h.id !== id));
+  }
+
+  // A failed fetch leaves products === null forever, same as "still
+  // loading" - checked first so a load failure renders the same inline
+  // error ShopPage/AdminProductsPage use instead of either hanging on a
+  // blank page forever (the loading gate below) or bouncing to /shop
+  // (the not-found gate further down).
+  if (!product && error) {
+    return (
+      <p className="verify-error" role="alert">
+        {error}
+      </p>
+    );
   }
 
   // Catalog fetch (ProductsContext) hasn't resolved yet - products is null

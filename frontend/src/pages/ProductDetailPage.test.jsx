@@ -44,3 +44,11 @@ it('renders the product fetched from the real API by slug', async () => {
   expect(screen.getByText('$96.00')).toBeInTheDocument();
   expect(screen.getByText('$128.00')).toBeInTheDocument();
 });
+
+it('renders an inline error instead of hanging on a blank page when the product fetch fails', async () => {
+  global.fetch = vi.fn(() =>
+    Promise.resolve({ ok: false, json: async () => ({ error: 'Something went wrong loading products.' }) })
+  );
+  renderPage();
+  expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i);
+});

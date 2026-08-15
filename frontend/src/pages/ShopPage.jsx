@@ -38,7 +38,7 @@ export function ShopPage() {
   // persist anywhere.
   const [shopNowOpen, setShopNowOpen] = useState(true);
 
-  const { products } = useProducts();
+  const { products, error } = useProducts();
   const visibleCategories = products ? [...new Set(products.map((p) => p.category))] : [];
 
   const visibleProducts = useMemo(() => {
@@ -144,16 +144,24 @@ export function ShopPage() {
         </div>
       )}
 
-      <div className="shop-grid">
-        {visibleProducts.map((product) => (
-          <ProductCard
-            key={product.slug}
-            product={product}
-            wishlisted={wishlisted.has(product.slug)}
-            onToggleWishlist={() => toggleWishlist(product.slug)}
-          />
-        ))}
-      </div>
+      {error && (
+        <p className="verify-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {!error && (
+        <div className="shop-grid">
+          {visibleProducts.map((product) => (
+            <ProductCard
+              key={product.slug}
+              product={product}
+              wishlisted={wishlisted.has(product.slug)}
+              onToggleWishlist={() => toggleWishlist(product.slug)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
