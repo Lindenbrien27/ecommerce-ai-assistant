@@ -32,6 +32,27 @@ test('createProduct rejects a negative stock_quantity', async (t) => {
   );
 });
 
+test('createProduct rejects a slug that is not a safe URL/path segment', async (t) => {
+  // slug is both the primary key and the literal :slug path segment in
+  // /api/products/:slug, /admin/products/:slug/edit, and /shop/:productId -
+  // a `/` here would create a row no route could ever fetch or edit again.
+  await assert.rejects(
+    adminProductService.createProduct({ ...VALID_FIELDS, slug: 'bad/slug' }),
+    (err) => {
+      assert.ok(err instanceof adminProductService.ValidationError);
+      assert.match(err.message, /slug must be lowercase alphanumeric with hyphens/);
+      return true;
+    }
+  );
+});
+
+test('createProduct rejects an uppercase or space-containing slug', async (t) => {
+  await assert.rejects(
+    adminProductService.createProduct({ ...VALID_FIELDS, slug: 'Bad Slug' }),
+    adminProductService.ValidationError
+  );
+});
+
 test('createProduct inserts and returns the new row', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.match(sql, /INSERT INTO products/);

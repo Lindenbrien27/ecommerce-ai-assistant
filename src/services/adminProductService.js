@@ -2,6 +2,14 @@ const { pool } = require('../config/db');
 
 const REQUIRED_FIELDS = ['slug', 'name', 'category', 'price_cents', 'sku'];
 
+// slug is both the primary key and the literal path segment in
+// /api/products/:slug, /admin/products/:slug/edit, and /shop/:productId -
+// lowercase alphanumeric segments joined by single hyphens, matching every
+// existing seeded slug (e.g. 'cloud-shift-runner'). Anything else (a `/`,
+// whitespace, `?`, `#`, `%`, uppercase, ...) would create a row that's
+// permanently unreachable through any of those routes.
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 class ValidationError extends Error {}
 class ConflictError extends Error {
   constructor(field) {
@@ -15,6 +23,9 @@ function validateCreateFields(fields) {
     if (fields[key] === undefined || fields[key] === null || fields[key] === '') {
       throw new ValidationError(`${key} is required.`);
     }
+  }
+  if (!SLUG_PATTERN.test(fields.slug)) {
+    throw new ValidationError("slug must be lowercase alphanumeric with hyphens (e.g. 'my-product')");
   }
   validateNumericFields(fields);
 }
