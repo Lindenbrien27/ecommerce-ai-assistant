@@ -4,6 +4,11 @@ const { pool } = require('../config/db');
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
+// total_spent_cents excludes cancelled orders (they generated no actual
+// revenue); order_count still includes them (a fulfillment/activity count,
+// not a revenue one).
+const TOTAL_SPENT_SQL = `SUM(COALESCE(unit_price_cents,0) + COALESCE(delivery_cost_cents,0) + COALESCE(vat_cents,0) - COALESCE(voucher_cents,0)) FILTER (WHERE status <> 'cancelled')`;
+
 // pg returns bigint/numeric aggregate columns (COUNT, SUM) as strings, not
 // JS numbers - converting here once means every caller (controller,
 // frontend) can treat these as real numbers without re-parsing.
@@ -24,7 +29,7 @@ async function getCustomers({ q = null, page = 1, limit = DEFAULT_PAGE_SIZE } = 
   const { rows } = await pool.query(
     `SELECT customer_email,
             COUNT(*) AS order_count,
-            SUM(COALESCE(unit_price_cents,0) + COALESCE(delivery_cost_cents,0) + COALESCE(vat_cents,0) - COALESCE(voucher_cents,0)) AS total_spent_cents,
+            ${TOTAL_SPENT_SQL} AS total_spent_cents,
             MAX(created_at) AS last_order_at
      FROM orders
      WHERE ($1::text IS NULL OR customer_email ILIKE $1)
@@ -43,7 +48,7 @@ async function getCustomerSummary(email) {
   const { rows } = await pool.query(
     `SELECT customer_email,
             COUNT(*) AS order_count,
-            SUM(COALESCE(unit_price_cents,0) + COALESCE(delivery_cost_cents,0) + COALESCE(vat_cents,0) - COALESCE(voucher_cents,0)) AS total_spent_cents,
+            ${TOTAL_SPENT_SQL} AS total_spent_cents,
             MAX(created_at) AS last_order_at
      FROM orders
      WHERE customer_email = $1

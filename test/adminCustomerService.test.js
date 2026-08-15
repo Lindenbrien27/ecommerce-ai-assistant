@@ -93,3 +93,21 @@ test('getCustomerSummary returns null for an email with no orders', async (t) =>
   const summary = await adminCustomerService.getCustomerSummary('nobody@example.com');
   assert.equal(summary, null);
 });
+
+test('getCustomers excludes cancelled orders from total_spent_cents in the SQL', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    assert.match(sql, /FILTER \(WHERE status <> 'cancelled'\)/);
+    return { rows: [] };
+  });
+
+  await adminCustomerService.getCustomers();
+});
+
+test('getCustomerSummary excludes cancelled orders from total_spent_cents in the SQL', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    assert.match(sql, /FILTER \(WHERE status <> 'cancelled'\)/);
+    return { rows: [] };
+  });
+
+  await adminCustomerService.getCustomerSummary('jane.doe@example.com');
+});
