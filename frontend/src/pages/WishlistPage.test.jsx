@@ -31,3 +31,21 @@ it('renders wishlist entries using real product data looked up by slug', async (
   expect(await screen.findByText('Wireless Noise-Cancelling Headphones')).toBeInTheDocument();
   expect(screen.getByText('Ergonomic Office Chair')).toBeInTheDocument();
 });
+
+it('omits a saved item whose product was deleted from the catalog, without crashing', async () => {
+  // WISHLIST_ITEMS seeds headphones/keyboard/chair, but the fetched catalog
+  // here is missing 'keyboard' - as if an admin deleted that product after
+  // the wishlist seed was written. findProduct('keyboard') then returns
+  // undefined; the page must drop that entry instead of throwing on
+  // product.price_cents in the priceDropped comparison.
+  global.fetch = vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: async () => ({ products: PRODUCTS.filter((p) => p.slug !== 'keyboard') }),
+    })
+  );
+  renderPage();
+  expect(await screen.findByText('Wireless Noise-Cancelling Headphones')).toBeInTheDocument();
+  expect(screen.getByText('Ergonomic Office Chair')).toBeInTheDocument();
+  expect(screen.queryByText('Mechanical Keyboard')).not.toBeInTheDocument();
+});

@@ -82,7 +82,7 @@ export function BagPage() {
   // silently resets to the same 3 seed items every time this page
   // remounts.
   const { items, setItems } = useCart();
-  const { products, findProduct } = useProducts();
+  const { products, error, findProduct } = useProducts();
   const selectAllRef = useRef(null);
 
   // confirmProductId drives the alert dialog itself; leavingProductId is
@@ -145,6 +145,9 @@ export function BagPage() {
   function completeRemoval(productId) {
     const removedIndex = items.findIndex((it) => it.productId === productId);
     const removedItem = items[removedIndex];
+    // Seeded cart entries can point at a slug the admin has since deleted
+    // from the catalog - findProduct then returns undefined, so fall back
+    // to a generic label rather than crashing on product.name.
     const product = findProduct(productId);
     removeItem(productId);
     setLeavingProductId(null);
@@ -153,7 +156,7 @@ export function BagPage() {
       (toastId) => (
         <UndoToast
           id={toastId}
-          productName={product.name}
+          productName={product ? product.name : 'Item'}
           onUndo={() => {
             setItems((prev) => {
               const next = [...prev];
@@ -194,6 +197,18 @@ export function BagPage() {
   // would call findProduct before there's anything to find, crashing on
   // product.name/product.price_cents reads below - same one-time
   // "still loading" gate ProductDetailPage.jsx already uses.
+  //
+  // A failed fetch also leaves products === null forever, so that alone
+  // can't distinguish "still loading" from "load failed" - check error
+  // first and render the same inline-error convention ShopPage/
+  // AdminProductsPage use instead of hanging on a blank page.
+  if (error) {
+    return (
+      <p className="verify-error" role="alert">
+        {error}
+      </p>
+    );
+  }
   if (products === null) return null;
 
   const confirmProduct = confirmProductId ? findProduct(confirmProductId) : null;
@@ -202,7 +217,13 @@ export function BagPage() {
   const pickupTotal = items.filter((it) => it.fulfillment === 'pickup').length;
 
   const selectedItems = items.filter((it) => it.selected);
-  const subtotalCents = selectedItems.reduce((sum, it) => sum + findProduct(it.productId).price_cents * it.qty, 0);
+  // findProduct can miss (see completeRemoval above) if the admin deleted
+  // the product a seeded cart entry points at - treat that entry as if it
+  // weren't in the cart for the subtotal instead of throwing.
+  const subtotalCents = selectedItems.reduce((sum, it) => {
+    const product = findProduct(it.productId);
+    return product ? sum + product.price_cents * it.qty : sum;
+  }, 0);
   const deliverySelected = selectedItems.filter((it) => it.fulfillment === 'delivery');
   const pickupSelected = selectedItems.filter((it) => it.fulfillment === 'pickup');
   const deliveryCents = deliverySelected.reduce((sum, it) => sum + it.surchargeCents, 0);
@@ -269,6 +290,10 @@ export function BagPage() {
 
           {items.map((item) => {
             const product = findProduct(item.productId);
+            // A seeded cart entry can point at a slug the admin has since
+            // deleted from the catalog - silently omit that row instead of
+            // throwing on product.name/product.price_cents below.
+            if (!product) return null;
             return (
               <div
                 className={`cart-item${item.selected ? '' : ' unselected'}${item.productId === leavingProductId ? ' leaving' : ''}`}

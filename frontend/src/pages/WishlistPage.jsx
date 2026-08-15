@@ -27,11 +27,18 @@ export function WishlistPage() {
   // hooks can't be skipped conditionally) rather than crashing on
   // product.price_cents below, same one-time "still loading" gate
   // ProductDetailPage.jsx already uses.
+  //
+  // WISHLIST_ITEMS is static seed data joined against the real, mutable
+  // products table - a saved productId can stop resolving if that product
+  // was deleted from the catalog since. That's an expected, unremarkable
+  // case (not a failure), so entries with no resolvable product are simply
+  // dropped rather than rendered/summed.
   const entries = useMemo(
     () =>
       products
         ? WISHLIST_ITEMS.map((saved) => {
             const product = findProduct(saved.productId);
+            if (!product) return null;
             const priceDropped = saved.savedAtCents > product.price_cents;
             return {
               ...saved,
@@ -39,7 +46,7 @@ export function WishlistPage() {
               priceDropped,
               savingsCents: priceDropped ? saved.savedAtCents - product.price_cents : 0,
             };
-          })
+          }).filter(Boolean)
         : [],
     [products, findProduct]
   );
