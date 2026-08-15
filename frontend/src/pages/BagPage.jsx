@@ -1,13 +1,80 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { ChevronRightIcon, LockIcon, ShopIcon, TruckIcon, XIcon } from '../components/icons.jsx';
+import {
+  AlertTriangleIcon,
+  ChevronRightIcon,
+  HeartIcon,
+  LockIcon,
+  ShopIcon,
+  TrashIcon,
+  TruckIcon,
+  UndoIcon,
+  XIcon,
+} from '../components/icons.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { SHOP_PRODUCTS } from '../data/shopProducts.js';
 import { formatCents } from '../utils/pricing.js';
 
+// How long a press-and-hold on the confirm dialog's Remove button takes to
+// actually delete the item - releasing before this fires cancels instead
+// (see startHold/cancelHold below). Matches ROW_EXIT_MS's own role: both
+// are timing constants the JS setTimeout calls need to agree with, one
+// with the CSS transition duration on .remove-btn.holding .remove-fill
+// (index.css), the other with .cart-item.leaving's own transition.
+const REMOVE_HOLD_MS = 1500;
+const ROW_EXIT_MS = 320;
+// Undo toast dwell time - restarts from this full duration every time the
+// mouse leaves it (see UndoToast below), rather than resuming whatever
+// time was left when the hover started.
+const UNDO_TOAST_MS = 6000;
+
 function findProduct(productId) {
   return SHOP_PRODUCTS.find((p) => p.id === productId);
+}
+
+// toast.custom hands back an id, not a data prop - id/productName/onUndo
+// are threaded through as plain props instead. duration: Infinity on the
+// toast.custom() call (see completeRemoval) hands the entire timing/pause
+// contract to this component instead of Sonner's own per-toast timer,
+// which only supports pause-then-resume, not "start over from 6s" on
+// mouseleave.
+function UndoToast({ id, productName, onUndo }) {
+  const timerRef = useRef(null);
+
+  function startTimer() {
+    timerRef.current = setTimeout(() => toast.dismiss(id), UNDO_TOAST_MS);
+  }
+
+  useEffect(() => {
+    startTimer();
+    return () => clearTimeout(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleUndo() {
+    clearTimeout(timerRef.current);
+    toast.dismiss(id);
+    onUndo();
+  }
+
+  return (
+    <div
+      className="cart-undo-toast"
+      onMouseEnter={() => clearTimeout(timerRef.current)}
+      onMouseLeave={() => {
+        clearTimeout(timerRef.current);
+        startTimer();
+      }}
+    >
+      <span className="cart-undo-toast-text">{productName} removed</span>
+      <button type="button" className="cart-undo-toast-btn" onClick={handleUndo}>
+        <UndoIcon aria-hidden="true" />
+        Undo
+      </button>
+    </div>
+  );
 }
 
 export function BagPage() {
@@ -20,6 +87,16 @@ export function BagPage() {
   // remounts.
   const { items, setItems } = useCart();
   const selectAllRef = useRef(null);
+
+  // confirmProductId drives the alert dialog itself; leavingProductId is
+  // separate so the row can play its own fade-out (see .cart-item.leaving)
+  // for ROW_EXIT_MS before removeItem actually drops it from context -
+  // removing it from state immediately would cut the animation off on
+  // its very first frame.
+  const [confirmProductId, setConfirmProductId] = useState(null);
+  const [leavingProductId, setLeavingProductId] = useState(null);
+  const [holding, setHolding] = useState(false);
+  const holdTimerRef = useRef(null);
 
   const selectedCount = items.filter((it) => it.selected).length;
 
@@ -41,10 +118,6 @@ export function BagPage() {
     setItems((prev) => prev.map((it) => (it.productId === productId ? { ...it, selected: !it.selected } : it)));
   }
 
-  function setFulfillment(productId, fulfillment) {
-    setItems((prev) => prev.map((it) => (it.productId === productId ? { ...it, fulfillment } : it)));
-  }
-
   function changeQty(productId, delta) {
     setItems((prev) =>
       prev.map((it) => (it.productId === productId ? { ...it, qty: Math.max(1, it.qty + delta) } : it))
@@ -54,6 +127,71 @@ export function BagPage() {
   function removeItem(productId) {
     setItems((prev) => prev.filter((it) => it.productId !== productId));
   }
+
+  function cancelHold() {
+    setHolding(false);
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }
+
+  function closeRemoveConfirm() {
+    setConfirmProductId(null);
+    cancelHold();
+  }
+
+  // Snapshotting the item + its index here (not inside the ROW_EXIT_MS
+  // setTimeout below) is what lets Undo put it back in the same spot -
+  // by the time that timeout fires, removeItem has already run and the
+  // item is gone from `items`, so there'd be nothing left to snapshot.
+  function completeRemoval(productId) {
+    const removedIndex = items.findIndex((it) => it.productId === productId);
+    const removedItem = items[removedIndex];
+    const product = findProduct(productId);
+    removeItem(productId);
+    setLeavingProductId(null);
+    if (!removedItem) return;
+    toast.custom(
+      (toastId) => (
+        <UndoToast
+          id={toastId}
+          productName={product.name}
+          onUndo={() => {
+            setItems((prev) => {
+              const next = [...prev];
+              next.splice(Math.min(removedIndex, next.length), 0, removedItem);
+              return next;
+            });
+          }}
+        />
+      ),
+      { duration: Infinity, unstyled: true }
+    );
+  }
+
+  function startHold() {
+    if (!confirmProductId || holding) return;
+    setHolding(true);
+    holdTimerRef.current = setTimeout(() => {
+      const productId = confirmProductId;
+      setConfirmProductId(null);
+      setHolding(false);
+      setLeavingProductId(productId);
+      setTimeout(() => completeRemoval(productId), ROW_EXIT_MS);
+    }, REMOVE_HOLD_MS);
+  }
+
+  useEffect(() => {
+    if (!confirmProductId) return undefined;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') closeRemoveConfirm();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [confirmProductId]);
+
+  const confirmProduct = confirmProductId ? findProduct(confirmProductId) : null;
 
   const deliveryTotal = items.filter((it) => it.fulfillment === 'delivery').length;
   const pickupTotal = items.filter((it) => it.fulfillment === 'pickup').length;
@@ -76,10 +214,15 @@ export function BagPage() {
       </nav>
 
       <div className="cart-top">
-        <div>
-          <h1 className="cart-title">
-            Shopping Bag <span className="cart-count">{items.length}</span>
-          </h1>
+        <div className="cart-top-left">
+          <div className="cart-title-row">
+            <Link to="/wishlist" className="cart-wishlist-btn" aria-label="View wishlist">
+              <HeartIcon aria-hidden="true" />
+            </Link>
+            <h1 className="cart-title">
+              Shopping Bag <span className="cart-count">{items.length} item(s)</span>
+            </h1>
+          </div>
           {items.length > 0 && (
             <p className="cart-fulfillment-sub">
               {deliveryTotal > 0 && (
@@ -122,7 +265,10 @@ export function BagPage() {
           {items.map((item) => {
             const product = findProduct(item.productId);
             return (
-              <div className={`cart-item${item.selected ? '' : ' unselected'}`} key={item.productId}>
+              <div
+                className={`cart-item${item.selected ? '' : ' unselected'}${item.productId === leavingProductId ? ' leaving' : ''}`}
+                key={item.productId}
+              >
                 <input
                   type="checkbox"
                   className="cart-item-check"
@@ -132,50 +278,52 @@ export function BagPage() {
                 />
                 <ProductImage icon={product.icon} size="lg" />
                 <div className="cart-item-body">
-                  <div className="cart-item-top">
-                    <div>
-                      <p className="cart-item-name">{product.name}</p>
-                      <p className="cart-item-color">Color &middot; {item.colorLabel}</p>
+                  <div className="cart-item-heading">
+                    <p className="cart-item-name">{product.name}</p>
+                    <div className="cart-item-heading-right">
+                      <div className="cart-item-price">{formatCents(product.priceCents * item.qty)}</div>
+                      <button
+                        type="button"
+                        className="cart-item-remove"
+                        aria-label={`Remove ${product.name}`}
+                        onClick={() => setConfirmProductId(item.productId)}
+                      >
+                        <XIcon aria-hidden="true" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="cart-item-remove"
-                      aria-label={`Remove ${product.name}`}
-                      onClick={() => removeItem(item.productId)}
-                    >
-                      <XIcon aria-hidden="true" />
-                    </button>
                   </div>
-
-                  <div className="cart-fulfill-row">
-                    <button
-                      type="button"
-                      className={`cart-fulfill-badge${item.fulfillment === 'delivery' ? ' active' : ''}`}
-                      onClick={() => setFulfillment(item.productId, 'delivery')}
-                    >
-                      <TruckIcon aria-hidden="true" /> Feb 1{' '}
-                      {item.surchargeCents > 0 ? `+${formatCents(item.surchargeCents)}` : 'Free'}
-                    </button>
-                    <button
-                      type="button"
-                      className={`cart-fulfill-badge${item.fulfillment === 'pickup' ? ' active' : ''}`}
-                      onClick={() => setFulfillment(item.productId, 'pickup')}
-                    >
-                      <ShopIcon aria-hidden="true" /> Today Free
-                    </button>
-                  </div>
-
+                  <p className="cart-item-description">{product.description}</p>
                   <div className="cart-item-bottom">
-                    <div className="cart-qty">
-                      <button type="button" onClick={() => changeQty(item.productId, -1)} aria-label="Decrease quantity">
-                        &minus;
-                      </button>
-                      <span>{item.qty}</span>
-                      <button type="button" onClick={() => changeQty(item.productId, 1)} aria-label="Increase quantity">
-                        +
-                      </button>
+                    <div className="cart-item-status-row">
+                      <span className="cart-item-stock-badge">
+                        <span className="cart-item-stock-dot" aria-hidden="true" />
+                        In Stock
+                      </span>
+                      <span className="cart-item-arrival">Estimated arrival &middot; Feb 1</span>
                     </div>
-                    <div className="cart-item-price">{formatCents(product.priceCents * item.qty)}</div>
+                    <div className="cart-item-bottom-right">
+                      <button
+                        type="button"
+                        className="cart-item-wishlist"
+                        aria-label={`Save ${product.name} for later`}
+                      >
+                        <HeartIcon aria-hidden="true" />
+                      </button>
+                      <div className="cart-qty">
+                        <button
+                          type="button"
+                          onClick={() => changeQty(item.productId, -1)}
+                          aria-label="Decrease quantity"
+                          disabled={item.qty < 2}
+                        >
+                          &minus;
+                        </button>
+                        <span>{item.qty}</span>
+                        <button type="button" onClick={() => changeQty(item.productId, 1)} aria-label="Increase quantity">
+                          +
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -187,14 +335,14 @@ export function BagPage() {
           <div className="cart-footer-row">
             <Link to="/shop">&larr; Back to Catalog</Link>
             <span>
-              <ShopIcon aria-hidden="true" /> Free pickup at any store &middot; Toggle per item
+              <ShopIcon aria-hidden="true" /> Free pickup at any store
             </span>
           </div>
         </div>
 
         <aside className="cart-summary">
           <div className="cart-summary-head">
-            <strong>Order Total</strong>
+            <span>Order Total</span>
             <span>Estimated</span>
           </div>
           <div className="cart-summary-total">{formatCents(totalCents)}</div>
@@ -226,7 +374,6 @@ export function BagPage() {
             <span>Promo code</span>
             <span className="cart-promo-pill">&#10003; HAPPY2026</span>
           </div>
-
           <hr className="cart-divider" />
           <div className="cart-summary-final">
             <span>Total</span>
@@ -248,6 +395,57 @@ export function BagPage() {
           </div>
         </aside>
       </div>
+
+      {confirmProduct && (
+        <div
+          className="cart-remove-scrim"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeRemoveConfirm();
+          }}
+        >
+          <div
+            className="cart-remove-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="cart-remove-question"
+            aria-describedby="cart-remove-reminder"
+          >
+            <p className="cart-remove-reminder" id="cart-remove-reminder">
+              <AlertTriangleIcon aria-hidden="true" />
+              Press and hold Remove for 1.5s to confirm &mdash; releasing early keeps the item.
+            </p>
+            <div className="cart-remove-item">
+              <ProductImage icon={confirmProduct.icon} size="sm" />
+              <span className="cart-remove-item-name">{confirmProduct.name}</span>
+            </div>
+            <p className="cart-remove-question" id="cart-remove-question">
+              Remove this item from your bag?
+            </p>
+            <div className="cart-remove-actions">
+              <button type="button" className="cart-remove-keep" onClick={closeRemoveConfirm}>
+                Keep
+              </button>
+              <button
+                type="button"
+                className={`cart-remove-btn${holding ? ' holding' : ''}`}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  startHold();
+                }}
+                onPointerUp={cancelHold}
+                onPointerLeave={cancelHold}
+                onPointerCancel={cancelHold}
+              >
+                <span className="cart-remove-fill" aria-hidden="true" />
+                <span className="cart-remove-label">
+                  <TrashIcon aria-hidden="true" />
+                  {holding ? 'Keep holding…' : 'Hold to Remove'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
