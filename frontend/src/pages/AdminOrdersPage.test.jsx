@@ -24,7 +24,9 @@ beforeEach(() => {
           orders: [
             { order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', status: 'shipped', created_at: '2026-01-01T00:00:00Z' },
           ],
-          nextCursor: null,
+          total: 1,
+          page: 1,
+          pageSize: 10,
         }),
       });
     }
@@ -38,27 +40,64 @@ it('renders orders returned from the API', async () => {
   expect(screen.getByText('jane@example.com')).toBeInTheDocument();
 });
 
-it('re-fetches with the status filter when changed', async () => {
+it('computes and displays the order total from pricing fields', async () => {
+  global.fetch = vi.fn((url) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (String(url).startsWith('/api/admin/orders')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          orders: [
+            {
+              order_number: 'ORD-1001',
+              customer_email: 'jane@example.com',
+              product_name: 'Sneakers',
+              status: 'shipped',
+              created_at: '2026-01-01T00:00:00Z',
+              unit_price_cents: 14999,
+              delivery_cost_cents: 599,
+              vat_cents: 1200,
+              voucher_cents: 0,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+        }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  expect(await screen.findByText('$167.98')).toBeInTheDocument();
+});
+
+it('re-fetches page 1 with the status filter when changed', async () => {
   renderPage();
   await screen.findByText('ORD-1001');
 
   fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'shipped' } });
 
   await waitFor(() => {
-    const calledWithStatus = global.fetch.mock.calls.some(([url]) => String(url).includes('status=shipped'));
-    expect(calledWithStatus).toBe(true);
+    const called = global.fetch.mock.calls.some(
+      ([url]) => String(url).includes('status=shipped') && String(url).includes('page=1')
+    );
+    expect(called).toBe(true);
   });
 });
 
-it('re-fetches with the search query when typed', async () => {
+it('re-fetches page 1 with the search query when typed', async () => {
   renderPage();
   await screen.findByText('ORD-1001');
 
   fireEvent.change(screen.getByLabelText(/search orders/i), { target: { value: 'ORD-1001' } });
 
   await waitFor(() => {
-    const calledWithQuery = global.fetch.mock.calls.some(([url]) => String(url).includes('q=ORD-1001'));
-    expect(calledWithQuery).toBe(true);
+    const called = global.fetch.mock.calls.some(
+      ([url]) => String(url).includes('q=ORD-1001') && String(url).includes('page=1')
+    );
+    expect(called).toBe(true);
   });
 });
 
@@ -93,11 +132,68 @@ it('logs out (redirecting to /admin/login via AdminProtectedRoute) on a 401 from
     expect(loggedOut).toBe(true);
   });
 
-  // A 401 should route the admin to sign in again, not show a generic error.
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
-it('logs out on a 401 from the "load more" fetch', async () => {
+it('shows numbered page buttons and refetches page 2 on click', async () => {
+  global.fetch = vi.fn((url) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (String(url).startsWith('/api/admin/orders')) {
+      return Promise.resolve({ ok: true, json: async () => ({ orders: [], total: 25, page: 1, pageSize: 10 }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await waitFor(() => expect(screen.getByRole('button', { name: '3' })).toBeInTheDocument());
+
+  fireEvent.click(screen.getByRole('button', { name: '2' }));
+
+  await waitFor(() => {
+    const called = global.fetch.mock.calls.some(([url]) => String(url).includes('page=2'));
+    expect(called).toBe(true);
+  });
+});
+
+it('resets to page 1 and refetches with the new page size when rows-per-page changes', async () => {
+  global.fetch = vi.fn((url) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (String(url).startsWith('/api/admin/orders')) {
+      return Promise.resolve({ ok: true, json: async () => ({ orders: [], total: 60, page: 1, pageSize: 10 }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await waitFor(() => expect(screen.getByLabelText(/rows per page/i)).toBeInTheDocument());
+
+  fireEvent.change(screen.getByLabelText(/rows per page/i), { target: { value: '25' } });
+
+  await waitFor(() => {
+    const called = global.fetch.mock.calls.some(
+      ([url]) => String(url).includes('pageSize=25') && String(url).includes('page=1')
+    );
+    expect(called).toBe(true);
+  });
+});
+
+it('Clear resets status and search, and is disabled with no active filters', async () => {
+  renderPage();
+  await waitFor(() => expect(screen.getByRole('button', { name: /clear/i })).toBeDisabled());
+
+  fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'shipped' } });
+  await waitFor(() => expect(screen.getByRole('button', { name: /clear/i })).not.toBeDisabled());
+
+  fireEvent.click(screen.getByRole('button', { name: /clear/i }));
+
+  expect(screen.getByLabelText(/filter by status/i).value).toBe('');
+  await waitFor(() => {
+    const called = global.fetch.mock.calls.some(([url]) => !String(url).includes('status='));
+    expect(called).toBe(true);
+  });
+});
+
+it('logs out on a 401 when changing page', async () => {
   const initialOrders = [
     { order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', status: 'shipped', created_at: '2026-01-01T00:00:00Z' },
   ];
@@ -111,7 +207,7 @@ it('logs out on a 401 from the "load more" fetch', async () => {
     if (String(url).startsWith('/api/admin/orders')) {
       fetchCallCount += 1;
       if (fetchCallCount === 1) {
-        return Promise.resolve({ ok: true, json: async () => ({ orders: initialOrders, nextCursor: 'cursor-1' }) });
+        return Promise.resolve({ ok: true, json: async () => ({ orders: initialOrders, total: 25, page: 1, pageSize: 10 }) });
       }
       return Promise.resolve({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) });
     }
@@ -121,7 +217,7 @@ it('logs out on a 401 from the "load more" fetch', async () => {
   renderPage();
   await screen.findByText('ORD-1001');
 
-  fireEvent.click(screen.getByRole('button', { name: /load more/i }));
+  fireEvent.click(screen.getByRole('button', { name: '2' }));
 
   await waitFor(() => {
     const loggedOut = global.fetch.mock.calls.some(
@@ -133,7 +229,7 @@ it('logs out on a 401 from the "load more" fetch', async () => {
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
-it('ignores a stale "load more" response if the filter changes before it resolves', async () => {
+it('ignores a stale page-2 response if the filter changes before it resolves', async () => {
   const initialOrders = [
     { order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', status: 'shipped', created_at: '2026-01-01T00:00:00Z' },
   ];
@@ -144,7 +240,7 @@ it('ignores a stale "load more" response if the filter changes before it resolve
     { order_number: 'ORD-9999', customer_email: 'stale@example.com', product_name: 'Stale Item', status: 'shipped', created_at: '2026-01-03T00:00:00Z' },
   ];
 
-  let resolveLoadMore;
+  let resolvePageTwo;
   let fetchCallCount = 0;
 
   global.fetch = vi.fn((url) => {
@@ -155,48 +251,44 @@ it('ignores a stale "load more" response if the filter changes before it resolve
     if (fetchCallCount === 1) {
       return Promise.resolve({
         ok: true,
-        json: async () => ({ orders: initialOrders, nextCursor: 'cursor-1' }),
+        json: async () => ({ orders: initialOrders, total: 25, page: 1, pageSize: 10 }),
       });
     }
 
-    // Call 2: the "Load more" fetch, deliberately left pending so the test
-    // can change the filter before it resolves.
+    // Call 2: the page-2 fetch, deliberately left pending so the test can
+    // change the filter before it resolves.
     if (fetchCallCount === 2) {
       return new Promise((resolve) => {
-        resolveLoadMore = () =>
+        resolvePageTwo = () =>
           resolve({
             ok: true,
-            json: async () => ({ orders: staleOrders, nextCursor: 'stale-cursor' }),
+            json: async () => ({ orders: staleOrders, total: 25, page: 2, pageSize: 10 }),
           });
       });
     }
 
-    // Call 3: the re-fetch triggered by the status filter change.
+    // Call 3: the re-fetch triggered by the status filter change (resets to page 1).
     return Promise.resolve({
       ok: true,
-      json: async () => ({ orders: filteredOrders, nextCursor: null }),
+      json: async () => ({ orders: filteredOrders, total: 1, page: 1, pageSize: 10 }),
     });
   });
 
   renderPage();
   await screen.findByText('ORD-1001');
 
-  fireEvent.click(screen.getByRole('button', { name: /load more/i }));
+  fireEvent.click(screen.getByRole('button', { name: '2' }));
 
-  // Change the filter while the "load more" request is still in flight.
+  // Change the filter while the page-2 request is still in flight.
   fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'delivered' } });
 
   await screen.findByText('ORD-2002');
 
-  // Now let the stale "load more" response land, and flush the promise
-  // chain (data = await res.json(); then setOrders/setNextCursor) past a
-  // macrotask boundary so a would-be bad update has had its chance to
-  // apply before we assert it didn't. A waitFor() checking absence here
-  // would pass trivially on its very first (synchronous) check, before
-  // the .then/await chain has run at all - it wouldn't actually prove
-  // anything.
+  // Now let the stale page-2 response land, and flush the promise chain
+  // past a macrotask boundary so a would-be bad update has had its chance
+  // to apply before we assert it didn't.
   await act(async () => {
-    resolveLoadMore();
+    resolvePageTwo();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
