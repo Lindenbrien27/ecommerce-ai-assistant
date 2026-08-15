@@ -131,3 +131,97 @@ test('deleteProduct returns false when the slug does not exist', async (t) => {
   const deleted = await adminProductService.deleteProduct('nope');
   assert.equal(deleted, false);
 });
+
+function mockProductsQuery(overrides = {}) {
+  const { categories = [], total = 0, rows = [] } = overrides;
+  return async (sql) => {
+    if (/DISTINCT category/.test(sql)) return { rows: categories.map((c) => ({ category: c })) };
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: String(total) }] };
+    return { rows };
+  };
+}
+
+test('getAdminProducts returns products, total, page, pageSize, and the full category list', async (t) => {
+  t.mock.method(
+    pool,
+    'query',
+    mockProductsQuery({
+      categories: ['Audio', 'Displays'],
+      total: 2,
+      rows: [{ slug: 'headphones' }, { slug: 'monitor' }],
+    })
+  );
+
+  const result = await adminProductService.getAdminProducts();
+  assert.equal(result.products.length, 2);
+  assert.equal(result.total, 2);
+  assert.equal(result.page, 1);
+  assert.equal(result.pageSize, 20);
+  assert.deepEqual(result.categories, ['Audio', 'Displays']);
+});
+
+test('getAdminProducts filters by category', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/DISTINCT category/.test(sql)) return { rows: [] };
+    assert.match(sql, /category = \$1/);
+    assert.equal(params[0], 'Audio');
+    return /COUNT\(\*\)/.test(sql) ? { rows: [{ total: '0' }] } : { rows: [] };
+  });
+
+  await adminProductService.getAdminProducts({ category: 'Audio' });
+});
+
+test('getAdminProducts searches name, sku, and category with q', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/DISTINCT category/.test(sql)) return { rows: [] };
+    assert.match(sql, /name ILIKE/);
+    assert.match(sql, /sku ILIKE/);
+    assert.match(sql, /category ILIKE/);
+    assert.ok(params.includes('%keyboard%'));
+    return /COUNT\(\*\)/.test(sql) ? { rows: [{ total: '0' }] } : { rows: [] };
+  });
+
+  await adminProductService.getAdminProducts({ q: 'keyboard' });
+});
+
+test('getAdminProducts paginates using LIMIT/OFFSET derived from page and pageSize', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/DISTINCT category/.test(sql)) return { rows: [] };
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '5' }] };
+    assert.match(sql, /LIMIT \$3 OFFSET \$4/);
+    assert.deepEqual(params.slice(2), [2, 2]); // pageSize 2, page 2 -> offset (2-1)*2 = 2
+    return { rows: [{ slug: 'a' }, { slug: 'b' }] };
+  });
+
+  const { products, total, page, pageSize } = await adminProductService.getAdminProducts({ page: 2, pageSize: 2 });
+  assert.equal(products.length, 2);
+  assert.equal(total, 5);
+  assert.equal(page, 2);
+  assert.equal(pageSize, 2);
+});
+
+test('getAdminProducts clamps pageSize to MAX_PAGE_SIZE and page to at least 1', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/DISTINCT category/.test(sql)) return { rows: [] };
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '0' }] };
+    assert.deepEqual(params.slice(2), [100, 0]); // pageSize clamped 999 -> 100, page clamped 0 -> 1 -> offset 0
+    return { rows: [] };
+  });
+
+  const { page, pageSize } = await adminProductService.getAdminProducts({ page: 0, pageSize: 999 });
+  assert.equal(page, 1);
+  assert.equal(pageSize, 100);
+});
+
+test('getAdminProducts returns the full category list regardless of the active category filter', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    if (/DISTINCT category/.test(sql)) {
+      assert.doesNotMatch(sql, /WHERE/);
+      return { rows: [{ category: 'Audio' }, { category: 'Office' }, { category: 'Sneakers' }] };
+    }
+    return /COUNT\(\*\)/.test(sql) ? { rows: [{ total: '0' }] } : { rows: [] };
+  });
+
+  const { categories } = await adminProductService.getAdminProducts({ category: 'Audio' });
+  assert.deepEqual(categories, ['Audio', 'Office', 'Sneakers']);
+});

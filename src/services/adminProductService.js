@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('./orderService');
 
 const REQUIRED_FIELDS = ['slug', 'name', 'category', 'price_cents', 'sku'];
 
@@ -53,6 +54,45 @@ function mapUniqueViolation(err) {
     return new ConflictError('slug');
   }
   return err;
+}
+
+// Admin-only, paginated - deliberately separate from productService.js's
+// getProducts(), which the storefront needs to return the *entire*
+// catalog unpaginated (ProductsContext resolves arbitrary productIds
+// against it for the cart/wishlist, ShopPage needs every category
+// present for its own filter). Sharing one function between "give me
+// everything" and "give me a page" callers would force one of them to
+// compromise.
+async function getAdminProducts({ q = null, category = null, page = 1, pageSize = DEFAULT_PAGE_SIZE } = {}) {
+  const clampedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+  const clampedPage = Math.max(1, page);
+  const offset = (clampedPage - 1) * clampedPageSize;
+  const searchTerm = q ? `%${q}%` : null;
+
+  // No WHERE clause here, deliberately - the category filter dropdown
+  // should always offer every real category, not just the ones that
+  // happen to survive whatever filter is currently applied.
+  const categoriesResult = await pool.query('SELECT DISTINCT category FROM products ORDER BY category');
+  const categories = categoriesResult.rows.map((row) => row.category);
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*) AS total FROM products
+     WHERE ($1::text IS NULL OR category = $1)
+       AND ($2::text IS NULL OR name ILIKE $2 OR sku ILIKE $2 OR category ILIKE $2)`,
+    [category, searchTerm]
+  );
+  const total = Number(countResult.rows[0].total);
+
+  const { rows: products } = await pool.query(
+    `SELECT * FROM products
+     WHERE ($1::text IS NULL OR category = $1)
+       AND ($2::text IS NULL OR name ILIKE $2 OR sku ILIKE $2 OR category ILIKE $2)
+     ORDER BY name ASC, slug ASC
+     LIMIT $3 OFFSET $4`,
+    [category, searchTerm, clampedPageSize, offset]
+  );
+
+  return { products, total, page: clampedPage, pageSize: clampedPageSize, categories };
 }
 
 async function createProduct(fields) {
@@ -140,4 +180,4 @@ async function deleteProduct(slug) {
   return rows.length > 0;
 }
 
-module.exports = { createProduct, updateProduct, deleteProduct, ValidationError, ConflictError };
+module.exports = { createProduct, updateProduct, deleteProduct, getAdminProducts, ValidationError, ConflictError };

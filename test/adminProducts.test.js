@@ -126,3 +126,60 @@ test('DELETE /api/admin/products/:slug returns 404 for an unknown slug', async (
     assert.equal(res.status, 404);
   });
 });
+
+test('GET /api/admin/products requires admin auth', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/products`);
+    assert.equal(res.status, 401);
+  });
+});
+
+test('GET /api/admin/products returns products, total, page, pageSize, and categories', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    if (/DISTINCT category/.test(sql)) return { rows: [{ category: 'Audio' }] };
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '1' }] };
+    return { rows: [{ slug: 'headphones', name: 'Headphones' }] };
+  });
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/products`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.products.length, 1);
+    assert.equal(body.total, 1);
+    assert.equal(body.page, 1);
+    assert.equal(body.pageSize, 20);
+    assert.deepEqual(body.categories, ['Audio']);
+  });
+});
+
+test('GET /api/admin/products?page=2&pageSize=10 forwards page and pageSize', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/DISTINCT category/.test(sql)) return { rows: [] };
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '15' }] };
+    assert.deepEqual(params.slice(2), [10, 10]); // pageSize 10, offset (2-1)*10
+    return { rows: [] };
+  });
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/products?page=2&pageSize=10`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.page, 2);
+    assert.equal(body.pageSize, 10);
+  });
+});
+
+test('GET /api/admin/products?page=abc returns 400 for a non-integer page', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/products?page=abc`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /api/admin/products?pageSize=0 returns 400 for a non-positive pageSize', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/products?pageSize=0`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 400);
+  });
+});

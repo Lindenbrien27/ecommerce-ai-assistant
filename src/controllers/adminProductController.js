@@ -24,6 +24,37 @@ function fieldsFromBody(body) {
   return fields;
 }
 
+function parsePositiveInt(raw) {
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : NaN;
+}
+
+async function listProducts(req, res) {
+  const page = parsePositiveInt(req.query.page);
+  if (Number.isNaN(page)) {
+    return res.status(400).json({ error: 'page must be a positive integer.' });
+  }
+
+  const pageSize = parsePositiveInt(req.query.pageSize);
+  if (Number.isNaN(pageSize)) {
+    return res.status(400).json({ error: 'pageSize must be a positive integer.' });
+  }
+
+  try {
+    const result = await adminProductService.getAdminProducts({
+      q: req.query.q || null,
+      category: req.query.category || null,
+      page,
+      pageSize,
+    });
+    res.json(result);
+  } catch (err) {
+    logError('Admin product list error', err);
+    res.status(500).json({ error: 'Something went wrong looking up products.' });
+  }
+}
+
 async function createProduct(req, res) {
   try {
     const product = await adminProductService.createProduct(fieldsFromBody(req.body));
@@ -75,4 +106,4 @@ async function deleteProduct(req, res) {
   }
 }
 
-module.exports = { createProduct, updateProduct, deleteProduct };
+module.exports = { createProduct, updateProduct, deleteProduct, listProducts };
