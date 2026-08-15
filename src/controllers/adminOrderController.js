@@ -1,5 +1,7 @@
 const adminOrderService = require('../services/adminOrderService');
 const orderService = require('../services/orderService');
+const pdfService = require('../services/pdfService');
+const emailService = require('../services/emailService');
 const { logError } = require('../utils/logger');
 const { auditLog } = require('../config/auditLog');
 
@@ -78,4 +80,77 @@ async function updateStatus(req, res) {
   }
 }
 
-module.exports = { listOrders, getOrder, updateStatus };
+async function getInvoicePdf(req, res) {
+  try {
+    const order = await orderService.getOrderByNumber(req.params.orderNumber);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const pdf = await pdfService.buildInvoicePdf(order);
+    if (!pdf) {
+      return res.status(409).json({ error: 'This order has no shipping address or pricing data on file yet.' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${order.order_number}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    logError('Admin invoice PDF error', err);
+    res.status(500).json({ error: 'Something went wrong generating that invoice.' });
+  }
+}
+
+async function getPackingSlipPdf(req, res) {
+  try {
+    const order = await orderService.getOrderByNumber(req.params.orderNumber);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const pdf = await pdfService.buildPackingSlipPdf(order);
+    if (!pdf) {
+      return res.status(409).json({ error: 'This order has no shipping address on file yet.' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="packing-slip-${order.order_number}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    logError('Admin packing slip PDF error', err);
+    res.status(500).json({ error: 'Something went wrong generating that packing slip.' });
+  }
+}
+
+async function updateShipping(req, res) {
+  const { carrier, trackingNumber } = req.body;
+  if (!carrier || !trackingNumber) {
+    return res.status(400).json({ error: 'carrier and trackingNumber are required.' });
+  }
+
+  try {
+    const previous = await orderService.getOrderByNumber(req.params.orderNumber);
+    const updated = await adminOrderService.updateOrderShipping(req.params.orderNumber, { carrier, trackingNumber });
+    if (!updated) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // A no-op re-save (admin clicks Save without changing anything) must
+    // not re-notify the customer.
+    const changed = !previous || previous.carrier !== carrier || previous.tracking_number !== trackingNumber;
+    let emailed = false;
+    if (changed) {
+      emailed = await emailService.sendShippingUpdateEmail(updated.customer_email, updated);
+    }
+
+    auditLog('admin.order.shipping_updated', {
+      orderNumber: req.params.orderNumber,
+      carrier,
+      trackingNumber,
+      emailed,
+      admin: req.adminEmail,
+    });
+    res.json({ ...updated, emailed });
+  } catch (err) {
+    logError('Admin order shipping update error', err);
+    res.status(500).json({ error: 'Something went wrong updating shipping info.' });
+  }
+}
+
+module.exports = { listOrders, getOrder, updateStatus, getInvoicePdf, getPackingSlipPdf, updateShipping };

@@ -1,10 +1,20 @@
 const { Router } = require('express');
-const { listOrders, getOrder, updateStatus } = require('../controllers/adminOrderController');
+const {
+  listOrders,
+  getOrder,
+  updateStatus,
+  getInvoicePdf,
+  getPackingSlipPdf,
+  updateShipping,
+} = require('../controllers/adminOrderController');
 
 const router = Router();
 
 router.get('/', listOrders);
 router.get('/:orderNumber', getOrder);
 router.patch('/:orderNumber/status', updateStatus);
+router.get('/:orderNumber/invoice.pdf', getInvoicePdf);
+router.get('/:orderNumber/packing-slip.pdf', getPackingSlipPdf);
+router.patch('/:orderNumber/shipping', updateShipping);
 
 module.exports = router;
