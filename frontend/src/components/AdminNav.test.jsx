@@ -22,6 +22,7 @@ function renderNav(initialPath = '/admin') {
           <Route element={<AdminNav />}>
             <Route path="/admin" element={<p>Orders page</p>} />
             <Route path="/admin/customers" element={<p>Customers page</p>} />
+            <Route path="/admin/orders/:orderNumber" element={<p>Order detail page</p>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -48,6 +49,13 @@ it('marks the Customers link active on /admin/customers, not the Orders link', a
   await screen.findByText('admin@example.com');
   expect(screen.getByRole('link', { name: /customers/i })).toHaveClass('active');
   expect(screen.getByRole('link', { name: /orders/i })).not.toHaveClass('active');
+});
+
+it('keeps the Orders link active on an order detail page', async () => {
+  renderNav('/admin/orders/ORD-1001');
+  await screen.findByText('admin@example.com');
+  expect(screen.getByRole('link', { name: /orders/i })).toHaveClass('active');
+  expect(screen.getByRole('link', { name: /customers/i })).not.toHaveClass('active');
 });
 
 it('renders the routed page content via Outlet', async () => {
