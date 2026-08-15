@@ -5,16 +5,21 @@ const emailService = require('../services/emailService');
 const { logError } = require('../utils/logger');
 const { auditLog } = require('../config/auditLog');
 
-function parseLimit(rawLimit) {
-  if (rawLimit === undefined) return undefined;
-  const limit = Number(rawLimit);
-  return Number.isInteger(limit) ? limit : NaN;
+function parsePositiveInt(raw) {
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : NaN;
 }
 
 async function listOrders(req, res) {
-  const limit = parseLimit(req.query.limit);
-  if (Number.isNaN(limit)) {
-    return res.status(400).json({ error: 'limit must be an integer.' });
+  const page = parsePositiveInt(req.query.page);
+  if (Number.isNaN(page)) {
+    return res.status(400).json({ error: 'page must be a positive integer.' });
+  }
+
+  const pageSize = parsePositiveInt(req.query.pageSize);
+  if (Number.isNaN(pageSize)) {
+    return res.status(400).json({ error: 'pageSize must be a positive integer.' });
   }
 
   const status = req.query.status || null;
@@ -23,17 +28,14 @@ async function listOrders(req, res) {
   }
 
   try {
-    const { orders, nextCursor } = await adminOrderService.getAdminOrders({
+    const result = await adminOrderService.getAdminOrders({
       status,
       q: req.query.q || null,
-      limit,
-      cursor: req.query.cursor,
+      page,
+      pageSize,
     });
-    res.json({ orders, nextCursor });
+    res.json(result);
   } catch (err) {
-    if (err instanceof adminOrderService.InvalidCursorError) {
-      return res.status(400).json({ error: 'Invalid cursor.' });
-    }
     logError('Admin order list error', err);
     res.status(500).json({ error: 'Something went wrong looking up orders.' });
   }

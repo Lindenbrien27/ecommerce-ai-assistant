@@ -18,6 +18,12 @@ function adminCookie() {
   return `adminToken=${issueAdminToken({ id: 1, email: 'lindenbrien27@gmail.com' })}`;
 }
 
+function mockOrdersQuery(t, { total = 0, rows = [] } = {}) {
+  return t.mock.method(pool, 'query', async (sql) =>
+    (/COUNT\(\*\)/.test(sql) ? { rows: [{ total: String(total) }] } : { rows })
+  );
+}
+
 test('GET /api/admin/orders requires admin auth', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/admin/orders`);
@@ -25,10 +31,8 @@ test('GET /api/admin/orders requires admin auth', async (t) => {
   });
 });
 
-test('GET /api/admin/orders returns orders across all customers', async (t) => {
-  t.mock.method(pool, 'query', async () => ({
-    rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }],
-  }));
+test('GET /api/admin/orders returns orders across all customers with a total count', async (t) => {
+  mockOrdersQuery(t, { total: 1, rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com' }] });
 
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/admin/orders`, { headers: { Cookie: adminCookie() } });
@@ -36,21 +40,52 @@ test('GET /api/admin/orders returns orders across all customers', async (t) => {
     const body = await res.json();
     assert.equal(body.orders.length, 1);
     assert.equal(body.orders[0].customer_email, 'jane@example.com');
+    assert.equal(body.total, 1);
+    assert.equal(body.page, 1);
+    assert.equal(body.pageSize, 20);
+  });
+});
+
+test('GET /api/admin/orders?page=2&pageSize=10 forwards page and pageSize', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '15' }] };
+    assert.deepEqual(params.slice(2), [10, 10]); // pageSize 10, offset (2-1)*10
+    return { rows: [] };
+  });
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders?page=2&pageSize=10`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.page, 2);
+    assert.equal(body.pageSize, 10);
+  });
+});
+
+test('GET /api/admin/orders?page=abc returns 400 for a non-integer page', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders?page=abc`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /api/admin/orders?page=0 returns 400 for a non-positive page', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders?page=0`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /api/admin/orders?pageSize=abc returns 400 for a non-integer pageSize', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders?pageSize=abc`, { headers: { Cookie: adminCookie() } });
+    assert.equal(res.status, 400);
   });
 });
 
 test('GET /api/admin/orders?status=pending returns 400 for a non-real status', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/admin/orders?status=pending`, {
-      headers: { Cookie: adminCookie() },
-    });
-    assert.equal(res.status, 400);
-  });
-});
-
-test('GET /api/admin/orders?cursor=bad returns 400 for an invalid cursor', async (t) => {
-  await withServer(t, async (base) => {
-    const res = await fetch(`${base}/api/admin/orders?cursor=not-valid`, {
       headers: { Cookie: adminCookie() },
     });
     assert.equal(res.status, 400);
