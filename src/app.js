@@ -10,6 +10,8 @@ const orderRoutes = require('./routes/orderRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const adminOrderRoutes = require('./routes/adminOrderRoutes');
 const adminCustomerRoutes = require('./routes/adminCustomerRoutes');
+const productRoutes = require('./routes/productRoutes');
+const adminProductRoutes = require('./routes/adminProductRoutes');
 const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
@@ -101,6 +103,8 @@ app.use('/api/orders', requireCustomerAuth, ordersLimiter, orderRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/orders', requireAdminAuth, adminOrderRoutes);
 app.use('/api/admin/customers', requireAdminAuth, adminCustomerRoutes);
+app.use('/api/admin/products', requireAdminAuth, adminProductRoutes);
+app.use('/api/products', productRoutes);
 
 // Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
 // also the source of truth /api-docs below renders from.
