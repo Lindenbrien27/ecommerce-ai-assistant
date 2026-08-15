@@ -14,7 +14,7 @@ import {
   XIcon,
 } from '../components/icons.jsx';
 import { useCart } from '../context/CartContext.jsx';
-import { SHOP_PRODUCTS } from '../data/shopProducts.js';
+import { useProducts } from '../context/ProductsContext.jsx';
 import { formatCents } from '../utils/pricing.js';
 
 // How long a press-and-hold on the confirm dialog's Remove button takes to
@@ -29,10 +29,6 @@ const ROW_EXIT_MS = 320;
 // mouse leaves it (see UndoToast below), rather than resuming whatever
 // time was left when the hover started.
 const UNDO_TOAST_MS = 6000;
-
-function findProduct(productId) {
-  return SHOP_PRODUCTS.find((p) => p.id === productId);
-}
 
 // toast.custom hands back an id, not a data prop - id/productName/onUndo
 // are threaded through as plain props instead. duration: Infinity on the
@@ -86,6 +82,7 @@ export function BagPage() {
   // silently resets to the same 3 seed items every time this page
   // remounts.
   const { items, setItems } = useCart();
+  const { products, findProduct } = useProducts();
   const selectAllRef = useRef(null);
 
   // confirmProductId drives the alert dialog itself; leavingProductId is
@@ -191,13 +188,21 @@ export function BagPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [confirmProductId]);
 
+  // Catalog fetch (ProductsContext) hasn't resolved yet - products is null
+  // only during that initial load. CartContext's items exist synchronously
+  // (see INITIAL_CART_ITEMS), so without this gate the very first render
+  // would call findProduct before there's anything to find, crashing on
+  // product.name/product.price_cents reads below - same one-time
+  // "still loading" gate ProductDetailPage.jsx already uses.
+  if (products === null) return null;
+
   const confirmProduct = confirmProductId ? findProduct(confirmProductId) : null;
 
   const deliveryTotal = items.filter((it) => it.fulfillment === 'delivery').length;
   const pickupTotal = items.filter((it) => it.fulfillment === 'pickup').length;
 
   const selectedItems = items.filter((it) => it.selected);
-  const subtotalCents = selectedItems.reduce((sum, it) => sum + findProduct(it.productId).priceCents * it.qty, 0);
+  const subtotalCents = selectedItems.reduce((sum, it) => sum + findProduct(it.productId).price_cents * it.qty, 0);
   const deliverySelected = selectedItems.filter((it) => it.fulfillment === 'delivery');
   const pickupSelected = selectedItems.filter((it) => it.fulfillment === 'pickup');
   const deliveryCents = deliverySelected.reduce((sum, it) => sum + it.surchargeCents, 0);
@@ -281,7 +286,7 @@ export function BagPage() {
                   <div className="cart-item-heading">
                     <p className="cart-item-name">{product.name}</p>
                     <div className="cart-item-heading-right">
-                      <div className="cart-item-price">{formatCents(product.priceCents * item.qty)}</div>
+                      <div className="cart-item-price">{formatCents(product.price_cents * item.qty)}</div>
                       <button
                         type="button"
                         className="cart-item-remove"
