@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon, FilterIcon } from '../components/icons.jsx';
 import { ProductCard } from '../components/ProductCard.jsx';
 import { ShopNowDialog } from '../components/ShopNowDialog.jsx';
-import { SHOP_PRODUCTS, DEFAULT_WISHLISTED_IDS } from '../data/shopProducts.js';
+import { DEFAULT_WISHLISTED_IDS } from '../data/shopProducts.js';
+import { useProducts } from '../context/ProductsContext.jsx';
 
 const SORT_OPTIONS = [
   { key: 'newest', label: 'Newest' },
@@ -11,15 +12,11 @@ const SORT_OPTIONS = [
   { key: 'name-asc', label: 'Name A–Z' },
 ];
 
-// Derived from the catalog itself (not hand-duplicated) so a category
-// added/renamed in shopProducts.js shows up here for free.
-const CATEGORIES = [...new Set(SHOP_PRODUCTS.map((p) => p.category))];
-
 function sortProducts(products, sortKey) {
   if (sortKey === 'newest') return products;
   const sorted = [...products];
-  if (sortKey === 'price-asc') sorted.sort((a, b) => a.priceCents - b.priceCents);
-  else if (sortKey === 'price-desc') sorted.sort((a, b) => b.priceCents - a.priceCents);
+  if (sortKey === 'price-asc') sorted.sort((a, b) => a.price_cents - b.price_cents);
+  else if (sortKey === 'price-desc') sorted.sort((a, b) => b.price_cents - a.price_cents);
   else if (sortKey === 'name-asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
   return sorted;
 }
@@ -41,10 +38,14 @@ export function ShopPage() {
   // persist anywhere.
   const [shopNowOpen, setShopNowOpen] = useState(true);
 
+  const { products } = useProducts();
+  const visibleCategories = products ? [...new Set(products.map((p) => p.category))] : [];
+
   const visibleProducts = useMemo(() => {
-    const filtered = activeCategory ? SHOP_PRODUCTS.filter((p) => p.category === activeCategory) : SHOP_PRODUCTS;
+    if (!products) return [];
+    const filtered = activeCategory ? products.filter((p) => p.category === activeCategory) : products;
     return sortProducts(filtered, sortKey);
-  }, [activeCategory, sortKey]);
+  }, [products, activeCategory, sortKey]);
 
   function toggleWishlist(id) {
     setWishlisted((prev) => {
@@ -129,7 +130,7 @@ export function ShopPage() {
           >
             All
           </button>
-          {CATEGORIES.map((category) => (
+          {visibleCategories.map((category) => (
             <button
               key={category}
               type="button"
@@ -146,10 +147,10 @@ export function ShopPage() {
       <div className="shop-grid">
         {visibleProducts.map((product) => (
           <ProductCard
-            key={product.id}
+            key={product.slug}
             product={product}
-            wishlisted={wishlisted.has(product.id)}
-            onToggleWishlist={() => toggleWishlist(product.id)}
+            wishlisted={wishlisted.has(product.slug)}
+            onToggleWishlist={() => toggleWishlist(product.slug)}
           />
         ))}
       </div>
