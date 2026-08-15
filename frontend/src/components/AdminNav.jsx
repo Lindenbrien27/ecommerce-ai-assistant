@@ -19,6 +19,12 @@ export function AdminNav() {
           Orders
         </NavLink>
         <NavLink
+          to="/admin/products"
+          className={({ isActive }) => `admin-nav-link${isActive ? ' active' : ''}`}
+        >
+          Products
+        </NavLink>
+        <NavLink
           to="/admin/customers"
           className={({ isActive }) => `admin-nav-link${isActive ? ' active' : ''}`}
         >

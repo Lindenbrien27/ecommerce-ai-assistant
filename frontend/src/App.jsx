@@ -50,6 +50,12 @@ const AdminCustomersPage = lazy(() =>
 const AdminCustomerDetailPage = lazy(() =>
   import('./pages/AdminCustomerDetailPage.jsx').then((m) => ({ default: m.AdminCustomerDetailPage }))
 );
+const AdminProductsPage = lazy(() =>
+  import('./pages/AdminProductsPage.jsx').then((m) => ({ default: m.AdminProductsPage }))
+);
+const AdminProductFormPage = lazy(() =>
+  import('./pages/AdminProductFormPage.jsx').then((m) => ({ default: m.AdminProductFormPage }))
+);
 
 export default function App() {
   return (
@@ -117,6 +123,9 @@ export default function App() {
                 <Route element={<AdminNav />}>
                   <Route index element={<AdminOrdersPage />} />
                   <Route path="orders/:orderNumber" element={<AdminOrderDetailPage />} />
+                  <Route path="products" element={<AdminProductsPage />} />
+                  <Route path="products/new" element={<AdminProductFormPage />} />
+                  <Route path="products/:slug/edit" element={<AdminProductFormPage />} />
                   <Route path="customers" element={<AdminCustomersPage />} />
                   <Route path="customers/:email" element={<AdminCustomerDetailPage />} />
                 </Route>
