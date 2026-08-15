@@ -7,22 +7,25 @@ const adminOrderService = require('../src/services/adminOrderService');
 test.beforeEach(() => orderCache.clear());
 
 test('getAdminOrders queries across all customers with no email filter', async (t) => {
-  t.mock.method(pool, 'query', async (sql, params) => {
+  t.mock.method(pool, 'query', async (sql) => {
     assert.doesNotMatch(sql, /customer_email = \$/);
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '1' }] };
     assert.match(sql, /ORDER BY created_at DESC, id DESC/);
     return { rows: [{ order_number: 'ORD-1001' }] };
   });
 
-  const { orders, nextCursor } = await adminOrderService.getAdminOrders();
+  const { orders, total, page, pageSize } = await adminOrderService.getAdminOrders();
   assert.equal(orders.length, 1);
-  assert.equal(nextCursor, null);
+  assert.equal(total, 1);
+  assert.equal(page, 1);
+  assert.equal(pageSize, 20);
 });
 
 test('getAdminOrders filters by status when provided', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.match(sql, /status = \$1/);
     assert.equal(params[0], 'shipped');
-    return { rows: [] };
+    return /COUNT\(\*\)/.test(sql) ? { rows: [{ total: '0' }] } : { rows: [] };
   });
 
   await adminOrderService.getAdminOrders({ status: 'shipped' });
@@ -37,40 +40,53 @@ test('getAdminOrders searches order_number and customer_email with q', async (t)
     assert.match(sql, /order_number ILIKE/);
     assert.match(sql, /customer_email ILIKE/);
     assert.ok(params.includes('%ORD-1001%'));
-    return { rows: [] };
+    return /COUNT\(\*\)/.test(sql) ? { rows: [{ total: '0' }] } : { rows: [] };
   });
 
   await adminOrderService.getAdminOrders({ q: 'ORD-1001' });
 });
 
-test('getAdminOrders paginates with a nextCursor when more rows remain', async (t) => {
-  t.mock.method(pool, 'query', async () => ({
-    rows: [
-      { order_number: 'ORD-1003', created_at: '2026-01-03T00:00:00Z', id: 3 },
-      { order_number: 'ORD-1002', created_at: '2026-01-02T00:00:00Z', id: 2 },
-      { order_number: 'ORD-1001', created_at: '2026-01-01T00:00:00Z', id: 1 },
-    ],
-  }));
+test('getAdminOrders paginates using LIMIT/OFFSET derived from page and pageSize', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '5' }] };
+    assert.match(sql, /LIMIT \$3 OFFSET \$4/);
+    assert.deepEqual(params.slice(2), [2, 2]); // pageSize 2, page 2 -> offset (2-1)*2 = 2
+    return {
+      rows: [
+        { order_number: 'ORD-1002', created_at: '2026-01-02T00:00:00Z', id: 2 },
+        { order_number: 'ORD-1001', created_at: '2026-01-01T00:00:00Z', id: 1 },
+      ],
+    };
+  });
 
-  const { orders, nextCursor } = await adminOrderService.getAdminOrders({ limit: 2 });
+  const { orders, total, page, pageSize } = await adminOrderService.getAdminOrders({ page: 2, pageSize: 2 });
   assert.equal(orders.length, 2);
-  assert.ok(typeof nextCursor === 'string' && nextCursor.length > 0);
+  assert.equal(total, 5);
+  assert.equal(page, 2);
+  assert.equal(pageSize, 2);
 });
 
-test('getAdminOrders rejects a malformed cursor', async (t) => {
-  await assert.rejects(
-    adminOrderService.getAdminOrders({ cursor: 'not-json' }),
-    adminOrderService.InvalidCursorError
+test('getAdminOrders clamps pageSize to MAX_PAGE_SIZE and page to at least 1', async (t) => {
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '0' }] };
+    assert.deepEqual(params.slice(2), [100, 0]); // pageSize clamped 999 -> 100, page clamped 0 -> 1 -> offset 0
+    return { rows: [] };
+  });
+
+  const { page, pageSize } = await adminOrderService.getAdminOrders({ page: 0, pageSize: 999 });
+  assert.equal(page, 1);
+  assert.equal(pageSize, 100);
+});
+
+test('getAdminOrders is not cached - two identical calls query the database four times (count + select, twice)', async (t) => {
+  const query = t.mock.method(pool, 'query', async (sql) =>
+    (/COUNT\(\*\)/.test(sql) ? { rows: [{ total: '0' }] } : { rows: [] })
   );
-});
-
-test('getAdminOrders is not cached - two identical calls query twice', async (t) => {
-  const query = t.mock.method(pool, 'query', async () => ({ rows: [] }));
 
   await adminOrderService.getAdminOrders();
   await adminOrderService.getAdminOrders();
 
-  assert.equal(query.mock.callCount(), 2);
+  assert.equal(query.mock.callCount(), 4);
 });
 
 test('updateOrderStatus rejects a status outside the five real values', async (t) => {

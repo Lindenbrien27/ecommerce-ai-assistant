@@ -1,12 +1,6 @@
 const { pool } = require('../config/db');
 const { orderCache } = require('../config/cache');
-const {
-  encodeCursor,
-  decodeCursor,
-  InvalidCursorError,
-  DEFAULT_PAGE_SIZE,
-  MAX_PAGE_SIZE,
-} = require('./orderService');
+const { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('./orderService');
 
 // The five real values in the `orders.status` CHECK constraint
 // (migrations/1784973065584_initial-schema.sql) - no 'pending', no
@@ -21,32 +15,40 @@ const ORDER_STATUSES = Object.freeze([
   'cancelled',
 ]);
 
-async function getAdminOrders({ status = null, q = null, limit = DEFAULT_PAGE_SIZE, cursor = null } = {}) {
+async function getAdminOrders({ status = null, q = null, page = 1, pageSize = DEFAULT_PAGE_SIZE } = {}) {
   if (status !== null && !ORDER_STATUSES.includes(status)) {
     throw new Error(`Invalid status: ${status}`);
   }
 
-  const pageSize = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
-  const after = cursor ? decodeCursor(cursor) : null;
+  const clampedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+  const clampedPage = Math.max(1, page);
+  const offset = (clampedPage - 1) * clampedPageSize;
   const searchTerm = q ? `%${q}%` : null;
 
   // Not cached (see getAdminOrders' own doc comment below) - this call
-  // always hits the database.
-  const { rows } = await pool.query(
+  // always hits the database. Two queries, not one COUNT(*) OVER() window
+  // function - a zero-row page (filters that match nothing) would silently
+  // drop the total along with the rows, since a window function's count
+  // rides on a row that no longer exists. A plain COUNT(*) always returns
+  // exactly one row regardless of how many orders match.
+  const countResult = await pool.query(
+    `SELECT COUNT(*) AS total FROM orders
+     WHERE ($1::text IS NULL OR status = $1)
+       AND ($2::text IS NULL OR order_number ILIKE $2 OR customer_email ILIKE $2)`,
+    [status, searchTerm]
+  );
+  const total = Number(countResult.rows[0].total);
+
+  const { rows: orders } = await pool.query(
     `SELECT * FROM orders
      WHERE ($1::text IS NULL OR status = $1)
        AND ($2::text IS NULL OR order_number ILIKE $2 OR customer_email ILIKE $2)
-       AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4))
      ORDER BY created_at DESC, id DESC
-     LIMIT $5`,
-    [status, searchTerm, after?.createdAt ?? null, after?.id ?? null, pageSize + 1]
+     LIMIT $3 OFFSET $4`,
+    [status, searchTerm, clampedPageSize, offset]
   );
 
-  const hasMore = rows.length > pageSize;
-  const orders = hasMore ? rows.slice(0, pageSize) : rows;
-  const nextCursor = hasMore ? encodeCursor(orders[orders.length - 1]) : null;
-
-  return { orders, nextCursor };
+  return { orders, total, page: clampedPage, pageSize: clampedPageSize };
 }
 
 // The one write path in this file - config/cache.js documents orderCache
@@ -113,7 +115,6 @@ async function updateOrderShipping(orderNumber, { carrier, trackingNumber }) {
 
 module.exports = {
   ORDER_STATUSES,
-  InvalidCursorError,
   getAdminOrders,
   updateOrderStatus,
   updateOrderShipping,
