@@ -8053,7 +8053,7 @@ box that's now also the card's own edge. */
   background: rgba(255, 255, 255, 0.025);
 }
 
-.admin-orders-num {
+.admin-orders-table .admin-orders-num {
   text-align: right;
 }
 
@@ -8495,7 +8495,7 @@ box that's now also the card's own edge. */
   background: rgba(255, 255, 255, 0.025);
 }
 
-.admin-products-num {
+.admin-products-table .admin-products-num {
   text-align: right;
 }
 

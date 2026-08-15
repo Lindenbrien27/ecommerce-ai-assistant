@@ -252,7 +252,7 @@ export function AdminProductsPage() {
                   {p}
                 </button>
               ) : (
-                <span key={p} className="admin-products-page-ellipsis">
+                <span key={p} className="admin-products-page-ellipsis" aria-hidden="true">
                   &hellip;
                 </span>
               )
