@@ -8332,19 +8332,348 @@ box that's now also the card's own edge. */
   outline-offset: 2px;
 }
 
+.admin-products-page {
+  padding: 2rem 1.75rem 3rem;
+  background: #0a0a0a;
+  min-height: 100vh;
+  color: #fafafa;
+}
+
+.admin-products-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-products-head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
+.admin-products-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.admin-products-count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #a1a1a1;
+  background: #171717;
+  border: 1px solid #434343;
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.65rem;
+}
+
 .admin-products-new-link {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #fafafa;
+  color: #101010;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .admin-products-new-link:hover {
-  background: var(--color-surface-hover);
+  opacity: 0.9;
+}
+
+.admin-products-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-products-toolbar select {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #434343;
+  border-radius: var(--radius-pill);
+  background: #171717;
+  color: #fafafa;
+  font-size: 0.85rem;
+}
+
+.admin-products-search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #434343;
+  border-radius: var(--radius-pill);
+  background: #171717;
+  flex: 1;
+  max-width: 320px;
+}
+
+.admin-products-search svg {
+  flex-shrink: 0;
+  color: #6b6b6b;
+}
+
+.admin-products-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fafafa;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.admin-products-search input::placeholder {
+  color: #6b6b6b;
+}
+
+.admin-products-clear {
+  background: none;
+  border: 1px solid transparent;
+  color: #a1a1a1;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-products-clear:hover:not(:disabled) {
+  color: #fafafa;
+}
+
+.admin-products-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin-products-table-card {
+  border: 1px solid #434343;
+  border-radius: 10px;
+  background: #171717;
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.admin-products-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+}
+
+.admin-products-table th,
+.admin-products-table td {
+  text-align: left;
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid #434343;
+  font-size: 0.86rem;
+}
+
+.admin-products-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #a1a1a1;
+  background: #141414;
+}
+
+.admin-products-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-products-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.admin-products-num {
+  text-align: right;
+}
+
+.admin-products-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* .product-image's own background/text-color tokens are theme-adaptive
+   (var(--color-solid-bg)/var(--color-primary-text)) - this page is always
+   dark regardless of the site's own theme state, so it needs the same
+   pinning treatment the Orders page already applies to .order-history-badge. */
+.admin-products-page .product-image {
+  background: #141414;
+  color: #a1a1a1;
+}
+
+.admin-products-name {
+  font-weight: 600;
+  color: #fafafa;
+  text-decoration: none;
+  display: block;
+}
+
+.admin-products-name:hover {
+  text-decoration: underline;
+}
+
+.admin-products-sku {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: #a1a1a1;
+  margin-top: 0.1rem;
+}
+
+.admin-products-price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-products-price-current {
+  font-weight: 600;
+  color: #fafafa;
+}
+
+.admin-products-price-original {
+  color: #6b6b6b;
+  text-decoration: line-through;
+  margin-left: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.admin-products-stock-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-products-stock-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: #fafafa;
+}
+
+.admin-products-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.28rem 0.6rem;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.admin-products-stock-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.admin-products-stock-badge.in-stock { background: rgba(6, 78, 59, 0.6); color: #34d399; }
+.admin-products-stock-badge.low-stock { background: rgba(69, 26, 3, 0.6); color: #fbbf24; }
+.admin-products-stock-badge.out-of-stock { background: rgba(76, 5, 25, 0.6); color: #fb7185; }
+
+.admin-products-empty-row td {
+  padding: 3rem 1.1rem;
+  text-align: center;
+  color: #a1a1a1;
+}
+
+.admin-products-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  font-size: 0.82rem;
+  color: #a1a1a1;
+}
+
+.admin-products-pager-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-products-pager-left select {
+  background: #171717;
+  border: 1px solid #434343;
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  color: #fafafa;
+}
+
+.admin-products-pager-right {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+}
+
+.admin-products-page-btn {
+  background: none;
+  border: 1px solid #434343;
+  color: #a1a1a1;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.admin-products-page-btn:hover:not(:disabled) {
+  border-color: #a1a1a1;
+  color: #fafafa;
+}
+
+.admin-products-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.admin-products-page-btn.current {
+  background: #fafafa;
+  color: #101010;
+  border-color: #fafafa;
+  font-weight: 600;
+}
+
+.admin-products-page-ellipsis {
+  padding: 0 0.15rem;
+  color: #6b6b6b;
+}
+
+/* Every focusable element on this page must resolve to the fixed #fafafa
+   accent regardless of the site's own theme state. Two rules, not one -
+   the Orders page needed both: a universal rule for elements with no
+   higher-specificity competing site-wide rule (links, buttons, selects),
+   and a second `input`-specific rule to beat the site-wide
+   input[type="text"]:focus-visible rule's higher specificity for the
+   search input specifically. See index.css's own admin-orders-page
+   comment beside its equivalent pair of rules for the full specificity
+   math - the same fight applies here for the same reason. */
+.admin-products-page *:focus-visible {
+  outline: 2px solid #fafafa;
+  outline-offset: 2px;
+}
+
+.admin-products-page input:focus-visible {
+  outline: 2px solid #fafafa;
+  outline-offset: 2px;
 }
 
 .admin-product-form-page {
