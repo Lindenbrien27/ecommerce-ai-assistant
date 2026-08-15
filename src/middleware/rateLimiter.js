@@ -73,4 +73,19 @@ const adminLoginLimiter = rateLimit({
   handler: auditedHandler('admin_login'),
 });
 
-module.exports = { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter };
+// /api/products is the one public, no-auth mount (see app.js) - no
+// requireCustomerAuth runs ahead of it, so there's no customer identity to
+// key on the way chatLimiter/ordersLimiter do via keyByCustomer. Keyed by
+// IP alone instead (express-rate-limit's own default keyGenerator). Same
+// window/max shape as ordersLimiter, the closest analog: another
+// read-heavy, customer-facing route.
+const productsLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_PRODUCTS_WINDOW_MS) || 60_000,
+  max: Number(process.env.RATE_LIMIT_PRODUCTS_MAX) || 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again shortly.' },
+  handler: auditedHandler('products'),
+});
+
+module.exports = { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter, productsLimiter };

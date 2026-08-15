@@ -15,7 +15,7 @@ const adminProductRoutes = require('./routes/adminProductRoutes');
 const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
-const { chatLimiter, ordersLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { chatLimiter, ordersLimiter, authLimiter, productsLimiter } = require('./middleware/rateLimiter');
 const { enforceHttps } = require('./middleware/httpsEnforce');
 const { securityHeaders, apiDocsStyleOverride, adminCspOverride, adminCoopOverride } = require('./middleware/securityHeaders');
 const { logger } = require('./config/logger');
@@ -104,7 +104,11 @@ app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/orders', requireAdminAuth, adminOrderRoutes);
 app.use('/api/admin/customers', requireAdminAuth, adminCustomerRoutes);
 app.use('/api/admin/products', requireAdminAuth, adminProductRoutes);
-app.use('/api/products', productRoutes);
+// The one public, no-auth mount in this file - every other route above has
+// at least a rate limiter or an auth guard (usually both). productsLimiter
+// (IP-keyed - there's no customer identity on an unauthenticated route)
+// closes that gap the same way authLimiter does for /api/auth.
+app.use('/api/products', productsLimiter, productRoutes);
 
 // Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
 // also the source of truth /api-docs below renders from.

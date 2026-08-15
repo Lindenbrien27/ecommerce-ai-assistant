@@ -5,7 +5,7 @@ const productService = require('../src/services/productService');
 
 test('getProducts returns every row', async (t) => {
   t.mock.method(pool, 'query', async (sql) => {
-    assert.match(sql, /SELECT \* FROM products/);
+    assert.match(sql, /SELECT .+ FROM products ORDER BY created_at ASC, slug ASC/);
     return { rows: [{ slug: 'headphones' }, { slug: 'keyboard' }] };
   });
 
