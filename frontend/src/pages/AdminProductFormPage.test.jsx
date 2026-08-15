@@ -103,7 +103,7 @@ it('submits a PATCH when editing an existing product', async () => {
   });
 });
 
-it('deletes the product when Delete is clicked on the edit form', async () => {
+it('deletes the product when Delete is clicked and the confirmation is accepted', async () => {
   global.fetch = vi.fn((url, opts) => {
     if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
     if (url === '/api/products/headphones' && !opts) {
@@ -114,15 +114,41 @@ it('deletes the product when Delete is clicked on the edit form', async () => {
     }
     return Promise.resolve({ ok: false });
   });
+  // handleDelete guards on window.confirm before firing the DELETE request.
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
 
   renderForm('/admin/products/headphones/edit');
   await screen.findByDisplayValue('Wireless Noise-Cancelling Headphones');
   fireEvent.click(screen.getByRole('button', { name: /delete product/i }));
 
+  expect(window.confirm).toHaveBeenCalledWith('Delete Wireless Noise-Cancelling Headphones? This cannot be undone.');
+
   await waitFor(() => {
     const call = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/products/headphones' && o?.method === 'DELETE');
     expect(call).toBeTruthy();
   });
+});
+
+it('does not delete the product when the confirmation is dismissed', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/products/headphones' && !opts) {
+      return Promise.resolve({ ok: true, json: async () => EXISTING_PRODUCT });
+    }
+    if (url === '/api/admin/products/headphones' && opts?.method === 'DELETE') {
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+  vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+  renderForm('/admin/products/headphones/edit');
+  await screen.findByDisplayValue('Wireless Noise-Cancelling Headphones');
+  fireEvent.click(screen.getByRole('button', { name: /delete product/i }));
+
+  expect(window.confirm).toHaveBeenCalled();
+  const call = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/products/headphones' && o?.method === 'DELETE');
+  expect(call).toBeFalsy();
 });
 
 it('surfaces an error when saving fails', async () => {

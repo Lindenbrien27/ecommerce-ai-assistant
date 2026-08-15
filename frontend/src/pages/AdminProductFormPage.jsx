@@ -105,6 +105,11 @@ export function AdminProductFormPage() {
   }
 
   async function handleDelete() {
+    // Admin-only internal tool page (not customer-facing, unlike BagPage's
+    // press-and-hold .cart-remove-dialog), and Delete sits directly next
+    // to Save with no undo - a blocking confirm is an acceptable minimal
+    // guard here against an accidental permanent delete.
+    if (!window.confirm(`Delete ${form.name}? This cannot be undone.`)) return;
     setSaving(true);
     setError(null);
     try {
