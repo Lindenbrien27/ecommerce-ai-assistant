@@ -16,6 +16,13 @@ export function AdminOrderDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [carrierInput, setCarrierInput] = useState('');
+  const [trackingInput, setTrackingInput] = useState('');
+  const [shippingSaving, setShippingSaving] = useState(false);
+  const [shippingSaved, setShippingSaved] = useState(false);
+  const [shippingEmailed, setShippingEmailed] = useState(false);
+  const [shippingError, setShippingError] = useState(null);
+
   useEffect(() => {
     let cancelled = false;
     setError(null);
@@ -36,6 +43,8 @@ export function AdminOrderDetailPage() {
         if (cancelled || !data) return;
         setOrder(data);
         setSelectedStatus(data.status);
+        setCarrierInput(data.carrier || '');
+        setTrackingInput(data.tracking_number || '');
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
@@ -73,6 +82,35 @@ export function AdminOrderDetailPage() {
     }
   }
 
+  async function saveShipping() {
+    setShippingSaving(true);
+    setShippingSaved(false);
+    setShippingError(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderNumber}/shipping`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carrier: carrierInput, trackingNumber: trackingInput }),
+      });
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Something went wrong updating shipping info.');
+      }
+      const updated = await res.json();
+      setOrder(updated);
+      setShippingEmailed(Boolean(updated.emailed));
+      setShippingSaved(true);
+    } catch (err) {
+      setShippingError(err.message);
+    } finally {
+      setShippingSaving(false);
+    }
+  }
+
   if (error && !order) {
     return (
       <div className="admin-order-detail-page">
@@ -86,6 +124,7 @@ export function AdminOrderDetailPage() {
   if (!order) return null;
 
   const total = computeOrderTotal(order);
+  const hasAddress = Boolean(order.address_line1);
 
   return (
     <div className="admin-order-detail-page">
@@ -146,6 +185,62 @@ export function AdminOrderDetailPage() {
           {error}
         </p>
       )}
+
+      <div className="admin-order-detail-shipping">
+        <h2>Shipping</h2>
+
+        {hasAddress ? (
+          <div className="admin-order-detail-address">
+            <span>{order.recipient_name}</span>
+            <span>{order.address_line1}</span>
+            {order.address_line2 && <span>{order.address_line2}</span>}
+            <span>
+              {order.city}, {order.state} {order.postal_code}
+            </span>
+            <span>{order.country}</span>
+          </div>
+        ) : (
+          <p className="subtitle">No shipping address on file.</p>
+        )}
+
+        <label htmlFor="admin-order-carrier-input">Carrier</label>
+        <input
+          id="admin-order-carrier-input"
+          type="text"
+          value={carrierInput}
+          onChange={(e) => setCarrierInput(e.target.value)}
+        />
+        <label htmlFor="admin-order-tracking-input">Tracking #</label>
+        <input
+          id="admin-order-tracking-input"
+          type="text"
+          value={trackingInput}
+          onChange={(e) => setTrackingInput(e.target.value)}
+        />
+        <button type="button" onClick={saveShipping} disabled={shippingSaving}>
+          {shippingSaving ? 'Saving...' : 'Save'}
+        </button>
+
+        {shippingSaved && (
+          <p className="admin-order-detail-saved">
+            {shippingEmailed ? 'Shipping info updated and customer notified.' : 'Shipping info updated.'}
+          </p>
+        )}
+        {shippingError && (
+          <p className="verify-error" role="alert">
+            {shippingError}
+          </p>
+        )}
+
+        {hasAddress ? (
+          <div className="admin-order-detail-downloads">
+            <a href={`/api/admin/orders/${orderNumber}/invoice.pdf`}>Download Invoice</a>
+            <a href={`/api/admin/orders/${orderNumber}/packing-slip.pdf`}>Download Packing Slip</a>
+          </div>
+        ) : (
+          <p className="subtitle">Downloads unavailable until this order has a shipping address.</p>
+        )}
+      </div>
     </div>
   );
 }
