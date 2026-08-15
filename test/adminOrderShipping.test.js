@@ -6,6 +6,13 @@ const { orderCache } = require('../src/config/cache');
 const { issueAdminToken } = require('../src/services/adminAuthService');
 const app = require('../src/app');
 
+// Same four vars emailService.test.js snapshots/restores around its own
+// "configured" test - needed here too so the no-op-re-save test can force
+// isConfigured() to true without leaking SMTP_* into any other test in
+// this file (every other test here relies on it staying unset so
+// sendShippingUpdateEmail short-circuits to false).
+const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'];
+
 test.beforeEach(() => orderCache.clear());
 
 async function withServer(t, run) {
@@ -144,5 +151,63 @@ test('PATCH /api/admin/orders/:orderNumber/shipping returns 404 for an unknown o
       body: JSON.stringify({ carrier: 'UPS', trackingNumber: '123' }),
     });
     assert.equal(res.status, 404);
+  });
+});
+
+test('PATCH /api/admin/orders/:orderNumber/shipping only re-emails the customer on an actual carrier/tracking change, not a no-op re-save', async (t) => {
+  const saved = Object.fromEntries(SMTP_KEYS.map((k) => [k, process.env[k]]));
+  SMTP_KEYS.forEach((k) => delete process.env[k]);
+  process.env.SMTP_HOST = 'smtp.example.com';
+  process.env.SMTP_PORT = '587';
+  process.env.SMTP_USER = 'user';
+  process.env.SMTP_PASS = 'pass';
+  process.env.EMAIL_FROM = 'noreply@example.com';
+  t.after(() => {
+    SMTP_KEYS.forEach((k) => {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    });
+  });
+
+  const sendMail = t.mock.fn(async () => {});
+  const nodemailer = require('nodemailer');
+  t.mock.method(nodemailer, 'createTransport', () => ({ sendMail }));
+
+  // Mutable "row" that the mocked pool.query reads/writes, so both the
+  // PATCH handler's "previous" lookup and its UPDATE ... RETURNING see a
+  // consistent view of the order's carrier/tracking across both requests
+  // below - exactly what a real UPDATE would do.
+  let currentOrder = { ...ORDER_WITH_ADDRESS };
+  t.mock.method(pool, 'query', async (sql, params) => {
+    if (/UPDATE orders/.test(sql)) {
+      currentOrder = { ...currentOrder, carrier: params[0], tracking_number: params[1] };
+      return { rows: [currentOrder] };
+    }
+    return { rows: [currentOrder] };
+  });
+
+  await withServer(t, async (base) => {
+    // First PATCH: a real change (null/null -> UPS/1Z999...) must email.
+    const res1 = await fetch(`${base}/api/admin/orders/ORD-1001/shipping`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
+      body: JSON.stringify({ carrier: 'UPS', trackingNumber: '1Z999AA10123456784' }),
+    });
+    assert.equal(res1.status, 200);
+    const body1 = await res1.json();
+    assert.equal(body1.emailed, true);
+    assert.equal(sendMail.mock.callCount(), 1);
+
+    // Second PATCH: identical carrier/tracking (a no-op re-save) must not
+    // trigger a second email.
+    const res2 = await fetch(`${base}/api/admin/orders/ORD-1001/shipping`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
+      body: JSON.stringify({ carrier: 'UPS', trackingNumber: '1Z999AA10123456784' }),
+    });
+    assert.equal(res2.status, 200);
+    const body2 = await res2.json();
+    assert.equal(body2.emailed, false);
+    assert.equal(sendMail.mock.callCount(), 1);
   });
 });
