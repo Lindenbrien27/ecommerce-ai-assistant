@@ -8106,6 +8106,21 @@ box that's now also the card's own edge. */
   cursor: pointer;
 }
 
+.admin-products-new-link {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-products-new-link:hover {
+  background: var(--color-surface-hover);
+}
+
 .admin-nav-content {
   padding: 0;
 }
