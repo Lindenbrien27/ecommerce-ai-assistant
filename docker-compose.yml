@@ -11,6 +11,11 @@ services:
       # actual startup.
       args:
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        # Same reasoning as VITE_SENTRY_DSN above - export VITE_GOOGLE_CLIENT_ID
+        # in the shell running `docker compose up` to bake the admin login
+        # page's Google Sign-In Client ID into this build. Optional; unset,
+        # admin login just can't complete client-side.
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     ports:
       - "3000:3000"
     # The container's CMD (doppler run -- node server.js) fetches secrets

@@ -6,6 +6,22 @@ const MAX_PAGE_SIZE = 100;
 
 class InvalidCursorError extends Error {}
 
+// `orders.refund_reason` is an internal admin note written through the
+// admin refund endpoint ("suspected fraud", "goodwill - chronic
+// complainer") - the admin UI shows it back to admins, and the admin
+// service reads it through its own queries. Every read in this file is a
+// `SELECT *`, so the column rides along here too and would otherwise reach
+// the customer verbatim through GET /api/orders/:id, GET /api/orders, and
+// the chat assistant's order-lookup tools. Everything customer-facing
+// passes its rows through here first. Returns a copy rather than deleting
+// in place: these rows are shared cache entries (orderCache), and mutating
+// one would strip the column for the admin paths too.
+function toCustomerOrder(order) {
+  if (!order) return order;
+  const { refund_reason: _internalRefundReason, ...customerFields } = order;
+  return customerFields;
+}
+
 // Orders are effectively read-only (see config/cache.js), and getOrderByNumber
 // specifically sits on two separate hot paths - GET /api/orders/:id and the
 // chat tool get_order_by_number - so caching here benefits both from one
@@ -110,7 +126,10 @@ module.exports = {
   getOrderByNumber,
   getOrdersByEmail,
   getOrderByTrackingNumber,
+  toCustomerOrder,
   InvalidCursorError,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  encodeCursor,
+  decodeCursor,
 };

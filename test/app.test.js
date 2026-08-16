@@ -298,6 +298,56 @@ test('GET /api/orders rejects a malformed cursor', async (t) => {
   });
 });
 
+// refund_reason is an internal admin note written through the admin refund
+// endpoint - it rides along on orderService's SELECT * (which the admin
+// paths need), so both customer-facing responses have to strip it.
+test('GET /api/orders/:id does not expose the internal refund_reason note', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{
+      order_number: 'ORD-1001',
+      customer_email: 'jane@example.com',
+      status: 'returned',
+      refund_amount_cents: 5500,
+      refunded_at: '2026-01-02T00:00:00Z',
+      refund_reason: 'suspected fraud',
+    }],
+  }));
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders/ORD-1001`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal('refund_reason' in body, false);
+    // The rest of the refund is legitimately the customer's to see.
+    assert.equal(body.refund_amount_cents, 5500);
+    assert.equal(body.status, 'returned');
+  });
+});
+
+test('GET /api/orders does not expose the internal refund_reason note', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [
+      { order_number: 'ORD-1001', customer_email: 'jane@example.com', created_at: '2026-01-02T00:00:00Z', id: 1, refund_reason: 'goodwill - chronic complainer' },
+    ],
+  }));
+
+  const token = issueToken('jane@example.com');
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/orders`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.orders.length, 1);
+    assert.equal('refund_reason' in body.orders[0], false);
+  });
+});
+
 test('POST /api/chat without a token is rejected', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/chat`, {

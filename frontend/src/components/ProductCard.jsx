@@ -21,7 +21,7 @@ function randomBetween(min, max) {
 // is purely cosmetic, per-card, and never read by anything outside this
 // component, so that one piece of state stays local.
 export function ProductCard({ product, wishlisted, onToggleWishlist }) {
-  const { name, category, description, priceCents, originalPriceCents, colorways } = product;
+  const { name, category, description, price_cents: priceCents, original_price_cents: originalPriceCents, colorways } = product;
   const hasDiscount = originalPriceCents != null;
   const discountPct = hasDiscount ? Math.round((1 - priceCents / originalPriceCents) * 100) : 0;
 
@@ -181,8 +181,8 @@ export function ProductCard({ product, wishlisted, onToggleWishlist }) {
             the swatches/wishlist button, which are their own controls) is
             the click target, so there's no bubbling conflict with any of
             those. */}
-        {PRODUCT_DETAILS[product.id] ? (
-          <Link to={`/shop/${product.id}`} className="product-card-heading product-card-heading-link">
+        {PRODUCT_DETAILS[product.slug] ? (
+          <Link to={`/shop/${product.slug}`} className="product-card-heading product-card-heading-link">
             <h3 className="product-card-name">{name}</h3>
             <p className="product-card-description">{description}</p>
           </Link>

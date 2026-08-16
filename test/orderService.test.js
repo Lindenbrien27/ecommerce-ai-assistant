@@ -186,3 +186,30 @@ test('getOrderByTrackingNumber serves a second lookup from cache without queryin
 
   assert.equal(query.mock.callCount(), 1);
 });
+
+test('toCustomerOrder strips the internal refund_reason admin note', () => {
+  const row = {
+    order_number: 'ORD-1001',
+    status: 'returned',
+    refund_amount_cents: 5500,
+    restocked: true,
+    refunded_at: '2026-01-02T00:00:00Z',
+    refund_reason: 'suspected fraud',
+  };
+
+  const customerView = orderService.toCustomerOrder(row);
+
+  assert.equal('refund_reason' in customerView, false);
+  // Everything else about the refund is legitimately the customer's to see.
+  assert.equal(customerView.refund_amount_cents, 5500);
+  assert.equal(customerView.refunded_at, '2026-01-02T00:00:00Z');
+  assert.equal(customerView.status, 'returned');
+  // The source row (a shared orderCache entry) is left intact - the admin
+  // paths read the same object and do need refund_reason.
+  assert.equal(row.refund_reason, 'suspected fraud');
+});
+
+test('toCustomerOrder passes null/undefined through untouched', () => {
+  assert.equal(orderService.toCustomerOrder(null), null);
+  assert.equal(orderService.toCustomerOrder(undefined), undefined);
+});

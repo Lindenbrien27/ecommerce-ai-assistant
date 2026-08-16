@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { CartIcon, CheckIcon, ChevronRightIcon, StarIcon } from '../components/icons.jsx';
 import { PRODUCT_PHOTOS } from '../components/ProductImage.jsx';
-import { SHOP_PRODUCTS } from '../data/shopProducts.js';
+import { useProducts } from '../context/ProductsContext.jsx';
 import { PRODUCT_DETAILS } from '../data/productDetails.js';
 import { formatCents } from '../utils/pricing.js';
 
@@ -27,7 +27,8 @@ function randomBetween(min, max) {
 // White - this app has no real reviews table or spec sheet anywhere.
 export function ProductDetailPage() {
   const { productId } = useParams();
-  const product = SHOP_PRODUCTS.find((p) => p.id === productId);
+  const { products, error, findProduct } = useProducts();
+  const product = findProduct(productId);
   const detail = PRODUCT_DETAILS[productId];
 
   const [selectedColorId, setSelectedColorId] = useState(product?.colorways[0]?.id ?? null);
@@ -61,11 +62,32 @@ export function ProductDetailPage() {
     setHearts((prev) => prev.filter((h) => h.id !== id));
   }
 
+  // A failed fetch leaves products === null forever, same as "still
+  // loading" - checked first so a load failure renders the same inline
+  // error ShopPage/AdminProductsPage use instead of either hanging on a
+  // blank page forever (the loading gate below) or bouncing to /shop
+  // (the not-found gate further down).
+  if (!product && error) {
+    return (
+      <p className="verify-error" role="alert">
+        {error}
+      </p>
+    );
+  }
+
+  // Catalog fetch (ProductsContext) hasn't resolved yet - products is null
+  // only during that initial load, never once it settles (empty array on
+  // an empty catalog, populated array otherwise), so this is a one-time
+  // "still loading" gate, not an ongoing loading state to render chrome
+  // for. Redirecting here before the fetch resolves would send every
+  // fresh page load straight back to /shop.
+  if (!product && products === null) return null;
+
   // No matching product, or one with no PRODUCT_DETAILS entry - back to
   // the grid rather than a dead/broken page.
   if (!product || !detail) return <Navigate to="/shop" replace />;
 
-  const { name, category, description, priceCents, originalPriceCents, colorways, icon } = product;
+  const { name, category, description, price_cents: priceCents, original_price_cents: originalPriceCents, colorways, icon } = product;
   const hasDiscount = originalPriceCents != null;
   const discountPct = hasDiscount ? Math.round((1 - priceCents / originalPriceCents) * 100) : 0;
   const selectedColor = colorways.find((c) => c.id === selectedColorId);

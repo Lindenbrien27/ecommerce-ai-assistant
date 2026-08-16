@@ -99,4 +99,45 @@ const apiDocsStyleOverride = helmet.contentSecurityPolicy({
   },
 });
 
-module.exports = { securityHeaders, apiDocsStyleOverride };
+// Scoped to /admin* only - the Google Sign-In button that route renders
+// loads a script and iframe from accounts.google.com, which the strict
+// default CSP above (script-src/frame-src both implicitly fall back to
+// default-src 'self') blocks outright. Every other route keeps the strict
+// policy untouched, same scoping approach as apiDocsStyleOverride above.
+// This only matters for whichever URL the browser tab was actually loaded
+// from - React Router's client-side navigation never issues a fresh HTTP
+// request, so a tab that started on a customer page keeps that page's
+// original (strict) CSP even after navigating to /admin/login in-app.
+// There is no in-app link to /admin anywhere in the customer UI, so this
+// is reached by direct URL entry only, which is what makes the override
+// apply correctly in practice.
+const adminCspOverride = helmet.contentSecurityPolicy({
+  directives: {
+    ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+    // Google's gsi/client script injects its own <link>/<style> for the
+    // rendered button/One Tap UI from this specific accounts.google.com
+    // path - the strict 'self'-only style-src (still in effect everywhere
+    // else) blocked it outright.
+    'style-src': ["'self'", 'https://accounts.google.com/gsi/style'],
+    'font-src': ["'self'"],
+    'frame-ancestors': ["'none'"],
+    'script-src': ["'self'", 'https://accounts.google.com/gsi/client'],
+    'frame-src': ["'self'", 'https://accounts.google.com'],
+    'connect-src': ["'self'", 'https://accounts.google.com'],
+    'upgrade-insecure-requests': process.env.NODE_ENV === 'production' ? [] : null,
+  },
+});
+
+// Helmet's global default (applied via securityHeaders above) sets
+// Cross-Origin-Opener-Policy: same-origin, which severs window.opener and
+// breaks Google Identity Services' popup-based sign-in fallback (used when
+// FedCM/One Tap isn't available). helmet.contentSecurityPolicy() instances
+// like adminCspOverride above only touch the Content-Security-Policy header,
+// so this needs its own small middleware, applied alongside adminCspOverride
+// on the /admin* route only - every other route keeps the strict default.
+function adminCoopOverride(req, res, next) {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+}
+
+module.exports = { securityHeaders, apiDocsStyleOverride, adminCspOverride, adminCoopOverride };

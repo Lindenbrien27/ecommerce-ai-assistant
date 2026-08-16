@@ -80,3 +80,48 @@ test('get_order_by_tracking_number returns null when the order belongs to a diff
   );
   assert.equal(result, null);
 });
+
+test('get_order_by_number never hands the model the internal refund_reason note', async (t) => {
+  t.mock.method(orderService, 'getOrderByNumber', async () => ({
+    order_number: 'ORD-1001',
+    customer_email: 'jane@example.com',
+    status: 'returned',
+    refund_amount_cents: 5500,
+    refund_reason: 'goodwill - chronic complainer',
+  }));
+
+  const result = await implementations.get_order_by_number(
+    { orderNumber: 'ORD-1001' },
+    { customerEmail: 'jane@example.com' }
+  );
+  assert.equal('refund_reason' in result, false);
+  assert.equal(result.refund_amount_cents, 5500);
+});
+
+test('get_order_by_tracking_number never hands the model the internal refund_reason note', async (t) => {
+  t.mock.method(orderService, 'getOrderByTrackingNumber', async () => ({
+    order_number: 'ORD-1001',
+    customer_email: 'jane@example.com',
+    refund_reason: 'suspected fraud',
+  }));
+
+  const result = await implementations.get_order_by_tracking_number(
+    { trackingNumber: '1Z999AA10123456784' },
+    { customerEmail: 'jane@example.com' }
+  );
+  assert.equal('refund_reason' in result, false);
+});
+
+test('get_my_orders never hands the model the internal refund_reason note', async (t) => {
+  t.mock.method(orderService, 'getOrdersByEmail', async () => ({
+    orders: [
+      { order_number: 'ORD-1001', customer_email: 'jane@example.com', refund_reason: 'suspected fraud' },
+      { order_number: 'ORD-1002', customer_email: 'jane@example.com' },
+    ],
+    nextCursor: null,
+  }));
+
+  const result = await implementations.get_my_orders({}, { customerEmail: 'jane@example.com' });
+  assert.equal(result.length, 2);
+  assert.ok(result.every((o) => !('refund_reason' in o)));
+});

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { ProductImage } from '../components/ProductImage.jsx';
+import { AnimatedItem } from '../components/AnimatedList.jsx';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -79,7 +80,7 @@ function historySubtitle(order) {
 // shared Set in OrdersPage, since "rows expand independently" is exactly
 // what a plain per-row useState already gives for free; a shared
 // Set(expandedOrderNumbers) would do the identical job with more code.
-function OrderHistoryRow({ order }) {
+function OrderHistoryRow({ order, index }) {
   const [expanded, setExpanded] = useState(false);
   const badge = HISTORY_BADGE[order.status] ?? HISTORY_BADGE.delivered;
   const BadgeIcon = badge.icon;
@@ -89,55 +90,64 @@ function OrderHistoryRow({ order }) {
 
   return (
     <li className={`order-history-row${order.status === 'cancelled' ? ' cancelled' : ''}${expanded ? ' expanded' : ''}`}>
-      <button
-        type="button"
-        className="order-history-summary"
-        onClick={() => setExpanded((e) => !e)}
-        aria-expanded={expanded}
-        aria-controls={detailId}
-      >
-        <ProductImage icon={order.product_icon} size="xs" />
-        <span className="order-history-info">
-          <span className="order-history-title">{order.product_name}</span>
-          <span className="order-history-meta">{historySubtitle(order)}</span>
-        </span>
-        <span className={`order-history-badge ${badge.className}`}>
-          {BadgeIcon && <BadgeIcon />} {badge.label}
-        </span>
-        <ChevronDownIcon className="order-history-chevron" aria-hidden="true" />
-      </button>
+      {/* AnimatedItem (see components/AnimatedList.jsx) just adds the
+          scroll-into-view pop-in around this row's real content - it wraps
+          rather than replaces the row, so the row's own expand/collapse
+          button, links, and .order-history-row border/status styling above
+          are untouched. Capped stagger delay so a long, already-loaded
+          order history doesn't make the last rows wait a visibly long time
+          to animate in on first scroll. */}
+      <AnimatedItem as="div" className="" index={index} delay={Math.min(index * 0.04, 0.4)}>
+        <button
+          type="button"
+          className="order-history-summary"
+          onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
+          aria-controls={detailId}
+        >
+          <ProductImage icon={order.product_icon} size="xs" />
+          <span className="order-history-info">
+            <span className="order-history-title">{order.product_name}</span>
+            <span className="order-history-meta">{historySubtitle(order)}</span>
+          </span>
+          <span className={`order-history-badge ${badge.className}`}>
+            {BadgeIcon && <BadgeIcon />} {badge.label}
+          </span>
+          <ChevronDownIcon className="order-history-chevron" aria-hidden="true" />
+        </button>
 
-      {expanded && (
-        <div className="order-history-detail" id={detailId}>
-          <div className="order-history-detail-field">
-            <span>Order</span>
-            <span>
-              {order.order_number} · Qty: 1
-            </span>
-          </div>
-          {order.status === 'delivered' && order.estimated_delivery && (
+        {expanded && (
+          <div className="order-history-detail" id={detailId}>
             <div className="order-history-detail-field">
-              <span>Estimated arrival</span>
-              <span>{dateFormatter.format(new Date(order.estimated_delivery))}</span>
+              <span>Order</span>
+              <span>
+                {order.order_number} · Qty: 1
+              </span>
             </div>
-          )}
-          <div className="order-history-detail-actions">
-            <Link to={`/orders/${order.order_number}`} className="order-history-detail-btn">
-              {isActive ? 'Track package' : 'View Details'}
-            </Link>
-            {total !== null && (
-              <button type="button" className="order-history-detail-btn" onClick={() => downloadInvoice(order)}>
-                <DownloadIcon /> Download Invoice
-              </button>
+            {order.status === 'delivered' && order.estimated_delivery && (
+              <div className="order-history-detail-field">
+                <span>Estimated arrival</span>
+                <span>{dateFormatter.format(new Date(order.estimated_delivery))}</span>
+              </div>
             )}
-            {!isActive && (
-              <Link to="/shop" className="order-history-detail-btn buy-again">
-                Buy again
+            <div className="order-history-detail-actions">
+              <Link to={`/orders/${order.order_number}`} className="order-history-detail-btn">
+                {isActive ? 'Track package' : 'View Details'}
               </Link>
-            )}
+              {total !== null && (
+                <button type="button" className="order-history-detail-btn" onClick={() => downloadInvoice(order)}>
+                  <DownloadIcon /> Download Invoice
+                </button>
+              )}
+              {!isActive && (
+                <Link to="/shop" className="order-history-detail-btn buy-again">
+                  Buy again
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatedItem>
     </li>
   );
 }
@@ -315,8 +325,8 @@ export function OrdersPage() {
               <p className="subtitle fade-in">No orders in this category.</p>
             ) : (
               <ul className="order-history-list fade-in">
-                {historyOrders.map((order) => (
-                  <OrderHistoryRow key={order.order_number} order={order} />
+                {historyOrders.map((order, index) => (
+                  <OrderHistoryRow key={order.order_number} order={order} index={index} />
                 ))}
               </ul>
             )}

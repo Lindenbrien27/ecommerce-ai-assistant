@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { OrdersProvider, useOrders } from '../context/OrdersContext.jsx';
 import { CartProvider, useCart } from '../context/CartContext.jsx';
-import { SHOP_PRODUCTS } from '../data/shopProducts.js';
+import { ProductsProvider, useProducts } from '../context/ProductsContext.jsx';
 import { Brand } from './Brand.jsx';
 import { AiAssistantPanel } from './AiAssistantPanel.jsx';
 import { CategoryBadgesEditor } from './CategoryBadgesEditor.jsx';
@@ -38,10 +38,9 @@ const PAGE_HEADERS = {
   '/checkout': { icon: CartIcon, title: 'Checkout', docTitle: 'Checkout' },
 };
 
-function getPageHeader(pathname, params) {
+function getPageHeader(pathname, params, product) {
   if (params.orderNumber) return { icon: OrdersIcon, title: params.orderNumber, docTitle: params.orderNumber };
   if (params.productId) {
-    const product = SHOP_PRODUCTS.find((p) => p.id === params.productId);
     const title = product?.name ?? 'Product';
     return { icon: ShopIcon, title, docTitle: title };
   }
@@ -93,7 +92,9 @@ export function Layout() {
   return (
     <OrdersProvider>
       <CartProvider>
-        <LayoutInner />
+        <ProductsProvider>
+          <LayoutInner />
+        </ProductsProvider>
       </CartProvider>
     </OrdersProvider>
   );
@@ -102,6 +103,7 @@ export function Layout() {
 function LayoutInner() {
   const { orders } = useOrders();
   const { items: cartItems } = useCart();
+  const { findProduct } = useProducts();
   const cartCount = cartItems.length;
   const location = useLocation();
   const params = useParams();
@@ -117,7 +119,7 @@ function LayoutInner() {
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const navIndex = getDashboardNavIndex(location.pathname);
 
-  const { icon: PageIcon, title: pageTitle, docTitle } = getPageHeader(location.pathname, params);
+  const { icon: PageIcon, title: pageTitle, docTitle } = getPageHeader(location.pathname, params, findProduct(params.productId));
   const headingRef = useRef(null);
 
   // Same two jobs useFocusOnMount/useDocumentTitle used to do per-page, now

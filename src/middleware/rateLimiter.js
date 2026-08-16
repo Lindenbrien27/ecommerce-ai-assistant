@@ -12,7 +12,7 @@ function auditedHandler(limiterName) {
   };
 }
 
-// requireCustomerAuth always runs before these two limiters (see app.js),
+// requireCustomerAuth always runs before these three limiters (see app.js),
 // so req.customerEmail is already known - keying on it instead of req.ip
 // means the budget is actually per-customer, which is what "too many
 // requests" is supposed to mean once there's a verified identity. Keyed by
@@ -61,4 +61,45 @@ const authLimiter = rateLimit({
   handler: auditedHandler('auth'),
 });
 
-module.exports = { chatLimiter, ordersLimiter, authLimiter };
+// Tighter than authLimiter above - a compromised admin account is worth
+// more to an attacker than one customer's order history, and this endpoint
+// accepts arbitrary Google ID tokens before any allowlist check runs.
+const adminLoginLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_ADMIN_LOGIN_WINDOW_MS) || 15 * 60_000,
+  max: Number(process.env.RATE_LIMIT_ADMIN_LOGIN_MAX) || 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later.' },
+  handler: auditedHandler('admin_login'),
+});
+
+// /api/products is the one public, no-auth mount (see app.js) - no
+// requireCustomerAuth runs ahead of it, so there's no customer identity to
+// key on the way chatLimiter/ordersLimiter do via keyByCustomer. Keyed by
+// IP alone instead (express-rate-limit's own default keyGenerator). Same
+// window/max shape as ordersLimiter, the closest analog: another
+// read-heavy, customer-facing route.
+const productsLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_PRODUCTS_WINDOW_MS) || 60_000,
+  max: Number(process.env.RATE_LIMIT_PRODUCTS_MAX) || 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again shortly.' },
+  handler: auditedHandler('products'),
+});
+
+// Customer-keyed like chatLimiter/ordersLimiter above (requireCustomerAuth
+// always runs first - see app.js) rather than IP-keyed like
+// productsLimiter, since this endpoint mutates usage_count and sits
+// behind real customer auth, unlike the public /api/products.
+const promoLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_PROMO_WINDOW_MS) || 60_000,
+  max: Number(process.env.RATE_LIMIT_PROMO_MAX) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByCustomer,
+  message: { error: 'Too many promo code attempts, please try again shortly.' },
+  handler: auditedHandler('promo'),
+});
+
+module.exports = { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter, productsLimiter, promoLimiter };
