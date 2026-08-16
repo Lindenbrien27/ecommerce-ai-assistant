@@ -381,3 +381,92 @@ it('logs out on a 401 from the refund submission', async () => {
     expect(loggedOut).toBe(true);
   });
 });
+
+it('caps the refund amount input at the order total, matching the server-side cap', async () => {
+  renderPage();
+  await screen.findByText('Sneakers');
+  // ORDER fixture: unit_price_cents 5000 + delivery_cost_cents 500 = 5500
+  expect(screen.getByLabelText(/refund amount/i)).toHaveAttribute('max', '55');
+});
+
+describe('a refunded order', () => {
+  const REFUNDED = {
+    ...ORDER,
+    status: 'returned',
+    refund_amount_cents: 2000,
+    restocked: true,
+    refunded_at: '2026-01-02T00:00:00Z',
+    refund_reason: 'Wrong size',
+  };
+
+  beforeEach(() => {
+    global.fetch = vi.fn((url, opts) => {
+      if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+      if (url === '/api/admin/orders/ORD-1001' && !opts) {
+        return Promise.resolve({ ok: true, json: async () => REFUNDED });
+      }
+      return Promise.resolve({ ok: false });
+    });
+  });
+
+  it('offers no way to change the status back', async () => {
+    renderPage();
+    await screen.findByText('Sneakers');
+
+    // Neither a (blank, because 'returned' has no matching <option>)
+    // dropdown nor a live Save button to PATCH the old status back with.
+    expect(screen.queryByLabelText(/change status/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/locked to .returned./i)).toBeInTheDocument();
+  });
+
+  it('still shows the order\'s real status as read-only text', async () => {
+    renderPage();
+    await screen.findByText('Sneakers');
+    expect(screen.getByText('returned')).toBeInTheDocument();
+  });
+
+  it('leaves no button that PATCHes the status', async () => {
+    renderPage();
+    await screen.findByText('Sneakers');
+
+    // The only Save left is the shipping one.
+    const saveButtons = screen.getAllByRole('button', { name: /save/i });
+    expect(saveButtons).toHaveLength(1);
+    fireEvent.click(saveButtons[0]);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/orders/ORD-1001/shipping',
+        expect.objectContaining({ method: 'PATCH' })
+      );
+    });
+    const statusPatch = global.fetch.mock.calls.find(([u]) => String(u).endsWith('/status'));
+    expect(statusPatch).toBeUndefined();
+  });
+});
+
+it('locks the status section immediately after a refund succeeds, without a reload', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/orders/ORD-1001' && !opts) {
+      return Promise.resolve({ ok: true, json: async () => ORDER });
+    }
+    if (url === '/api/admin/orders/ORD-1001/refund' && opts?.method === 'POST') {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ ...ORDER, status: 'returned', refund_amount_cents: 2000, restocked: true, refunded_at: '2026-01-02T00:00:00Z' }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Sneakers');
+  expect(screen.getByLabelText(/change status/i)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /process refund/i }));
+
+  await waitFor(() => {
+    expect(screen.queryByLabelText(/change status/i)).not.toBeInTheDocument();
+  });
+});

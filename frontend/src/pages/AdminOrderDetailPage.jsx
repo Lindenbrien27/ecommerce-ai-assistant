@@ -119,6 +119,11 @@ export function AdminOrderDetailPage() {
       }
       const updated = await res.json();
       setOrder(updated);
+      // Keep the status control in sync with what the refund just did. The
+      // status section renders read-only from here on (see below), but a
+      // stale 'delivered' left sitting in this state would be what a
+      // re-render of that section showed.
+      setSelectedStatus(updated.status);
     } catch (err) {
       setRefundError(err.message);
     } finally {
@@ -169,6 +174,7 @@ export function AdminOrderDetailPage() {
 
   const total = computeOrderTotal(order);
   const hasAddress = Boolean(order.address_line1);
+  const isRefunded = Boolean(order.refunded_at);
 
   return (
     <div className="admin-order-detail-page">
@@ -205,22 +211,43 @@ export function AdminOrderDetailPage() {
         </div>
       )}
 
+      {/* A refunded order is locked to 'returned' - the same order.refunded_at
+          switch the Refund section below already uses to flip between form and
+          read-only summary. Without this, the dropdown would still show the
+          pre-refund status with a live Save button, and clicking it would PATCH
+          the order back to e.g. 'delivered' while the refund fields and the
+          restocked stock stayed put, with no way back (a second refund is a
+          409). Rendered as plain text rather than a disabled <select>, because
+          'returned' isn't one of STATUS_OPTIONS - a controlled select set to it
+          renders blank, showing no status at all. */}
       <div className="admin-order-detail-status">
-        <label htmlFor="admin-order-status-select">Change status</label>
-        <select
-          id="admin-order-status-select"
-          value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <button type="button" onClick={saveStatus} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
-        </button>
+        {isRefunded ? (
+          <>
+            <div className="admin-order-detail-field">
+              <span>Status</span>
+              <span>{order.status}</span>
+            </div>
+            <p className="subtitle">Refunded orders are locked to &ldquo;returned&rdquo; and can&rsquo;t be re-staged.</p>
+          </>
+        ) : (
+          <>
+            <label htmlFor="admin-order-status-select">Change status</label>
+            <select
+              id="admin-order-status-select"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={saveStatus} disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </>
+        )}
       </div>
 
       {saved && <p className="admin-order-detail-saved">Status updated.</p>}
@@ -317,6 +344,11 @@ export function AdminOrderDetailPage() {
               id="admin-order-refund-amount"
               type="number"
               min="0.01"
+              // Parity with the server-side cap (refundOrder rejects
+              // anything over the order total) so an over-total amount is
+              // caught before the request goes out. Omitted entirely when
+              // the order has no pricing data to cap against.
+              {...(total != null ? { max: total / 100 } : {})}
               step="0.01"
               value={refundAmountInput}
               onChange={(e) => setRefundAmountInput(e.target.value)}
