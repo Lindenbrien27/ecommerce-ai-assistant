@@ -296,6 +296,10 @@ export function AdminOrderDetailPage() {
               <span>{formatCents(order.refund_amount_cents)}</span>
             </div>
             <div className="admin-order-detail-field">
+              <span>Refunded on</span>
+              <span>{dateFormatter.format(new Date(order.refunded_at))}</span>
+            </div>
+            <div className="admin-order-detail-field">
               <span>Restocked</span>
               <span>{order.restocked ? 'Yes' : 'No'}</span>
             </div>

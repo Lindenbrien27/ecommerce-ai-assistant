@@ -279,8 +279,6 @@ it('submits a refund with the entered amount and restock choice', async () => {
       return Promise.resolve({ ok: true, json: async () => ORDER });
     }
     if (url === '/api/admin/orders/ORD-1001/refund' && opts?.method === 'POST') {
-      const body = JSON.parse(opts.body);
-      expect(body).toMatchObject({ amount_cents: 5500, restock: true, reason: 'Wrong size' });
       return Promise.resolve({
         ok: true,
         json: async () => ({ ...ORDER, status: 'returned', refund_amount_cents: 5500, restocked: true, refunded_at: '2026-01-02T00:00:00Z', refund_reason: 'Wrong size' }),
@@ -295,10 +293,16 @@ it('submits a refund with the entered amount and restock choice', async () => {
   fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'Wrong size' } });
   fireEvent.click(screen.getByRole('button', { name: /process refund/i }));
 
+  let call;
   await waitFor(() => {
-    const call = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/orders/ORD-1001/refund' && o?.method === 'POST');
+    call = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/orders/ORD-1001/refund' && o?.method === 'POST');
     expect(call).toBeTruthy();
   });
+  // Assert outside the mock implementation: processRefund wraps its fetch
+  // call in try/catch, so an assertion thrown inside the mock itself would
+  // be swallowed as a caught error and never fail this test.
+  const body = JSON.parse(call[1].body);
+  expect(body).toMatchObject({ amount_cents: 5500, restock: true, reason: 'Wrong size' });
 });
 
 it('shows a read-only refund summary instead of the form when the order is already refunded', async () => {
@@ -324,6 +328,12 @@ it('shows a read-only refund summary instead of the form when the order is alrea
   expect(screen.getByText('$20.00')).toBeInTheDocument();
   expect(screen.getByText(/wrong size/i)).toBeInTheDocument();
   expect(screen.queryByLabelText(/refund amount/i)).not.toBeInTheDocument();
+
+  // Same formatting the page already uses elsewhere (e.g. the "Ordered" field).
+  const expectedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(
+    new Date('2026-01-02T00:00:00Z')
+  );
+  expect(screen.getByText(expectedDate)).toBeInTheDocument();
 });
 
 it('surfaces an error when the refund fails', async () => {
