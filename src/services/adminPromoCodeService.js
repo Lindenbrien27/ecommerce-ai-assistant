@@ -110,7 +110,7 @@ async function updatePromoCode(code, fields) {
     const { rows } = await pool.query(
       `UPDATE promo_codes SET
          discount_type = $1, discount_value = $2, usage_limit = $3, expires_at = $4, active = $5
-       WHERE code::text = $6
+       WHERE code = $6
        RETURNING *`,
       [merged.discount_type, merged.discount_value, merged.usage_limit, merged.expires_at, merged.active, code]
     );
