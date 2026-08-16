@@ -8864,3 +8864,51 @@ box that's now also the card's own edge. */
   background: var(--color-success-surface);
   color: var(--color-success-text);
 }
+
+.admin-promo-code-form-page {
+  padding: var(--space-4);
+  max-width: 480px;
+}
+
+.admin-promo-code-form-page form {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-promo-code-form-page label {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.admin-promo-code-form-page input,
+.admin-promo-code-form-page select {
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.admin-promo-code-active-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-direction: row !important;
+}
+
+.admin-promo-code-form-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.admin-promo-code-delete-btn {
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
