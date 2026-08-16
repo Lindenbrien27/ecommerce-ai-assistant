@@ -81,6 +81,21 @@ test('validateAndApplyPromoCode computes percentage discount and guards the usag
   assert.equal(query.mock.callCount(), 2);
 });
 
+test('validateAndApplyPromoCode succeeds for a code with a future expires_at (not yet expired)', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    if (/^SELECT/.test(sql.trim())) {
+      return {
+        rows: [{ code: 'SOON', discount_type: 'fixed', discount_value: 500, usage_limit: null, usage_count: 0, expires_at: futureDate(), active: true }],
+      };
+    }
+    return { rows: [{ code: 'SOON' }] };
+  });
+
+  const result = await promoCodeService.validateAndApplyPromoCode('SOON', 10000);
+  assert.equal(result.ok, true);
+  assert.equal(result.discount_cents, 500);
+});
+
 test('validateAndApplyPromoCode caps a fixed discount at the subtotal, never going negative', async (t) => {
   t.mock.method(pool, 'query', async (sql) => {
     if (/^SELECT/.test(sql.trim())) {

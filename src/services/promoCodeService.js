@@ -23,6 +23,8 @@ async function validateAndApplyPromoCode(rawCode, subtotalCents) {
   // documents for its own verify endpoint.
   if (!promo) return { ok: false, reason: 'not_found' };
   if (!promo.active) return { ok: false, reason: 'inactive' };
+  // <=, not < - a code whose expires_at is exactly "now" is already
+  // expired, not usable through its very last instant.
   if (promo.expires_at && new Date(promo.expires_at) <= new Date()) {
     return { ok: false, reason: 'expired' };
   }
@@ -47,6 +49,10 @@ async function validateAndApplyPromoCode(rawCode, subtotalCents) {
     return { ok: false, reason: 'usage_limit_reached' };
   }
 
+  // Reads discount_type/discount_value from the earlier SELECT snapshot,
+  // not updateResult.rows[0] - those columns are immutable between the two
+  // queries here, so either source works today, but only the SELECT one
+  // was already validated against (active/expiry/limit checks above).
   return {
     ok: true,
     code: promo.code,
