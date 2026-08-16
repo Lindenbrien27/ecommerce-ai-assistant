@@ -21,6 +21,7 @@ function renderNav(initialPath = '/admin') {
         <Routes>
           <Route element={<AdminNav />}>
             <Route path="/admin" element={<p>Orders page</p>} />
+            <Route path="/admin/dashboard" element={<p>Dashboard page</p>} />
             <Route path="/admin/customers" element={<p>Customers page</p>} />
             <Route path="/admin/orders/:orderNumber" element={<p>Order detail page</p>} />
           </Route>
@@ -30,18 +31,27 @@ function renderNav(initialPath = '/admin') {
   );
 }
 
-it('renders both nav links and the signed-in admin email', async () => {
+it('renders all nav links and the signed-in admin email', async () => {
   renderNav();
   expect(await screen.findByText('admin@example.com')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /orders/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /customers/i })).toBeInTheDocument();
 });
 
-it('marks the Orders link active on /admin, not the Customers link', async () => {
+it('marks the Orders link active on /admin, not the Dashboard or Customers link', async () => {
   renderNav('/admin');
   await screen.findByText('admin@example.com');
   expect(screen.getByRole('link', { name: /orders/i })).toHaveClass('active');
+  expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('active');
   expect(screen.getByRole('link', { name: /customers/i })).not.toHaveClass('active');
+});
+
+it('marks the Dashboard link active on /admin/dashboard', async () => {
+  renderNav('/admin/dashboard');
+  await screen.findByText('admin@example.com');
+  expect(screen.getByRole('link', { name: /dashboard/i })).toHaveClass('active');
+  expect(screen.getByRole('link', { name: /orders/i })).not.toHaveClass('active');
 });
 
 it('marks the Customers link active on /admin/customers, not the Orders link', async () => {

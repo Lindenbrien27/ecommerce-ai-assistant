@@ -8719,3 +8719,75 @@ box that's now also the card's own edge. */
 .admin-nav-content {
   padding: 0;
 }
+
+.admin-dashboard-page {
+  padding: var(--space-4);
+}
+
+.admin-dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.admin-dashboard-stat-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+
+.admin-dashboard-stat-label {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.admin-dashboard-stat-value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.admin-dashboard-top-products h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-base);
+}
+
+.admin-dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.admin-dashboard-table th,
+.admin-dashboard-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.admin-dashboard-table th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.admin-dashboard-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-dashboard-product-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-dashboard-empty-row {
+  text-align: center;
+  color: var(--color-text-muted);
+}

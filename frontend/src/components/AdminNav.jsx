@@ -15,6 +15,12 @@ export function AdminNav() {
   return (
     <div className="admin-nav-root">
       <nav className="admin-nav-bar" aria-label="Admin sections">
+        <NavLink
+          to="/admin/dashboard"
+          className={({ isActive }) => `admin-nav-link${isActive ? ' active' : ''}`}
+        >
+          Dashboard
+        </NavLink>
         <NavLink to="/admin" end className={`admin-nav-link${ordersActive ? ' active' : ''}`}>
           Orders
         </NavLink>
