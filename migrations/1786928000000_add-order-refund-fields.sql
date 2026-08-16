@@ -20,6 +20,9 @@ ALTER TABLE orders ADD CONSTRAINT orders_status_check
 
 -- Down Migration
 
+-- NOT reversible once any order has actually been refunded: re-adding the
+-- original 5-value CHECK below fails while any row still has status =
+-- 'returned', and dropping refunded_at/refund_* discards the record of it.
 ALTER TABLE orders DROP CONSTRAINT orders_status_check;
 ALTER TABLE orders ADD CONSTRAINT orders_status_check
   CHECK (status IN ('processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'));
