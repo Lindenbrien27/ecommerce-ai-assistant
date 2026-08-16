@@ -237,13 +237,16 @@ test('refundOrder rejects a non-positive amount', async (t) => {
 test('refundOrder restocks when the product name still matches a live row', async (t) => {
   const query = t.mock.method(pool, 'query', async (sql, params) => {
     if (/^SELECT \* FROM orders/.test(sql.trim())) return { rows: [EXISTING_ORDER] };
+    if (/AND refunded_at IS NULL/.test(sql)) {
+      assert.match(sql, /status = 'returned'/);
+      return { rows: [{ ...EXISTING_ORDER, status: 'returned', refund_amount_cents: 5500, restocked: false, refunded_at: '2026-01-02T00:00:00Z' }] };
+    }
     if (/^UPDATE products/.test(sql.trim())) {
       assert.match(sql, /stock_quantity = stock_quantity \+ 1/);
       assert.deepEqual(params, ['Sneakers']);
       return { rows: [{ slug: 'sneakers' }] };
     }
-    if (/^UPDATE orders/.test(sql.trim())) {
-      assert.match(sql, /status = 'returned'/);
+    if (/restocked = true/.test(sql)) {
       return { rows: [{ ...EXISTING_ORDER, status: 'returned', refund_amount_cents: 5500, restocked: true, refunded_at: '2026-01-02T00:00:00Z' }] };
     }
     return { rows: [] };
@@ -252,16 +255,16 @@ test('refundOrder restocks when the product name still matches a live row', asyn
   const updated = await adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: true, reason: 'Item damaged' });
   assert.equal(updated.status, 'returned');
   assert.equal(updated.restocked, true);
-  assert.equal(query.mock.callCount(), 3);
+  assert.equal(query.mock.callCount(), 4); // SELECT + guarded order UPDATE + products UPDATE + restocked flag UPDATE
 });
 
 test('refundOrder reports restocked:false without erroring when the product name matches nothing', async (t) => {
   t.mock.method(pool, 'query', async (sql) => {
     if (/^SELECT \* FROM orders/.test(sql.trim())) return { rows: [EXISTING_ORDER] };
-    if (/^UPDATE products/.test(sql.trim())) return { rows: [] }; // no matching product - renamed/deleted
-    if (/^UPDATE orders/.test(sql.trim())) {
+    if (/AND refunded_at IS NULL/.test(sql)) {
       return { rows: [{ ...EXISTING_ORDER, status: 'returned', refund_amount_cents: 5500, restocked: false, refunded_at: '2026-01-02T00:00:00Z' }] };
     }
+    if (/^UPDATE products/.test(sql.trim())) return { rows: [] }; // no matching product - renamed/deleted
     return { rows: [] };
   });
 
@@ -323,4 +326,48 @@ test('refundOrder throws ConflictError when the guarded UPDATE matches 0 rows (c
     adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: false, reason: null }),
     adminOrderService.ConflictError
   );
+});
+
+test('refundOrder does not attempt to restock if the guarded order UPDATE fails (concurrent refund)', async (t) => {
+  const query = t.mock.method(pool, 'query', async (sql) => {
+    if (/^SELECT \* FROM orders/.test(sql.trim())) return { rows: [EXISTING_ORDER] };
+    // The guarded order UPDATE matches 0 rows (concurrent refund detected)
+    if (/AND refunded_at IS NULL/.test(sql)) return { rows: [] };
+    // Should never reach the products UPDATE
+    assert.fail(`Unexpected query after guarded UPDATE failure: ${sql}`);
+  });
+
+  await assert.rejects(
+    adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: true, reason: null }),
+    adminOrderService.ConflictError
+  );
+
+  // Should only have called SELECT + guarded UPDATE (both failed), no products UPDATE
+  assert.equal(query.mock.callCount(), 2);
+});
+
+test('refundOrder issues the products UPDATE only after the guarded order UPDATE succeeds', async (t) => {
+  let orderUpdateSeen = false;
+  const query = t.mock.method(pool, 'query', async (sql) => {
+    if (/^SELECT \* FROM orders/.test(sql.trim())) return { rows: [EXISTING_ORDER] };
+    if (/AND refunded_at IS NULL/.test(sql)) {
+      orderUpdateSeen = true;
+      return { rows: [{ ...EXISTING_ORDER, status: 'returned', refund_amount_cents: 5500, restocked: false, refunded_at: '2026-01-02T00:00:00Z' }] };
+    }
+    // Products UPDATE should only run after order UPDATE succeeded
+    if (/^UPDATE products/.test(sql.trim())) {
+      assert.ok(orderUpdateSeen, 'products UPDATE must run after guarded order UPDATE');
+      return { rows: [{ slug: 'sneakers' }] };
+    }
+    // Update restocked flag after products update succeeds
+    if (/restocked = true/.test(sql)) {
+      return { rows: [{ ...EXISTING_ORDER, status: 'returned', refund_amount_cents: 5500, restocked: true, refunded_at: '2026-01-02T00:00:00Z' }] };
+    }
+    return { rows: [] };
+  });
+
+  const updated = await adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: true, reason: null });
+  assert.equal(updated.restocked, true);
+  // SELECT + guarded order UPDATE + products UPDATE + final restocked flag UPDATE
+  assert.equal(query.mock.callCount(), 4);
 });

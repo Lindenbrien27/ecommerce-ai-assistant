@@ -138,10 +138,29 @@ async function refundOrder(orderNumber, { amountCents, restock, reason }) {
     throw new ValidationError(`amount_cents must be a positive integer no greater than ${totalPaidCents}.`);
   }
 
+  // Update the order first with a guarded UPDATE - only proceed with restock
+  // if this request actually wins the concurrency race. This ensures two
+  // concurrent refund requests don't both increment stock.
+  const { rows: updatedRows } = await pool.query(
+    `UPDATE orders SET status = 'returned', refund_amount_cents = $1, refund_reason = $2, restocked = false, refunded_at = now()
+     WHERE order_number = $3 AND refunded_at IS NULL
+     RETURNING *`,
+    [amountCents, reason ?? null, orderNumber]
+  );
+  const updated = updatedRows[0];
+
+  // Guarded UPDATE detected a concurrent refund: the order existed per the
+  // initial SELECT, but refunded_at is no longer NULL. This means another
+  // request refunded it between our SELECT and UPDATE.
+  if (!updated) {
+    throw new ConflictError('This order has already been refunded.');
+  }
+
   // Products aren't linked to orders by a foreign key (see this plan's
-  // own Global Constraints) - matches by name, and simply reports false
-  // rather than erroring if nothing matches (the product may have been
-  // renamed or deleted since this order was placed).
+  // own Global Constraints) - only attempt restocking after we've confirmed
+  // this request won the race (guarded UPDATE succeeded). Matches by name,
+  // and simply reports false rather than erroring if nothing matches (the
+  // product may have been renamed or deleted since this order was placed).
   let restocked = false;
   if (restock) {
     const restockResult = await pool.query(
@@ -151,19 +170,15 @@ async function refundOrder(orderNumber, { amountCents, restock, reason }) {
     restocked = restockResult.rows.length > 0;
   }
 
-  const { rows: updatedRows } = await pool.query(
-    `UPDATE orders SET status = 'returned', refund_amount_cents = $1, refund_reason = $2, restocked = $3, refunded_at = now()
-     WHERE order_number = $4 AND refunded_at IS NULL
-     RETURNING *`,
-    [amountCents, reason ?? null, restocked, orderNumber]
-  );
-  const updated = updatedRows[0];
-
-  // Guarded UPDATE detected a concurrent refund: the order existed per the
-  // initial SELECT, but refunded_at is no longer NULL. This means another
-  // request refunded it between our SELECT and UPDATE.
-  if (!updated) {
-    throw new ConflictError('This order has already been refunded.');
+  // If restocking happened, update the order row to reflect that.
+  if (restocked) {
+    const { rows: restockedRows } = await pool.query(
+      'UPDATE orders SET restocked = true WHERE order_number = $1 RETURNING *',
+      [orderNumber]
+    );
+    if (restockedRows.length > 0) {
+      updated.restocked = true;
+    }
   }
 
   // Same cache-invalidation reasoning updateOrderStatus/updateOrderShipping
