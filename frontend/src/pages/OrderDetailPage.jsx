@@ -13,6 +13,7 @@ import {
   MailIcon,
   PrinterIcon,
   QuestionIcon,
+  UndoIcon,
   XIcon,
 } from '../components/icons.jsx';
 
@@ -109,11 +110,17 @@ const JOURNEY_STEPS = [{ key: 'placed', label: 'Order placed' }, ...STATUS_STEPS
 // estimated_delivery doubles as an honest stand-in for when that happened
 // (same convention OrdersPage's own historySubtitle already uses), so
 // calling it an *estimate* at that point would be less accurate, not more.
+// A returned order was necessarily delivered first (a refund is the only
+// thing that sets 'returned', and a cancelled order can't be refunded), so
+// it gets the same treatment 'delivered' does throughout this file: the
+// delivery already happened, so its date isn't an estimate any more.
+const DELIVERY_HAPPENED = ['delivered', 'returned'];
+
 function journeyDates(order) {
   return {
     placed: formatDate(order.created_at),
     delivered:
-      order.status === 'delivered'
+      DELIVERY_HAPPENED.includes(order.status)
         ? formatDate(order.estimated_delivery)
         : order.estimated_delivery
           ? `Est. ${formatDate(order.estimated_delivery)}`
@@ -121,8 +128,14 @@ function journeyDates(order) {
   };
 }
 
+// 'returned' is set only by the admin refund endpoint (see
+// adminOrderService.refundOrder), never by the status dropdown - but it's a
+// real, customer-visible status, so it needs a real badge here rather than
+// falling through to the unstyled lowercase fallback below. Same icon and
+// wording OrdersPage's own history list already uses for it.
 const STATUS_BADGE = {
   delivered: { label: 'Delivered', icon: CheckIcon, className: 'delivered' },
+  returned: { label: 'Returned', icon: UndoIcon, className: 'returned' },
   cancelled: { label: 'Cancelled', icon: XIcon, className: 'cancelled' },
 };
 
@@ -146,7 +159,18 @@ function OrderJourney({ order }) {
     return <p className="order-route-cancelled">This order was cancelled.</p>;
   }
 
-  const currentIndex = STATUS_STEPS.findIndex((step) => step.key === order.status);
+  // 'returned' isn't one of STATUS_STEPS, so findIndex would return -1 and
+  // render every step hollow - a fully-delivered-then-returned order
+  // looking as though processing hadn't even started. Unlike 'cancelled'
+  // (which gets the short-circuit above, because there's no record of which
+  // step it reached), a returned order is known to have run the whole
+  // sequence, so it pins to the last step with everything before it
+  // complete. The "Returned" badge at the top of the page is what says the
+  // journey didn't end there.
+  const currentIndex =
+    order.status === 'returned'
+      ? STATUS_STEPS.length - 1
+      : STATUS_STEPS.findIndex((step) => step.key === order.status);
   const dates = journeyDates(order);
 
   return (
@@ -178,7 +202,10 @@ function OrderJourney({ order }) {
 // only a clickable link when that carrier's own URL scheme is known (see
 // trackingUrl above) rather than a button that would lead nowhere.
 function NextStep({ order }) {
-  if (order.status === 'cancelled' || !order.tracking_number) return null;
+  // 'returned' joins 'cancelled' here: a live "track your package" widget is
+  // wrong for something the customer has already sent back, and the tracking
+  // number on the order is the outbound shipment's, not the return's.
+  if (order.status === 'cancelled' || order.status === 'returned' || !order.tracking_number) return null;
   const url = trackingUrl(order.carrier, order.tracking_number);
 
   return (
