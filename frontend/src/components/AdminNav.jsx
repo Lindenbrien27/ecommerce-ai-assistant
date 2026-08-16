@@ -4,6 +4,12 @@ import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 export function AdminNav() {
   const { email, logout } = useAdminAuth();
   const { pathname } = useLocation();
+  // NavLink's own isActive still contributes an "active" class even when
+  // className is a plain string (not a function) - it just concatenates.
+  // Without `end` here, that internal match is a startsWith("/admin"),
+  // which would also match /admin/customers. Keeping `end` pins NavLink's
+  // own match to exactly "/admin"; ordersActive below is what extends
+  // highlighting to /admin/orders/* detail pages on top of that.
   const ordersActive = pathname === '/admin' || pathname.startsWith('/admin/orders');
 
   return (

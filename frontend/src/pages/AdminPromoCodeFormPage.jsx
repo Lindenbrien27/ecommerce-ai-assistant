@@ -82,11 +82,14 @@ export function AdminPromoCodeFormPage() {
     if (!isEdit) body.code = form.code;
 
     try {
-      const res = await fetch(isEdit ? `/api/admin/promo-codes/${editCode}` : '/api/admin/promo-codes', {
-        method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(
+        isEdit ? `/api/admin/promo-codes/${encodeURIComponent(editCode)}` : '/api/admin/promo-codes',
+        {
+          method: isEdit ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      );
       if (res.status === 401) {
         logout();
         return;
@@ -108,7 +111,7 @@ export function AdminPromoCodeFormPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/promo-codes/${editCode}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/promo-codes/${encodeURIComponent(editCode)}`, { method: 'DELETE' });
       if (res.status === 401) {
         logout();
         return;
@@ -170,7 +173,7 @@ export function AdminPromoCodeFormPage() {
           onChange={(e) => updateField('usage_limit', e.target.value)}
         />
 
-        <label htmlFor="admin-promo-code-expires">Expires (optional)</label>
+        <label htmlFor="admin-promo-code-expires">Expires (optional, UTC midnight)</label>
         <input
           id="admin-promo-code-expires"
           type="date"

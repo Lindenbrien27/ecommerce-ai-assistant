@@ -27,7 +27,14 @@ async function validate(req, res) {
   try {
     const result = await promoCodeService.validateAndApplyPromoCode(code, subtotalCents);
     if (!result.ok) {
-      return res.status(FAILURE_STATUS[result.reason]).json({ error: FAILURE_MESSAGE[result.reason], reason: result.reason });
+      // inactive collapses into not_found in the *public* reason - both
+      // already map to the same status (404) and the same error string
+      // above, but leaving reason: 'inactive' distinguishable from
+      // 'not_found' would still let a client tell a disabled code apart
+      // from a nonexistent one, defeating the enumeration-resistance this
+      // is meant to provide (see promoCodeService.js's own comment).
+      const publicReason = result.reason === 'inactive' ? 'not_found' : result.reason;
+      return res.status(FAILURE_STATUS[result.reason]).json({ error: FAILURE_MESSAGE[result.reason], reason: publicReason });
     }
     res.json({
       code: result.code,

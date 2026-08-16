@@ -8923,7 +8923,7 @@ box that's now also the card's own edge. */
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-direction: row !important;
+  flex-direction: row;
 }
 
 .admin-promo-code-form-actions {

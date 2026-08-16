@@ -57,6 +57,13 @@ test('createPromoCode rejects an invalid expires_at when provided', async (t) =>
   );
 });
 
+test('createPromoCode rejects a code containing invalid characters', async (t) => {
+  await assert.rejects(
+    adminPromoCodeService.createPromoCode({ code: 'SAVE/20', discount_type: 'percentage', discount_value: 15 }),
+    adminPromoCodeService.ValidationError
+  );
+});
+
 test('createPromoCode uppercases and trims the code before inserting', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.equal(params[0], 'SPRING15');

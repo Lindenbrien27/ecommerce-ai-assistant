@@ -3,6 +3,14 @@ const { pool } = require('../config/db');
 const REQUIRED_FIELDS = ['code', 'discount_type', 'discount_value'];
 const DISCOUNT_TYPES = Object.freeze(['percentage', 'fixed']);
 
+// code is both the primary key and a literal path segment (PATCH/DELETE
+// /api/admin/promo-codes/:code) - uppercase alphanumeric with single
+// hyphens/underscores as separators, no leading/trailing/consecutive
+// separators. Anything else (a `/`, `%`, whitespace, ...) would create a
+// row that's permanently unreachable through that route. Same reasoning
+// adminProductService.js's own SLUG_PATTERN documents for `slug`.
+const CODE_PATTERN = /^[A-Z0-9]+(?:[_-][A-Z0-9]+)*$/;
+
 class ValidationError extends Error {}
 class ConflictError extends Error {
   constructor() {
@@ -59,6 +67,11 @@ async function getPromoCodes() {
 async function createPromoCode(fields) {
   validateFields(fields);
   const code = fields.code.trim().toUpperCase();
+  if (!CODE_PATTERN.test(code)) {
+    throw new ValidationError(
+      "code must be uppercase alphanumeric with single hyphens/underscores (e.g. 'SPRING15' or 'SAVE-20')"
+    );
+  }
   try {
     const { rows } = await pool.query(
       `INSERT INTO promo_codes (code, discount_type, discount_value, usage_limit, expires_at, active)

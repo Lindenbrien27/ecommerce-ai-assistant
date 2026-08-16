@@ -12,7 +12,7 @@ function auditedHandler(limiterName) {
   };
 }
 
-// requireCustomerAuth always runs before these two limiters (see app.js),
+// requireCustomerAuth always runs before these three limiters (see app.js),
 // so req.customerEmail is already known - keying on it instead of req.ip
 // means the budget is actually per-customer, which is what "too many
 // requests" is supposed to mean once there's a verified identity. Keyed by

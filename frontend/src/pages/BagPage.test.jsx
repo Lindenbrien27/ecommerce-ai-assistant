@@ -206,3 +206,39 @@ it('removing an applied promo code clears the discount and restores the input', 
   expect(screen.getByLabelText(/promo code/i)).toBeInTheDocument();
   expect(screen.queryByText(/^Promo \(/)).not.toBeInTheDocument();
 });
+
+it('recomputes the discount when the cart subtotal changes after a percentage code is applied', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (String(url).startsWith('/api/products')) {
+      return Promise.resolve({ ok: true, json: async () => ({ products: PRODUCTS }) });
+    }
+    if (url === '/api/promo-codes/validate' && opts?.method === 'POST') {
+      const body = JSON.parse(opts.body);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 'SPRING15', discount_type: 'percentage', discount_value: 15, discount_cents: Math.round(body.subtotal_cents * 0.15) }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Wireless Noise-Cancelling Headphones');
+
+  fireEvent.change(screen.getByLabelText(/promo code/i), { target: { value: 'SPRING15' } });
+  fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+  await screen.findByText('✓ SPRING15');
+
+  // All three seeded items (headphones 14999 + keyboard 8999 + cable 1999
+  // = 25997) are selected by default - 15% of 25997 rounds to 3900.
+  expect(screen.getByText('-$39.00')).toBeInTheDocument();
+
+  // Deselect headphones - subtotal shrinks to keyboard+cable = 10998, so
+  // the discount must shrink to 15% of THAT (1650), not stay frozen at
+  // the amount the server returned when the code was first applied.
+  fireEvent.click(screen.getByLabelText(/include wireless noise-cancelling headphones/i));
+
+  expect(await screen.findByText('-$16.50')).toBeInTheDocument();
+  expect(screen.queryByText('-$39.00')).not.toBeInTheDocument();
+});

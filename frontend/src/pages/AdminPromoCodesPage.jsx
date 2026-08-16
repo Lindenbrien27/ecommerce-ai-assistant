@@ -79,7 +79,7 @@ export function AdminPromoCodesPage() {
             {codes.map((code) => (
               <tr key={code.code}>
                 <td>
-                  <Link to={`/admin/promo-codes/${code.code}/edit`}>{code.code}</Link>
+                  <Link to={`/admin/promo-codes/${encodeURIComponent(code.code)}/edit`}>{code.code}</Link>
                 </td>
                 <td>{formatDiscount(code)}</td>
                 <td>{formatUsage(code)}</td>
