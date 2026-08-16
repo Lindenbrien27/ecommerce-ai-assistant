@@ -4024,6 +4024,11 @@ component gets a dedicated dark palette instead of the shared tokens). */
   color: var(--color-active-text);
 }
 
+.order-status-badge.returned {
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
+}
+
 /* The receipt's own summary card - status/placed date/order number/product
 on the left, total paid on the right. Same --color-bg-on-panel recipe as
 .order-card, not the flat un-cardded content this page used to be. */
@@ -8296,6 +8301,46 @@ box that's now also the card's own edge. */
 .admin-order-detail-downloads {
   display: flex;
   gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.admin-order-detail-refund {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-order-detail-refund h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-base);
+}
+
+.admin-order-detail-refund label {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.admin-order-detail-refund input,
+.admin-order-detail-refund textarea {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.admin-order-detail-restock-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-order-detail-refund button {
   margin-top: var(--space-3);
 }
 

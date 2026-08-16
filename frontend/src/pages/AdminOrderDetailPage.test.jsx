@@ -264,3 +264,110 @@ it('surfaces an error when the shipping update fails', async () => {
 
   expect(await screen.findByRole('alert')).toHaveTextContent(/carrier and trackingnumber are required/i);
 });
+
+it('shows the refund form pre-filled with the order total when not yet refunded', async () => {
+  renderPage();
+  await screen.findByText('Sneakers');
+  // ORDER fixture: unit_price_cents 5000 + delivery_cost_cents 500 = 5500
+  expect(screen.getByLabelText(/refund amount/i)).toHaveValue(55);
+});
+
+it('submits a refund with the entered amount and restock choice', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/orders/ORD-1001' && !opts) {
+      return Promise.resolve({ ok: true, json: async () => ORDER });
+    }
+    if (url === '/api/admin/orders/ORD-1001/refund' && opts?.method === 'POST') {
+      const body = JSON.parse(opts.body);
+      expect(body).toMatchObject({ amount_cents: 5500, restock: true, reason: 'Wrong size' });
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ ...ORDER, status: 'returned', refund_amount_cents: 5500, restocked: true, refunded_at: '2026-01-02T00:00:00Z', refund_reason: 'Wrong size' }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Sneakers');
+
+  fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'Wrong size' } });
+  fireEvent.click(screen.getByRole('button', { name: /process refund/i }));
+
+  await waitFor(() => {
+    const call = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/orders/ORD-1001/refund' && o?.method === 'POST');
+    expect(call).toBeTruthy();
+  });
+});
+
+it('shows a read-only refund summary instead of the form when the order is already refunded', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/orders/ORD-1001' && !opts) {
+      // A partial refund (2000, not the fixture's full 5500 total) so its
+      // rendered "$20.00" is textually distinct from the page's own
+      // "Total paid" field (which would also read "$55.00" for this same
+      // ORDER fixture) - getByText would otherwise match both and throw
+      // on multiple elements.
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ ...ORDER, status: 'returned', refund_amount_cents: 2000, restocked: true, refunded_at: '2026-01-02T00:00:00Z', refund_reason: 'Wrong size' }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Sneakers');
+
+  expect(screen.getByText('$20.00')).toBeInTheDocument();
+  expect(screen.getByText(/wrong size/i)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/refund amount/i)).not.toBeInTheDocument();
+});
+
+it('surfaces an error when the refund fails', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/orders/ORD-1001' && !opts) {
+      return Promise.resolve({ ok: true, json: async () => ORDER });
+    }
+    if (url === '/api/admin/orders/ORD-1001/refund' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: false, json: async () => ({ error: 'This order has already been refunded.' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Sneakers');
+  fireEvent.click(screen.getByRole('button', { name: /process refund/i }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(/already been refunded/i);
+});
+
+it('logs out on a 401 from the refund submission', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
+    if (url === '/api/admin/auth/logout' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: true });
+    }
+    if (url === '/api/admin/orders/ORD-1001' && !opts) {
+      return Promise.resolve({ ok: true, json: async () => ORDER });
+    }
+    if (url === '/api/admin/orders/ORD-1001/refund' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Sneakers');
+  fireEvent.click(screen.getByRole('button', { name: /process refund/i }));
+
+  await waitFor(() => {
+    const loggedOut = global.fetch.mock.calls.some(
+      ([url, opts]) => url === '/api/admin/auth/logout' && opts?.method === 'POST'
+    );
+    expect(loggedOut).toBe(true);
+  });
+});

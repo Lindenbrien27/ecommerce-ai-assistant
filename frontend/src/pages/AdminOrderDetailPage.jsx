@@ -23,6 +23,12 @@ export function AdminOrderDetailPage() {
   const [shippingEmailed, setShippingEmailed] = useState(false);
   const [shippingError, setShippingError] = useState(null);
 
+  const [refundAmountInput, setRefundAmountInput] = useState('');
+  const [refundRestock, setRefundRestock] = useState(true);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundSaving, setRefundSaving] = useState(false);
+  const [refundError, setRefundError] = useState(null);
+
   useEffect(() => {
     let cancelled = false;
     setError(null);
@@ -45,6 +51,14 @@ export function AdminOrderDetailPage() {
         setSelectedStatus(data.status);
         setCarrierInput(data.carrier || '');
         setTrackingInput(data.tracking_number || '');
+        // Pre-fill the refund amount with the order's real total (in
+        // dollars, since the input is a plain number field, not a cents
+        // field) - only meaningful pre-refund; already-refunded orders
+        // show a read-only summary instead of this form entirely.
+        if (!data.refunded_at) {
+          const total = computeOrderTotal(data);
+          if (total != null) setRefundAmountInput(String(total / 100));
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
@@ -79,6 +93,36 @@ export function AdminOrderDetailPage() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function processRefund() {
+    setRefundSaving(true);
+    setRefundError(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderNumber}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount_cents: Math.round(Number(refundAmountInput) * 100),
+          restock: refundRestock,
+          reason: refundReason || null,
+        }),
+      });
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Something went wrong processing that refund.');
+      }
+      const updated = await res.json();
+      setOrder(updated);
+    } catch (err) {
+      setRefundError(err.message);
+    } finally {
+      setRefundSaving(false);
     }
   }
 
@@ -239,6 +283,63 @@ export function AdminOrderDetailPage() {
           </div>
         ) : (
           <p className="subtitle">Downloads unavailable until this order has a shipping address.</p>
+        )}
+      </div>
+
+      <div className="admin-order-detail-refund">
+        <h2>Refund</h2>
+
+        {order.refunded_at ? (
+          <>
+            <div className="admin-order-detail-field">
+              <span>Refunded</span>
+              <span>{formatCents(order.refund_amount_cents)}</span>
+            </div>
+            <div className="admin-order-detail-field">
+              <span>Restocked</span>
+              <span>{order.restocked ? 'Yes' : 'No'}</span>
+            </div>
+            {order.refund_reason && (
+              <div className="admin-order-detail-field">
+                <span>Reason</span>
+                <span>{order.refund_reason}</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <label htmlFor="admin-order-refund-amount">Refund amount ($)</label>
+            <input
+              id="admin-order-refund-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={refundAmountInput}
+              onChange={(e) => setRefundAmountInput(e.target.value)}
+            />
+            <label className="admin-order-detail-restock-row">
+              <input
+                type="checkbox"
+                checked={refundRestock}
+                onChange={(e) => setRefundRestock(e.target.checked)}
+              />
+              Restore item to stock
+            </label>
+            <label htmlFor="admin-order-refund-reason">Reason (optional)</label>
+            <textarea
+              id="admin-order-refund-reason"
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+            />
+            <button type="button" onClick={processRefund} disabled={refundSaving}>
+              {refundSaving ? 'Processing...' : 'Process Refund'}
+            </button>
+            {refundError && (
+              <p className="verify-error" role="alert">
+                {refundError}
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>
