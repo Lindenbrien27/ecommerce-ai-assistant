@@ -12,6 +12,7 @@ const adminOrderRoutes = require('./routes/adminOrderRoutes');
 const adminCustomerRoutes = require('./routes/adminCustomerRoutes');
 const productRoutes = require('./routes/productRoutes');
 const adminProductRoutes = require('./routes/adminProductRoutes');
+const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
@@ -104,6 +105,7 @@ app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/orders', requireAdminAuth, adminOrderRoutes);
 app.use('/api/admin/customers', requireAdminAuth, adminCustomerRoutes);
 app.use('/api/admin/products', requireAdminAuth, adminProductRoutes);
+app.use('/api/admin/dashboard', requireAdminAuth, adminDashboardRoutes);
 // The one public, no-auth mount in this file - every other route above has
 // at least a rate limiter or an auth guard (usually both). productsLimiter
 // (IP-keyed - there's no customer identity on an unauthenticated route)
