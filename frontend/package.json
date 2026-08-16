@@ -16,7 +16,7 @@
     "ldrs": "^1.1.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.2",
     "sonner": "^2.0.8"
   },
   "devDependencies": {
