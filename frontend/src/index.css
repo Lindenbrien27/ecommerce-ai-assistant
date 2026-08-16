@@ -8791,3 +8791,76 @@ box that's now also the card's own edge. */
   text-align: center;
   color: var(--color-text-muted);
 }
+
+.admin-promo-codes-page {
+  padding: var(--space-4);
+}
+
+.admin-promo-codes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.admin-promo-codes-new-link {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-promo-codes-new-link:hover {
+  background: var(--color-surface-hover);
+}
+
+.admin-promo-codes-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.admin-promo-codes-table th,
+.admin-promo-codes-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.admin-promo-codes-table th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.admin-promo-codes-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-promo-codes-empty-row {
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.admin-promo-codes-status {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: var(--color-error-surface);
+  color: var(--color-error-text);
+}
+
+.admin-promo-codes-status.active {
+  background: var(--color-success-surface);
+  color: var(--color-success-text);
+}

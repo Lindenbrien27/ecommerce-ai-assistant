@@ -23,6 +23,7 @@ function renderNav(initialPath = '/admin') {
             <Route path="/admin" element={<p>Orders page</p>} />
             <Route path="/admin/dashboard" element={<p>Dashboard page</p>} />
             <Route path="/admin/customers" element={<p>Customers page</p>} />
+            <Route path="/admin/promo-codes" element={<p>Promo codes page</p>} />
             <Route path="/admin/orders/:orderNumber" element={<p>Order detail page</p>} />
           </Route>
         </Routes>
@@ -37,14 +38,16 @@ it('renders all nav links and the signed-in admin email', async () => {
   expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /orders/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /customers/i })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /promo codes/i })).toBeInTheDocument();
 });
 
-it('marks the Orders link active on /admin, not the Dashboard or Customers link', async () => {
+it('marks the Orders link active on /admin, not any other tab', async () => {
   renderNav('/admin');
   await screen.findByText('admin@example.com');
   expect(screen.getByRole('link', { name: /orders/i })).toHaveClass('active');
   expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('active');
   expect(screen.getByRole('link', { name: /customers/i })).not.toHaveClass('active');
+  expect(screen.getByRole('link', { name: /promo codes/i })).not.toHaveClass('active');
 });
 
 it('marks the Dashboard link active on /admin/dashboard', async () => {
@@ -58,6 +61,13 @@ it('marks the Customers link active on /admin/customers, not the Orders link', a
   renderNav('/admin/customers');
   await screen.findByText('admin@example.com');
   expect(screen.getByRole('link', { name: /customers/i })).toHaveClass('active');
+  expect(screen.getByRole('link', { name: /orders/i })).not.toHaveClass('active');
+});
+
+it('marks the Promo Codes link active on /admin/promo-codes', async () => {
+  renderNav('/admin/promo-codes');
+  await screen.findByText('admin@example.com');
+  expect(screen.getByRole('link', { name: /promo codes/i })).toHaveClass('active');
   expect(screen.getByRole('link', { name: /orders/i })).not.toHaveClass('active');
 });
 
