@@ -7505,6 +7505,34 @@ row, just $0.00 in the total" requirement. */
   color: var(--color-text);
 }
 
+.cart-promo-entry {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-2) 0;
+}
+
+.cart-promo-entry input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.cart-promo-applied-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cart-promo-error {
+  color: var(--color-error-text);
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-2);
+}
+
 /* Negative horizontal margins matching .cart-summary's own padding - a
 plain <hr> inside a padded card only ever spans the padded content box,
 inset from the card's actual edge by --space-3 on each side. Pulling it

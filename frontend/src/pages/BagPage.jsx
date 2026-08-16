@@ -13,6 +13,7 @@ import {
   UndoIcon,
   XIcon,
 } from '../components/icons.jsx';
+import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useProducts } from '../context/ProductsContext.jsx';
 import { formatCents } from '../utils/pricing.js';
@@ -82,6 +83,7 @@ export function BagPage() {
   // silently resets to the same 3 seed items every time this page
   // remounts.
   const { items, setItems } = useCart();
+  const authorizedFetch = useAuthorizedFetch();
   const { products, error, findProduct } = useProducts();
   const selectAllRef = useRef(null);
 
@@ -90,6 +92,10 @@ export function BagPage() {
   // for ROW_EXIT_MS before removeItem actually drops it from context -
   // removing it from state immediately would cut the animation off on
   // its very first frame.
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
   const [confirmProductId, setConfirmProductId] = useState(null);
   const [leavingProductId, setLeavingProductId] = useState(null);
   const [holding, setHolding] = useState(false);
@@ -182,6 +188,37 @@ export function BagPage() {
     );
   }
 
+  async function handleApplyPromo() {
+    setPromoLoading(true);
+    setPromoError(null);
+    try {
+      const res = await authorizedFetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode, subtotal_cents: subtotalCents }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || 'Something went wrong applying that promo code.');
+      }
+      setAppliedPromo({ code: body.code, discount_type: body.discount_type, discount_value: body.discount_value });
+      setPromoCode('');
+    } catch (err) {
+      setPromoError(err.message);
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
+  function handleRemovePromo() {
+    // No backend call - there's nothing to undo server-side. usage_count
+    // was already incremented by the successful validate call (see
+    // promoCodeService.js's own comment on why that's this app's one
+    // real "use" event).
+    setAppliedPromo(null);
+    setPromoError(null);
+  }
+
   function startHold() {
     if (!confirmProductId || holding) return;
     setHolding(true);
@@ -235,7 +272,16 @@ export function BagPage() {
   const deliverySelected = selectedItems.filter((it) => it.fulfillment === 'delivery');
   const pickupSelected = selectedItems.filter((it) => it.fulfillment === 'pickup');
   const deliveryCents = deliverySelected.reduce((sum, it) => sum + it.surchargeCents, 0);
-  const discountCents = Math.round(subtotalCents * 0.15);
+  // Derived from the CURRENTLY applied code's type/value and the CURRENT
+  // subtotal every render - never frozen at whatever discount_cents the
+  // server returned at apply-time, so removing an item after applying a
+  // percentage code correctly shrinks the discount instead of leaving it
+  // stale.
+  const discountCents = !appliedPromo
+    ? 0
+    : appliedPromo.discount_type === 'percentage'
+      ? Math.round((subtotalCents * appliedPromo.discount_value) / 100)
+      : Math.min(appliedPromo.discount_value, subtotalCents);
   const taxCents = Math.round((subtotalCents - discountCents + deliveryCents) * 0.07);
   const totalCents = subtotalCents - discountCents + deliveryCents + taxCents;
 
@@ -396,18 +442,52 @@ export function BagPage() {
             <span>Pickup{pickupSelected.length > 0 ? ` ${pickupSelected.length} item${pickupSelected.length > 1 ? 's' : ''}` : ''}</span>
             <span>Free</span>
           </div>
-          <div className="cart-summary-row discount">
-            <span>Promo (15%)</span>
-            <span>-{formatCents(discountCents)}</span>
-          </div>
+          {appliedPromo && (
+            <div className="cart-summary-row discount">
+              <span>Promo {appliedPromo.discount_type === 'percentage' ? `(${appliedPromo.discount_value}%)` : ''}</span>
+              <span>-{formatCents(discountCents)}</span>
+            </div>
+          )}
           <div className="cart-summary-row">
             <span>Tax 7%</span>
             <span>{formatCents(taxCents)}</span>
           </div>
-          <div className="cart-summary-row">
-            <span>Promo code</span>
-            <span className="cart-promo-pill">&#10003; HAPPY2026</span>
+
+          <div className="cart-promo-entry">
+            {appliedPromo ? (
+              <div className="cart-promo-applied-row">
+                <span className="cart-promo-pill">&#10003; {appliedPromo.code}</span>
+                <button type="button" onClick={handleRemovePromo} aria-label="Remove promo code">
+                  &times;
+                </button>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="cart-promo-input" className="sr-only">
+                  Promo code
+                </label>
+                <input
+                  id="cart-promo-input"
+                  type="text"
+                  placeholder="Promo code"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={!promoCode.trim() || promoLoading}
+                >
+                  {promoLoading ? 'Applying…' : 'Apply'}
+                </button>
+              </>
+            )}
           </div>
+          {promoError && (
+            <p className="cart-promo-error" role="alert">
+              {promoError}
+            </p>
+          )}
           <hr className="cart-divider" />
           <div className="cart-summary-final">
             <span>Total</span>

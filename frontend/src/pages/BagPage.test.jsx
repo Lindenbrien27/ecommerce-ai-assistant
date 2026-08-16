@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { AuthProvider } from '../context/AuthContext.jsx';
 import { CartProvider } from '../context/CartContext.jsx';
 import { ProductsProvider } from '../context/ProductsContext.jsx';
 import { BagPage } from './BagPage.jsx';
+
+const TOKEN_STORAGE_KEY = 'orderAssistantToken';
 
 const PRODUCTS = [
   { slug: 'headphones', name: 'Wireless Noise-Cancelling Headphones', description: 'Over-ear comfort.', price_cents: 14999, icon: 'headphones', colorways: [] },
@@ -13,18 +16,30 @@ const PRODUCTS = [
 
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <ProductsProvider>
-        <CartProvider>
-          <BagPage />
-        </CartProvider>
-      </ProductsProvider>
-    </MemoryRouter>
+    <AuthProvider>
+      <MemoryRouter>
+        <ProductsProvider>
+          <CartProvider>
+            <BagPage />
+          </CartProvider>
+        </ProductsProvider>
+      </MemoryRouter>
+    </AuthProvider>
   );
 }
 
 beforeEach(() => {
-  global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ products: PRODUCTS }) }));
+  // useAuthorizedFetch (used by the new promo-code Apply flow, Step 3
+  // below) reads its token from AuthContext, which reads it from
+  // sessionStorage at mount - same setup useAuthorizedFetch.test.jsx
+  // already uses for testing any component that calls this hook.
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, 'the-token');
+  global.fetch = vi.fn((url) => {
+    if (String(url).startsWith('/api/products')) {
+      return Promise.resolve({ ok: true, json: async () => ({ products: PRODUCTS }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
 });
 
 it('renders cart items using real product data looked up by slug', async () => {
@@ -112,4 +127,82 @@ it('shows the empty-bag state when every cart item\'s product has been deleted f
   // The select-all row only renders when there's at least one resolvable
   // item - none here, so it must not render at all.
   expect(screen.queryByLabelText(/select all/i)).not.toBeInTheDocument();
+});
+
+it('applies a valid promo code and shows the real discount', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (String(url).startsWith('/api/products')) {
+      return Promise.resolve({ ok: true, json: async () => ({ products: PRODUCTS }) });
+    }
+    if (url === '/api/promo-codes/validate' && opts?.method === 'POST') {
+      expect(opts.headers.Authorization).toBe('Bearer the-token');
+      const body = JSON.parse(opts.body);
+      expect(body.code).toBe('SPRING15');
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 'SPRING15', discount_type: 'percentage', discount_value: 15, discount_cents: Math.round(body.subtotal_cents * 0.15) }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Wireless Noise-Cancelling Headphones');
+
+  fireEvent.change(screen.getByLabelText(/promo code/i), { target: { value: 'SPRING15' } });
+  fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+
+  expect(await screen.findByText('✓ SPRING15')).toBeInTheDocument();
+  expect(screen.getByText('Promo (15%)')).toBeInTheDocument();
+});
+
+it('shows the server-provided reason when a promo code fails to apply', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (String(url).startsWith('/api/products')) {
+      return Promise.resolve({ ok: true, json: async () => ({ products: PRODUCTS }) });
+    }
+    if (url === '/api/promo-codes/validate' && opts?.method === 'POST') {
+      return Promise.resolve({ ok: false, status: 400, json: async () => ({ error: 'That promo code has expired.', reason: 'expired' }) });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Wireless Noise-Cancelling Headphones');
+
+  fireEvent.change(screen.getByLabelText(/promo code/i), { target: { value: 'OLD10' } });
+  fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(/expired/i);
+});
+
+it('removing an applied promo code clears the discount and restores the input', async () => {
+  global.fetch = vi.fn((url, opts) => {
+    if (String(url).startsWith('/api/products')) {
+      return Promise.resolve({ ok: true, json: async () => ({ products: PRODUCTS }) });
+    }
+    if (url === '/api/promo-codes/validate' && opts?.method === 'POST') {
+      const body = JSON.parse(opts.body);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 'SPRING15', discount_type: 'percentage', discount_value: 15, discount_cents: Math.round(body.subtotal_cents * 0.15) }),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+
+  renderPage();
+  await screen.findByText('Wireless Noise-Cancelling Headphones');
+
+  fireEvent.change(screen.getByLabelText(/promo code/i), { target: { value: 'SPRING15' } });
+  fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+  await screen.findByText('✓ SPRING15');
+
+  fireEvent.click(screen.getByRole('button', { name: /remove promo code/i }));
+
+  expect(screen.queryByText('✓ SPRING15')).not.toBeInTheDocument();
+  expect(screen.getByLabelText(/promo code/i)).toBeInTheDocument();
+  expect(screen.queryByText(/^Promo \(/)).not.toBeInTheDocument();
 });
