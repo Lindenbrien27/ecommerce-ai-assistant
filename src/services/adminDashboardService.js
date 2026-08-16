@@ -25,6 +25,9 @@ async function getDashboardStats() {
   // stable per product_name in this app's data - a mechanical way to
   // carry a single-valued column through GROUP BY without adding it to
   // the grouping key.
+  // COUNT(*) doubles as units_sold because orders has no quantity column -
+  // one row is one unit today. If a quantity column is ever added, this
+  // needs to become SUM(quantity) instead.
   const topProductsResult = await pool.query(
     `SELECT product_name,
             MAX(product_icon) AS product_icon,
