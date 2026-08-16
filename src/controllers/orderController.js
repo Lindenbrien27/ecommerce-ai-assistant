@@ -33,7 +33,9 @@ async function getOrder(req, res) {
     // load; this just saves a full round trip for quick back/forward
     // navigation within the same short window.
     res.setHeader('Cache-Control', 'private, max-age=30');
-    res.json(order);
+    // Internal admin fields (refund_reason) stripped here, not in the
+    // service - the admin paths read the same rows and do need them.
+    res.json(orderService.toCustomerOrder(order));
   } catch (err) {
     logError('Order lookup error', err);
     res.status(500).json({ error: 'Something went wrong looking up that order.' });
@@ -58,7 +60,7 @@ async function listMyOrders(req, res) {
       cursor: req.query.cursor,
     });
     res.setHeader('Cache-Control', 'private, max-age=30');
-    res.json({ orders, nextCursor });
+    res.json({ orders: orders.map(orderService.toCustomerOrder), nextCursor });
   } catch (err) {
     if (err instanceof orderService.InvalidCursorError) {
       return res.status(400).json({ error: 'Invalid cursor.' });

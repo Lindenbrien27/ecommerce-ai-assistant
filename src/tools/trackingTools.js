@@ -39,9 +39,15 @@ const definitions = [
   },
 ];
 
+// Whatever these tools return goes straight into the model's context and,
+// from there, into what the assistant will happily tell the customer - so
+// the same internal-field stripping the REST controller does applies here
+// too (see orderService.toCustomerOrder).
 function ownedBy(order, customerEmail) {
   if (!order) return null;
-  return order.customer_email.toLowerCase() === customerEmail.toLowerCase() ? order : null;
+  return order.customer_email.toLowerCase() === customerEmail.toLowerCase()
+    ? orderService.toCustomerOrder(order)
+    : null;
 }
 
 // Every implementation is scoped to the authenticated customer via
@@ -57,7 +63,7 @@ const implementations = {
     const { orders } = await orderService.getOrdersByEmail(customerEmail, {
       limit: MAX_ORDERS_FOR_CHAT,
     });
-    return orders;
+    return orders.map(orderService.toCustomerOrder);
   },
   get_order_by_tracking_number: async ({ trackingNumber }, { customerEmail }) => {
     const order = await orderService.getOrderByTrackingNumber(trackingNumber);
