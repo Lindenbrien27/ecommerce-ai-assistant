@@ -15,6 +15,9 @@ const ORDER_STATUSES = Object.freeze([
   'cancelled',
 ]);
 
+class ValidationError extends Error {}
+class ConflictError extends Error {}
+
 async function getAdminOrders({ status = null, q = null, page = 1, pageSize = DEFAULT_PAGE_SIZE } = {}) {
   if (status !== null && !ORDER_STATUSES.includes(status)) {
     throw new Error(`Invalid status: ${status}`);
@@ -113,9 +116,68 @@ async function updateOrderShipping(orderNumber, { carrier, trackingNumber }) {
   return order;
 }
 
+// Refund amount and stock restoration are independent, admin-controlled
+// inputs (see this plan's own Global Constraints) - a partial refund
+// doesn't imply the item came back, and restocking never happens without
+// the admin explicitly asking for it. 'returned' is set directly here,
+// not through updateOrderStatus/ORDER_STATUSES - that allowlist
+// deliberately excludes it, so this is the only path that can set it.
+async function refundOrder(orderNumber, { amountCents, restock, reason }) {
+  const { rows } = await pool.query('SELECT * FROM orders WHERE order_number = $1', [orderNumber]);
+  const order = rows[0];
+  if (!order) return null;
+
+  if (order.refunded_at) {
+    throw new ConflictError('This order has already been refunded.');
+  }
+
+  const totalPaidCents =
+    (order.unit_price_cents || 0) + (order.delivery_cost_cents || 0) + (order.vat_cents || 0) - (order.voucher_cents || 0);
+
+  if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > totalPaidCents) {
+    throw new ValidationError(`amount_cents must be a positive integer no greater than ${totalPaidCents}.`);
+  }
+
+  // Products aren't linked to orders by a foreign key (see this plan's
+  // own Global Constraints) - matches by name, and simply reports false
+  // rather than erroring if nothing matches (the product may have been
+  // renamed or deleted since this order was placed).
+  let restocked = false;
+  if (restock) {
+    const restockResult = await pool.query(
+      'UPDATE products SET stock_quantity = stock_quantity + 1 WHERE name = $1 RETURNING slug',
+      [order.product_name]
+    );
+    restocked = restockResult.rows.length > 0;
+  }
+
+  const { rows: updatedRows } = await pool.query(
+    `UPDATE orders SET status = 'returned', refund_amount_cents = $1, refund_reason = $2, restocked = $3, refunded_at = now()
+     WHERE order_number = $4
+     RETURNING *`,
+    [amountCents, reason ?? null, restocked, orderNumber]
+  );
+  const updated = updatedRows[0];
+
+  // Same cache-invalidation reasoning updateOrderStatus/updateOrderShipping
+  // already document - this write changes status too, so it needs the
+  // identical treatment.
+  orderCache.delete(`order:${orderNumber}`);
+  for (const key of orderCache.keys()) {
+    if (key.startsWith(`list:${updated.customer_email}:`)) {
+      orderCache.delete(key);
+    }
+  }
+
+  return updated;
+}
+
 module.exports = {
   ORDER_STATUSES,
+  ValidationError,
+  ConflictError,
   getAdminOrders,
   updateOrderStatus,
   updateOrderShipping,
+  refundOrder,
 };

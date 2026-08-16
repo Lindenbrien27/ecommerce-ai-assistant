@@ -6,6 +6,7 @@ const {
   getInvoicePdf,
   getPackingSlipPdf,
   updateShipping,
+  refundOrder,
 } = require('../controllers/adminOrderController');
 
 const router = Router();
@@ -16,5 +17,6 @@ router.patch('/:orderNumber/status', updateStatus);
 router.get('/:orderNumber/invoice.pdf', getInvoicePdf);
 router.get('/:orderNumber/packing-slip.pdf', getPackingSlipPdf);
 router.patch('/:orderNumber/shipping', updateShipping);
+router.post('/:orderNumber/refund', refundOrder);
 
 module.exports = router;

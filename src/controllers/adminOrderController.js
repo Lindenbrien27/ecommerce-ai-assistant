@@ -155,4 +155,34 @@ async function updateShipping(req, res) {
   }
 }
 
-module.exports = { listOrders, getOrder, updateStatus, getInvoicePdf, getPackingSlipPdf, updateShipping };
+async function refundOrder(req, res) {
+  const { amount_cents: amountCents, restock, reason } = req.body;
+  try {
+    const updated = await adminOrderService.refundOrder(req.params.orderNumber, {
+      amountCents,
+      restock: Boolean(restock),
+      reason: reason || null,
+    });
+    if (!updated) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    auditLog('admin.order.refunded', {
+      orderNumber: req.params.orderNumber,
+      amountCents,
+      restock: Boolean(restock),
+      admin: req.adminEmail,
+    });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof adminOrderService.ValidationError) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err instanceof adminOrderService.ConflictError) {
+      return res.status(409).json({ error: err.message });
+    }
+    logError('Admin order refund error', err);
+    res.status(500).json({ error: 'Something went wrong processing that refund.' });
+  }
+}
+
+module.exports = { listOrders, getOrder, updateStatus, getInvoicePdf, getPackingSlipPdf, updateShipping, refundOrder };

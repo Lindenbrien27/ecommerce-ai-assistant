@@ -157,3 +157,81 @@ test('PATCH /api/admin/orders/:orderNumber/status returns 404 for an unknown ord
     assert.equal(res.status, 404);
   });
 });
+
+test('POST /api/admin/orders/:orderNumber/refund requires admin auth', async (t) => {
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders/ORD-1001/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount_cents: 1000, restock: false }),
+    });
+    assert.equal(res.status, 401);
+  });
+});
+
+test('POST /api/admin/orders/:orderNumber/refund returns 404 for an unknown order', async (t) => {
+  t.mock.method(pool, 'query', async () => ({ rows: [] }));
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders/NOPE/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
+      body: JSON.stringify({ amount_cents: 1000, restock: false }),
+    });
+    assert.equal(res.status, 404);
+  });
+});
+
+test('POST /api/admin/orders/:orderNumber/refund returns 409 for an already-refunded order', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', unit_price_cents: 5000, delivery_cost_cents: 0, vat_cents: 0, voucher_cents: 0, refunded_at: '2026-01-01T00:00:00Z' }],
+  }));
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders/ORD-1001/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
+      body: JSON.stringify({ amount_cents: 1000, restock: false }),
+    });
+    assert.equal(res.status, 409);
+  });
+});
+
+test('POST /api/admin/orders/:orderNumber/refund returns 400 for an amount over the order total', async (t) => {
+  t.mock.method(pool, 'query', async () => ({
+    rows: [{ order_number: 'ORD-1001', unit_price_cents: 5000, delivery_cost_cents: 0, vat_cents: 0, voucher_cents: 0, refunded_at: null }],
+  }));
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders/ORD-1001/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
+      body: JSON.stringify({ amount_cents: 999999, restock: false }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('POST /api/admin/orders/:orderNumber/refund succeeds with a full round-trip response', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    if (/^SELECT \* FROM orders/.test(sql.trim())) {
+      return { rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', unit_price_cents: 5000, delivery_cost_cents: 0, vat_cents: 0, voucher_cents: 0, refunded_at: null }] };
+    }
+    if (/^UPDATE orders/.test(sql.trim())) {
+      return { rows: [{ order_number: 'ORD-1001', status: 'returned', refund_amount_cents: 5000, restocked: false, refunded_at: '2026-01-02T00:00:00Z' }] };
+    }
+    return { rows: [] };
+  });
+
+  await withServer(t, async (base) => {
+    const res = await fetch(`${base}/api/admin/orders/ORD-1001/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
+      body: JSON.stringify({ amount_cents: 5000, restock: false, reason: 'Wrong size' }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.status, 'returned');
+    assert.equal(body.refund_amount_cents, 5000);
+  });
+});
