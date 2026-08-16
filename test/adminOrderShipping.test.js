@@ -6,12 +6,12 @@ const { orderCache } = require('../src/config/cache');
 const { issueAdminToken } = require('../src/services/adminAuthService');
 const app = require('../src/app');
 
-// Same four vars emailService.test.js snapshots/restores around its own
+// Same two vars emailService.test.js snapshots/restores around its own
 // "configured" test - needed here too so the no-op-re-save test can force
-// isConfigured() to true without leaking SMTP_* into any other test in
+// isConfigured() to true without leaking RESEND_* into any other test in
 // this file (every other test here relies on it staying unset so
 // sendShippingUpdateEmail short-circuits to false).
-const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'];
+const RESEND_KEYS = ['RESEND_API_KEY', 'EMAIL_FROM'];
 
 test.beforeEach(() => orderCache.clear());
 
@@ -155,23 +155,20 @@ test('PATCH /api/admin/orders/:orderNumber/shipping returns 404 for an unknown o
 });
 
 test('PATCH /api/admin/orders/:orderNumber/shipping only re-emails the customer on an actual carrier/tracking change, not a no-op re-save', async (t) => {
-  const saved = Object.fromEntries(SMTP_KEYS.map((k) => [k, process.env[k]]));
-  SMTP_KEYS.forEach((k) => delete process.env[k]);
-  process.env.SMTP_HOST = 'smtp.example.com';
-  process.env.SMTP_PORT = '587';
-  process.env.SMTP_USER = 'user';
-  process.env.SMTP_PASS = 'pass';
+  const saved = Object.fromEntries(RESEND_KEYS.map((k) => [k, process.env[k]]));
+  RESEND_KEYS.forEach((k) => delete process.env[k]);
+  process.env.RESEND_API_KEY = 're_test_key';
   process.env.EMAIL_FROM = 'noreply@example.com';
   t.after(() => {
-    SMTP_KEYS.forEach((k) => {
+    RESEND_KEYS.forEach((k) => {
       if (saved[k] === undefined) delete process.env[k];
       else process.env[k] = saved[k];
     });
   });
 
-  const sendMail = t.mock.fn(async () => {});
-  const nodemailer = require('nodemailer');
-  t.mock.method(nodemailer, 'createTransport', () => ({ sendMail }));
+  const { Resend } = require('resend');
+  const Emails = new Resend('x').emails.constructor;
+  const sendMail = t.mock.method(Emails.prototype, 'send', async () => ({ data: { id: 'email_123' }, error: null }));
 
   // Mutable "row" that the mocked pool.query reads/writes, so both the
   // PATCH handler's "previous" lookup and its UPDATE ... RETURNING see a
