@@ -153,11 +153,18 @@ async function refundOrder(orderNumber, { amountCents, restock, reason }) {
 
   const { rows: updatedRows } = await pool.query(
     `UPDATE orders SET status = 'returned', refund_amount_cents = $1, refund_reason = $2, restocked = $3, refunded_at = now()
-     WHERE order_number = $4
+     WHERE order_number = $4 AND refunded_at IS NULL
      RETURNING *`,
     [amountCents, reason ?? null, restocked, orderNumber]
   );
   const updated = updatedRows[0];
+
+  // Guarded UPDATE detected a concurrent refund: the order existed per the
+  // initial SELECT, but refunded_at is no longer NULL. This means another
+  // request refunded it between our SELECT and UPDATE.
+  if (!updated) {
+    throw new ConflictError('This order has already been refunded.');
+  }
 
   // Same cache-invalidation reasoning updateOrderStatus/updateOrderShipping
   // already document - this write changes status too, so it needs the

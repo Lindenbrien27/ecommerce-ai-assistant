@@ -296,3 +296,31 @@ test('refundOrder invalidates the order cache and that customer\'s cached order-
   assert.equal(orderCache.has('list:jane@example.com:20:'), false);
   assert.equal(orderCache.has('list:someone.else@example.com:20:'), true);
 });
+
+test('refundOrder guards the UPDATE with refunded_at IS NULL to prevent concurrent refunds', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    if (/^SELECT \* FROM orders/.test(sql.trim())) return { rows: [EXISTING_ORDER] };
+    // Verify the UPDATE includes the guard
+    assert.match(sql, /AND refunded_at IS NULL/);
+    return { rows: [{ ...EXISTING_ORDER, status: 'returned', refund_amount_cents: 5500, restocked: false, refunded_at: '2026-01-02T00:00:00Z' }] };
+  });
+
+  const updated = await adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: false, reason: null });
+  assert.equal(updated.status, 'returned');
+});
+
+test('refundOrder throws ConflictError when the guarded UPDATE matches 0 rows (concurrent refund)', async (t) => {
+  t.mock.method(pool, 'query', async (sql) => {
+    if (/^SELECT \* FROM orders/.test(sql.trim())) return { rows: [EXISTING_ORDER] };
+    // Guarded UPDATE found no matching rows: the order existed per SELECT,
+    // but refunded_at is no longer NULL (concurrent refund happened between
+    // SELECT and UPDATE).
+    if (/AND refunded_at IS NULL/.test(sql)) return { rows: [] };
+    return { rows: [] };
+  });
+
+  await assert.rejects(
+    adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: false, reason: null }),
+    adminOrderService.ConflictError
+  );
+});
