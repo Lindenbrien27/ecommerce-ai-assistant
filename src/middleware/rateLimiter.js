@@ -88,4 +88,18 @@ const productsLimiter = rateLimit({
   handler: auditedHandler('products'),
 });
 
-module.exports = { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter, productsLimiter };
+// Customer-keyed like chatLimiter/ordersLimiter above (requireCustomerAuth
+// always runs first - see app.js) rather than IP-keyed like
+// productsLimiter, since this endpoint mutates usage_count and sits
+// behind real customer auth, unlike the public /api/products.
+const promoLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_PROMO_WINDOW_MS) || 60_000,
+  max: Number(process.env.RATE_LIMIT_PROMO_MAX) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByCustomer,
+  message: { error: 'Too many promo code attempts, please try again shortly.' },
+  handler: auditedHandler('promo'),
+});
+
+module.exports = { chatLimiter, ordersLimiter, authLimiter, adminLoginLimiter, productsLimiter, promoLimiter };
