@@ -8345,19 +8345,24 @@ box that's now also the card's own edge. */
 }
 
 .admin-nav-root {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--color-page-bg);
 }
 
 .admin-shell-body {
   display: flex;
   align-items: stretch;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .admin-sidebar {
   flex-shrink: 0;
-  width: 220px;
+  width: 15vw;
+  min-width: 180px;
+  max-width: 260px;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -8370,6 +8375,7 @@ box that's now also the card's own edge. */
 
 .admin-sidebar--collapsed {
   width: 0;
+  min-width: 0;
   padding: var(--space-3) 0;
 }
 
