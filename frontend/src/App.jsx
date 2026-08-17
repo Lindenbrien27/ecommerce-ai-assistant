@@ -59,6 +59,9 @@ const AdminProductsPage = lazy(() =>
 const AdminProductFormPage = lazy(() =>
   import('./pages/AdminProductFormPage.jsx').then((m) => ({ default: m.AdminProductFormPage }))
 );
+const AdminStockLedgerPage = lazy(() =>
+  import('./pages/AdminStockLedgerPage.jsx').then((m) => ({ default: m.AdminStockLedgerPage }))
+);
 const AdminPromoCodesPage = lazy(() =>
   import('./pages/AdminPromoCodesPage.jsx').then((m) => ({ default: m.AdminPromoCodesPage }))
 );
@@ -136,6 +139,7 @@ export default function App() {
                   <Route path="products" element={<AdminProductsPage />} />
                   <Route path="products/new" element={<AdminProductFormPage />} />
                   <Route path="products/:slug/edit" element={<AdminProductFormPage />} />
+                  <Route path="inventory" element={<AdminStockLedgerPage />} />
                   <Route path="customers" element={<AdminCustomersPage />} />
                   <Route path="customers/:email" element={<AdminCustomerDetailPage />} />
                   <Route path="promo-codes" element={<AdminPromoCodesPage />} />
