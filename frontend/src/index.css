@@ -1021,6 +1021,19 @@ body:has(.storefront-shell) {
   overflow: hidden;
 }
 
+/* Same reasoning as .storefront-shell above - the admin shell's sidebar
+needs to sit flush against the viewport edge, not shrink-wrapped and
+centered by #root's default (Verify-card-tuned) padding/align-items. */
+#root:has(> .admin-nav-root) {
+  padding: 0;
+  align-items: stretch;
+  width: 100%;
+}
+
+.admin-nav-root {
+  width: 100%;
+}
+
 /* Orders page's own filter row (see .orders-filter-row/OrdersPage.jsx) -
 a real <input> now, not the styled, do-nothing span this used to be.
 That original choice was deliberate (a text field that visibly invites
