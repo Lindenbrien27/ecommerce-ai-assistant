@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 import {
@@ -10,37 +10,30 @@ import {
   TicketIcon,
   LogoutIcon,
   PanelLeftIcon,
+  BoxIcon,
+  LedgerIcon,
+  AlertTriangleIcon,
+  ClipboardIcon,
+  ChevronDownIcon,
 } from './icons.jsx';
-
-// Row height (36px, .admin-sidenav-item) + row gap (4px, .admin-sidenav-list)
-// in index.css - the sliding .admin-sidenav-indicator needs this fixed step
-// to glide to the right row, same idiom as Layout.jsx's NAV_ROW_STEP.
-const ADMIN_NAV_ROW_STEP = 40;
 
 export function AdminNav() {
   const { email, logout } = useAdminAuth();
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  // NavLink's own isActive still contributes an "active" class even when
-  // className is a plain string (not a function) - it just concatenates.
-  // Without `end` here, that internal match is a startsWith("/admin"),
-  // which would also match /admin/customers. Keeping `end` pins NavLink's
-  // own match to exactly "/admin" - ordersActive below is what extends
-  // highlighting to /admin/orders/* detail pages on top of that.
   const ordersActive = pathname === '/admin' || pathname.startsWith('/admin/orders');
+  const inventoryActive = pathname.startsWith('/admin/inventory');
 
-  const navIndex = pathname.startsWith('/admin/dashboard')
-    ? 0
-    : ordersActive
-      ? 1
-      : pathname.startsWith('/admin/products')
-        ? 2
-        : pathname.startsWith('/admin/customers')
-          ? 3
-          : pathname.startsWith('/admin/promo-codes')
-            ? 4
-            : -1;
+  // Starts expanded if the sidebar mounts directly on an inventory route
+  // (a page refresh, or a deep link). The effect below re-expands it on
+  // every *navigation* onto an inventory route too, but deliberately
+  // doesn't run on every render - so a manual collapse-while-still-on-
+  // that-page click (toggled below) sticks instead of snapping back open.
+  const [inventoryExpanded, setInventoryExpanded] = useState(inventoryActive);
+  useEffect(() => {
+    if (inventoryActive) setInventoryExpanded(true);
+  }, [pathname, inventoryActive]);
 
   const initial = email ? email[0].toUpperCase() : '?';
 
@@ -64,14 +57,6 @@ export function AdminNav() {
 
             <nav className="admin-sidenav" aria-label="Admin sections">
               <div className="admin-sidenav-list">
-                <span
-                  className="admin-sidenav-indicator"
-                  style={{
-                    transform: `translateY(${Math.max(navIndex, 0) * ADMIN_NAV_ROW_STEP}px)`,
-                    opacity: navIndex === -1 ? 0 : 1,
-                  }}
-                  aria-hidden="true"
-                />
                 <NavLink
                   to="/admin/dashboard"
                   className={({ isActive }) => `admin-sidenav-item${isActive ? ' active' : ''}`}
@@ -87,6 +72,40 @@ export function AdminNav() {
                 >
                   <ShopIcon /> <span className="admin-sidenav-label">Products</span>
                 </NavLink>
+
+                <button
+                  type="button"
+                  className={`admin-sidenav-item admin-sidenav-group${inventoryActive ? ' active' : ''}`}
+                  onClick={() => setInventoryExpanded((e) => !e)}
+                  aria-expanded={inventoryExpanded}
+                >
+                  <BoxIcon /> <span className="admin-sidenav-label">Inventory</span>
+                  <ChevronDownIcon className="admin-sidenav-chevron" aria-hidden="true" />
+                </button>
+                {inventoryExpanded && (
+                  <div className="admin-sidenav-subgroup">
+                    <NavLink
+                      to="/admin/inventory"
+                      end
+                      className={({ isActive }) => `admin-sidenav-subitem${isActive ? ' active' : ''}`}
+                    >
+                      <LedgerIcon /> <span className="admin-sidenav-label">Stock Ledger</span>
+                    </NavLink>
+                    <NavLink
+                      to="/admin/inventory/reorder"
+                      className={({ isActive }) => `admin-sidenav-subitem${isActive ? ' active' : ''}`}
+                    >
+                      <AlertTriangleIcon /> <span className="admin-sidenav-label">Reorder Queue</span>
+                    </NavLink>
+                    <NavLink
+                      to="/admin/inventory/purchase-orders"
+                      className={({ isActive }) => `admin-sidenav-subitem${isActive ? ' active' : ''}`}
+                    >
+                      <ClipboardIcon /> <span className="admin-sidenav-label">Purchase Orders</span>
+                    </NavLink>
+                  </div>
+                )}
+
                 <NavLink
                   to="/admin/customers"
                   className={({ isActive }) => `admin-sidenav-item${isActive ? ' active' : ''}`}
