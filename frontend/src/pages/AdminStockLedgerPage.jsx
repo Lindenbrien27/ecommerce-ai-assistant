@@ -85,10 +85,10 @@ export function AdminStockLedgerPage() {
 
   return (
     <div className="admin-inventory-page">
-      <div className="admin-products-head">
-        <div className="admin-products-head-left">
+      <div className="admin-inventory-head">
+        <div className="admin-inventory-head-left">
           <h1>Stock Ledger</h1>
-          <span className="admin-products-count">{total} SKUs</span>
+          <span className="admin-inventory-count">{total} SKUs</span>
         </div>
       </div>
 
@@ -154,8 +154,8 @@ export function AdminStockLedgerPage() {
         </>
       )}
 
-      <div className="admin-products-toolbar">
-        <div className="admin-products-search">
+      <div className="admin-inventory-toolbar">
+        <div className="admin-inventory-search">
           <SearchIcon aria-hidden="true" />
           <label htmlFor="admin-inventory-search" className="sr-only">Search SKUs by product or SKU code</label>
           <input
@@ -197,16 +197,16 @@ export function AdminStockLedgerPage() {
       {error && <p className="verify-error" role="alert">{error}</p>}
 
       {!error && (
-        <div className="admin-products-table-card">
-          <table className="admin-products-table">
+        <div className="admin-inventory-table-card">
+          <table className="admin-inventory-table">
             <thead>
               <tr>
                 <th>Product</th>
                 <th>Location</th>
-                <th className="admin-products-num">On hand</th>
-                <th className="admin-products-num">Allocated</th>
-                <th className="admin-products-num">Available</th>
-                <th className="admin-products-num">Reorder point</th>
+                <th className="admin-inventory-num">On hand</th>
+                <th className="admin-inventory-num">Allocated</th>
+                <th className="admin-inventory-num">Available</th>
+                <th className="admin-inventory-num">Reorder point</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -214,28 +214,28 @@ export function AdminStockLedgerPage() {
               {(data?.items ?? []).map((item) => (
                 <tr key={item.id}>
                   <td>
-                    <div className="admin-products-product-cell">
+                    <div className="admin-inventory-product-cell">
                       <ProductImage icon={item.icon} size="sm" />
                       <div>
-                        <span className="admin-products-name">{item.product_name}</span>
-                        <span className="admin-products-sku">{item.sku_code}</span>
+                        <span className="admin-inventory-name">{item.product_name}</span>
+                        <span className="admin-inventory-sku">{item.sku_code}</span>
                       </div>
                     </div>
                   </td>
                   <td>{item.location_name}</td>
-                  <td className="admin-products-num">{item.on_hand}</td>
-                  <td className="admin-products-num">{item.allocated}</td>
-                  <td className="admin-products-num">{item.available}</td>
-                  <td className="admin-products-num">{item.reorder_point}</td>
+                  <td className="admin-inventory-num">{item.on_hand}</td>
+                  <td className="admin-inventory-num">{item.allocated}</td>
+                  <td className="admin-inventory-num">{item.available}</td>
+                  <td className="admin-inventory-num">{item.reorder_point}</td>
                   <td>
-                    <span className={`admin-products-stock-badge ${item.status.replace(/_/g, '-')}`}>
+                    <span className={`admin-inventory-stock-badge ${item.status.replace(/_/g, '-')}`}>
                       {STATUS_LABELS[item.status]}
                     </span>
                   </td>
                 </tr>
               ))}
               {(data?.items ?? []).length === 0 && !error && (
-                <tr className="admin-products-empty-row">
+                <tr className="admin-inventory-empty-row">
                   <td colSpan={7}>No SKUs match these filters.</td>
                 </tr>
               )}
@@ -245,8 +245,8 @@ export function AdminStockLedgerPage() {
       )}
 
       {!error && (
-        <div className="admin-products-pager">
-          <div className="admin-products-pager-left">
+        <div className="admin-inventory-pager">
+          <div className="admin-inventory-pager-left">
             <label htmlFor="admin-inventory-page-size">Rows per page</label>
             <select
               id="admin-inventory-page-size"
@@ -257,16 +257,16 @@ export function AdminStockLedgerPage() {
             </select>
             <span>{total === 0 ? '0 of 0' : `${rangeStart}–${rangeEnd} of ${total}`}</span>
           </div>
-          <div className="admin-products-pager-right">
-            <button type="button" className="admin-products-page-btn" onClick={() => setPage((p) => p - 1)} disabled={page <= 1} aria-label="Previous page">&lsaquo;</button>
+          <div className="admin-inventory-pager-right">
+            <button type="button" className="admin-inventory-page-btn" onClick={() => setPage((p) => p - 1)} disabled={page <= 1} aria-label="Previous page">&lsaquo;</button>
             {buildPageList(page, pageCount).map((p) =>
               typeof p === 'number' ? (
-                <button key={p} type="button" className={`admin-products-page-btn${p === page ? ' current' : ''}`} onClick={() => setPage(p)} aria-current={p === page ? 'page' : undefined}>{p}</button>
+                <button key={p} type="button" className={`admin-inventory-page-btn${p === page ? ' current' : ''}`} onClick={() => setPage(p)} aria-current={p === page ? 'page' : undefined}>{p}</button>
               ) : (
-                <span key={p} className="admin-products-page-ellipsis" aria-hidden="true">&hellip;</span>
+                <span key={p} className="admin-inventory-page-ellipsis" aria-hidden="true">&hellip;</span>
               )
             )}
-            <button type="button" className="admin-products-page-btn" onClick={() => setPage((p) => p + 1)} disabled={page >= pageCount} aria-label="Next page">&rsaquo;</button>
+            <button type="button" className="admin-inventory-page-btn" onClick={() => setPage((p) => p + 1)} disabled={page >= pageCount} aria-label="Next page">&rsaquo;</button>
           </div>
         </div>
       )}

@@ -54,8 +54,8 @@ it('renders stat cards and table rows from the API', async () => {
 it('shows In stock and Low stock badges from the row status', async () => {
   renderPage();
   await screen.findByText('AUD-HP-001-MW');
-  expect(screen.getByText('In stock', { selector: '.admin-products-stock-badge' })).toBeInTheDocument();
-  expect(screen.getByText('Low stock', { selector: '.admin-products-stock-badge' })).toBeInTheDocument();
+  expect(screen.getByText('In stock', { selector: '.admin-inventory-stock-badge' })).toBeInTheDocument();
+  expect(screen.getByText('Low stock', { selector: '.admin-inventory-stock-badge' })).toBeInTheDocument();
 });
 
 it('re-fetches page 1 with the status filter when changed', async () => {
