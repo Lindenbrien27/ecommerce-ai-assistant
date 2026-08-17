@@ -8349,58 +8349,177 @@ box that's now also the card's own edge. */
   background: var(--color-page-bg);
 }
 
-.admin-nav-bar {
+.admin-shell-body {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  background: #171717;
-  border-bottom: 1px solid #434343;
+  align-items: stretch;
+  min-height: 100vh;
 }
 
-.admin-nav-link {
-  padding: 0.4rem 0.75rem;
+.admin-sidebar {
+  flex-shrink: 0;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #171717;
+  border-right: 1px solid #434343;
+  padding: var(--space-3) var(--space-2);
+  overflow: hidden;
+  transition: width var(--duration-base) var(--ease-out-bezier);
+}
+
+.admin-sidebar--collapsed {
+  width: 0;
+  padding: var(--space-3) 0;
+}
+
+.admin-sidebar-clip {
+  display: flex;
+  flex-direction: column;
+  min-width: 204px;
+}
+
+.admin-sidebar-brand-button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.4rem;
+  margin-bottom: var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: #fafafa;
+  cursor: pointer;
+}
+
+.admin-sidebar-brand-button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-sidebar-brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.admin-sidebar-brand-name {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.admin-sidenav-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-sidenav-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.07);
+  transition: transform var(--duration-base) var(--ease-out-bezier), opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.admin-sidenav-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 36px;
+  padding: 0 0.7rem;
   border-radius: var(--radius-md);
   color: #a1a1a1;
   font-size: var(--font-size-sm);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.admin-nav-link:hover {
+.admin-sidenav-item svg {
+  flex-shrink: 0;
+}
+
+.admin-sidenav-item:hover {
   color: #fafafa;
 }
 
-.admin-nav-link.active {
-  background: rgba(255, 255, 255, 0.07);
+.admin-sidenav-item.active {
   color: #fafafa;
 }
 
-.admin-nav-spacer {
+.admin-account-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.4rem 0;
+  border-top: 1px solid #434343;
+  min-width: 204px;
+}
+
+.admin-account-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fafafa;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.admin-account-email {
   flex: 1;
-}
-
-.admin-nav-email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--font-size-sm);
   color: #a1a1a1;
 }
 
-.admin-nav-logout {
-  padding: 0.4rem 0.75rem;
+.admin-account-logout {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border: 1px solid #434343;
   border-radius: var(--radius-md);
   background: transparent;
   color: #a1a1a1;
-  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
-.admin-nav-logout:hover {
+.admin-account-logout svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.admin-account-logout:hover {
   color: #fafafa;
   border-color: #a1a1a1;
 }
 
-.admin-nav-bar :focus-visible {
+.admin-sidebar :focus-visible,
+.admin-account-row :focus-visible {
   outline: 2px solid #fafafa;
   outline-offset: 2px;
 }
@@ -8790,7 +8909,12 @@ box that's now also the card's own edge. */
 }
 
 .admin-nav-content {
-  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-sidebar-reopen {
+  margin: var(--space-3) 0 0 var(--space-3);
 }
 
 .admin-dashboard-page {
