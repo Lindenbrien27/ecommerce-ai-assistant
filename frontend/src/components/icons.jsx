@@ -519,6 +519,43 @@ export function ShoeIcon(props) {
   );
 }
 
+// Inventory's own sidebar nav icon (AdminNav.jsx) - a closed shipping box,
+// distinct from ShopIcon (Products, an open storefront glyph already in
+// use one row above it).
+export function BoxIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+      <path d="M3 8v8l9 5 9-5V8" />
+      <line x1="12" y1="13" x2="12" y2="21" />
+    </svg>
+  );
+}
+
+// Stock Ledger's own sidebar nav icon - stacked horizontal rows, reading
+// as a ledger/table rather than GridIcon's dashboard-tile grid.
+export function LedgerIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+    </svg>
+  );
+}
+
+// Purchase Orders' own sidebar nav icon.
+export function ClipboardIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="6" y="4" width="12" height="17" rx="2" />
+      <path d="M9 4a1.5 1.5 0 0 1 3 0h0a1.5 1.5 0 0 1 3 0" />
+      <line x1="9" y1="11" x2="15" y2="11" />
+      <line x1="9" y1="15" x2="15" y2="15" />
+    </svg>
+  );
+}
+
 // Keyed by the order's own product_icon column (see
 // migrations/1785095226496_add-order-pricing-and-product-icon.sql) for the
 // original five - not derived from product_name, which is free text. The
