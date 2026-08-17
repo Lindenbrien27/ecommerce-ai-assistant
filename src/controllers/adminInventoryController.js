@@ -24,12 +24,22 @@ function parsePagination(req, res) {
 async function listStockLedger(req, res) {
   const pagination = parsePagination(req, res);
   if (!pagination) return;
+  const location = parsePositiveInt(req.query.location);
+  if (Number.isNaN(location)) {
+    res.status(400).json({ error: 'location must be a positive integer.' });
+    return;
+  }
+  const supplier = parsePositiveInt(req.query.supplier);
+  if (Number.isNaN(supplier)) {
+    res.status(400).json({ error: 'supplier must be a positive integer.' });
+    return;
+  }
   try {
     const result = await adminInventoryService.getStockLedger({
       q: req.query.q || null,
       category: req.query.category || null,
-      location: req.query.location ? Number(req.query.location) : null,
-      supplier: req.query.supplier ? Number(req.query.supplier) : null,
+      location: location ?? null,
+      supplier: supplier ?? null,
       status: req.query.status || null,
       ...pagination,
     });
@@ -43,11 +53,16 @@ async function listStockLedger(req, res) {
 async function listReorderQueue(req, res) {
   const pagination = parsePagination(req, res);
   if (!pagination) return;
+  const supplier = parsePositiveInt(req.query.supplier);
+  if (Number.isNaN(supplier)) {
+    res.status(400).json({ error: 'supplier must be a positive integer.' });
+    return;
+  }
   try {
     const result = await adminInventoryService.getReorderQueue({
       q: req.query.q || null,
       urgency: req.query.urgency || null,
-      supplier: req.query.supplier ? Number(req.query.supplier) : null,
+      supplier: supplier ?? null,
       ...pagination,
     });
     res.json(result);
