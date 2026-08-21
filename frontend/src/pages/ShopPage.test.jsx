@@ -29,12 +29,19 @@ it('renders products fetched from the real API', async () => {
   expect(screen.getByText('Mechanical Keyboard')).toBeInTheDocument();
 });
 
-it('derives the category filter list from the fetched products', async () => {
+it('derives the category directory from the fetched products', async () => {
   renderPage();
   await screen.findByText('Wireless Noise-Cancelling Headphones');
-  fireEvent.click(screen.getByRole('button', { name: /show filters/i }));
-  expect(await screen.findByRole('button', { name: 'Audio' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Audio' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Peripherals' })).toBeInTheDocument();
+});
+
+it('filters to one aisle when a directory category is clicked', async () => {
+  renderPage();
+  await screen.findByText('Wireless Noise-Cancelling Headphones');
+  fireEvent.click(screen.getByRole('button', { name: 'Peripherals' }));
+  expect(screen.queryByText('Wireless Noise-Cancelling Headphones')).not.toBeInTheDocument();
+  expect(screen.getByText('Mechanical Keyboard')).toBeInTheDocument();
 });
 
 it('shows the correct discounted price using price_cents/original_price_cents', async () => {

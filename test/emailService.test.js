@@ -1,10 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-// Snapshot/restore the two RESEND_* vars around every test - other suites in
-// this run (and a real local .env) may or may not have them set, and this
-// file needs to control that directly rather than inherit whatever state
-// happened to exist first.
 const RESEND_KEYS = ['RESEND_API_KEY', 'EMAIL_FROM'];
 let saved;
 test.beforeEach(() => {
@@ -26,7 +22,7 @@ test('isConfigured is false when no RESEND_* vars are set', () => {
 
 test('isConfigured is false when only one RESEND_* var is set', () => {
   process.env.RESEND_API_KEY = 're_test_key';
-  // EMAIL_FROM deliberately left unset
+
   const { isConfigured } = require('../src/services/emailService');
   assert.equal(isConfigured(), false);
 });

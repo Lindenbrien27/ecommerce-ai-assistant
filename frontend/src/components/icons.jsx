@@ -1,11 +1,5 @@
-// Small hand-rolled icon set - matches Brand.jsx's own plain currentColor
-// SVG approach instead of pulling in an icon library dependency for what's
-// only a handful of icons.
 
-// The package-box glyph from Brand.jsx's own mark, extracted here so the
-// chat assistant's avatar (MessageBubble.jsx) can reuse the exact same icon
-// instead of duplicating the path data - same identity ("the app" talking
-// to you), same icon, in both places.
+
 export function BrandMarkIcon(props) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -25,8 +19,6 @@ export function OrdersIcon(props) {
   );
 }
 
-// OrdersIcon's own box-and-strap, plus a flat line across the middle where
-// contents would otherwise be - reads as "empty box" rather than "box".
 export function EmptyOrdersIcon(props) {
   return (
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -37,10 +29,6 @@ export function EmptyOrdersIcon(props) {
   );
 }
 
-// Chat/AI-assistant send button - a filled glyph, unlike this file's other
-// stroke-based icons, since the button itself supplies the muted/solid
-// contrast (empty vs. has-text state) that a thin stroke wouldn't read
-// against once it's sitting on a solid circular background.
 export function SendIcon(props) {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -49,13 +37,6 @@ export function SendIcon(props) {
   );
 }
 
-// The AI assistant's own mark - filled, no stroke, same reasoning as
-// SendIcon (a thin outline reads poorly at this small a size once it's the
-// one thing identifying "the assistant" rather than "the app"). Previously
-// reused BrandMarkIcon (the app's own package-box logo) for this, but the
-// assistant talking back isn't "the app" the way the sidebar brand or a
-// logged-in user's own avatar is - it's its own distinct thing with its own
-// identity, so it gets its own glyph instead of borrowing the app's.
 export function SparkleIcon(props) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -82,9 +63,6 @@ export function LogoutIcon(props) {
   );
 }
 
-// Storefront top-bar/pill-nav icon set (Layout.jsx) - decorative chrome
-// copying a reference design's structure, same plain currentColor
-// convention as every icon above.
 export function HamburgerIcon(props) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -104,11 +82,6 @@ export function SearchIcon(props) {
   );
 }
 
-// ShopPage's "Show Filters" toggle button - three sliders, each with its
-// own handle offset to a different position, the standard "adjustments"
-// glyph rather than a funnel (a funnel already reads as "search"-adjacent
-// in most icon sets and would sit oddly next to SearchIcon elsewhere in
-// this app).
 export function FilterIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -150,7 +123,6 @@ export function PersonIcon(props) {
   );
 }
 
-// The Active Order Spotlight's "Download Invoice" action.
 export function DownloadIcon(props) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -169,9 +141,6 @@ export function ChevronDownIcon(props) {
   );
 }
 
-// Needs Attention's own "View all" link (OrdersPage.jsx) - a distinct
-// glyph from ChevronDownIcon above, not a rotated reuse, since this one
-// always points the same direction regardless of any expand/collapse state.
 export function ChevronRightIcon(props) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -180,11 +149,6 @@ export function ChevronRightIcon(props) {
   );
 }
 
-// filled defaults to false so every existing call site (Layout.jsx's
-// Wishlist nav row/PAGE_HEADERS icon, App.jsx's /wishlist ComingSoonPage
-// icon) keeps rendering the plain outline it always has - only ShopPage's
-// wishlist toggle button passes filled={true/false} to actually switch
-// states.
 export function HeartIcon({ filled = false, ...props }) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -193,13 +157,6 @@ export function HeartIcon({ filled = false, ...props }) {
   );
 }
 
-// The page header's own sidebar toggle (Layout.jsx) - lives outside the
-// collapsible sidebar itself so it stays reachable once the sidebar's
-// width animates to 0 (see .storefront-sidebar--collapsed in index.css).
-// open=true (sidebar expanded) draws the arrow pointing left ("collapse
-// this way"); open=false draws it pointing right ("expand this way") -
-// same left/right-chevron-inside-a-panel convention as Lucide's
-// PanelLeftClose/PanelLeftOpen pair the design brief named.
 export function PanelLeftIcon({ open = true, ...props }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -210,9 +167,6 @@ export function PanelLeftIcon({ open = true, ...props }) {
   );
 }
 
-// BagPage's own delivery fulfillment badge - paired with ShopIcon (already
-// reads as a storefront) for the pickup badge, rather than adding a
-// second new icon for both.
 export function TruckIcon(props) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -233,9 +187,6 @@ export function PinIcon(props) {
   );
 }
 
-// Profile menu's Payment Methods row (Layout.jsx/App.jsx) - no other icon in
-// this file already reads as "a card", so this is a new one rather than a
-// reuse.
 export function CardIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -273,9 +224,6 @@ export function ShopIcon(props) {
   );
 }
 
-// The sidebar's own "Shop Now" button uses this instead of ShopIcon (still
-// used for the /shop page's own header) - matches the reference design's
-// plain "+" mark for that one button specifically.
 export function PlusIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -306,13 +254,6 @@ export function HeadsetIcon(props) {
   );
 }
 
-// Order-progress step markers - one shared glyph per state (completed/
-// current/upcoming), not one glyph per step - see OrdersPage.jsx's
-// OrderProgress for why a per-step icon set couldn't actually represent
-// "not reached yet" without a checkmark-shaped icon on a future step.
-// ShopNowDialog's rating row - a solid five-point star, filled or dimmed
-// via the shared opacity-muted token for the "remainder" stars rather than
-// a separate outline variant.
 export function StarIcon(props) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -329,9 +270,6 @@ export function CheckIcon(props) {
   );
 }
 
-// In-motion order statuses' own badge (OrderDetailPage.jsx) - a clock,
-// distinct from CheckIcon (done)/XIcon (cancelled) above, for "still
-// happening" rather than either of those two finished states.
 export function ClockIcon(props) {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -341,8 +279,6 @@ export function ClockIcon(props) {
   );
 }
 
-// Order detail page's header actions (OrderDetailPage.jsx) - Email/Print,
-// alongside the existing DownloadIcon below.
 export function MailIcon(props) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -361,7 +297,6 @@ export function PrinterIcon(props) {
   );
 }
 
-// Order history's own status badges (OrdersPage.jsx) - Cancelled/Returned.
 export function XIcon(props) {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -370,7 +305,7 @@ export function XIcon(props) {
     </svg>
   );
 }
-// CheckoutPage's own "remove item" action on each Order Summary line.
+
 export function TrashIcon(props) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -429,8 +364,6 @@ export function SettingsIcon(props) {
   );
 }
 
-// Theme toggle (Layout.jsx) - shown for the currently *active* mode, sun in
-// light/moon in dark, same convention as most sites' theme switches.
 export function SunIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -448,11 +381,6 @@ export function MoonIcon(props) {
   );
 }
 
-// Product icons - the fallback ProductImage.jsx renders when a product has
-// no real photo mapped (see its own PRODUCT_PHOTOS). Real Wikimedia Commons
-// photos are the primary path now; these stay as the degrade-gracefully
-// case rather than being deleted, same currentColor convention as every
-// other icon in this file.
 export function HeadphonesIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -519,9 +447,6 @@ export function ShoeIcon(props) {
   );
 }
 
-// Inventory's own sidebar nav icon (AdminNav.jsx) - a closed shipping box,
-// distinct from ShopIcon (Products, an open storefront glyph already in
-// use one row above it).
 export function BoxIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -532,8 +457,6 @@ export function BoxIcon(props) {
   );
 }
 
-// Stock Ledger's own sidebar nav icon - stacked horizontal rows, reading
-// as a ledger/table rather than GridIcon's dashboard-tile grid.
 export function LedgerIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -544,7 +467,6 @@ export function LedgerIcon(props) {
   );
 }
 
-// Purchase Orders' own sidebar nav icon.
 export function ClipboardIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -556,15 +478,6 @@ export function ClipboardIcon(props) {
   );
 }
 
-// Keyed by the order's own product_icon column (see
-// migrations/1785095226496_add-order-pricing-and-product-icon.sql) for the
-// original five - not derived from product_name, which is free text. The
-// sneaker key below is the one exception: ShopPage's own catalog (see
-// shopProducts.js) reuses this same map as its join key even for products
-// with no real order behind them yet (see that file's own comment), and
-// Cloud Shift Runner needs a fallback tile until a real product photo is
-// sourced for it - same "degrade gracefully, don't render nothing"
-// reasoning ProductImage's own fallback already documents.
 export const PRODUCT_ICONS = {
   headphones: HeadphonesIcon,
   cable: CableIcon,

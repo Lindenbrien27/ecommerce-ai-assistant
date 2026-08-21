@@ -1,9 +1,5 @@
 const { pool } = require('../config/db');
 
-// Excludes cancelled orders - they never generated real revenue. Same
-// convention adminCustomerService.js's TOTAL_SPENT_SQL already
-// established for per-customer totals, applied here at the whole-table
-// level.
 async function getDashboardStats() {
   const statsResult = await pool.query(
     `SELECT COUNT(*) AS total_orders,
@@ -12,22 +8,10 @@ async function getDashboardStats() {
      WHERE status <> 'cancelled'`
   );
   const totalOrders = Number(statsResult.rows[0].total_orders);
-  // SUM() over zero matching rows returns SQL NULL, not 0 - Number(null)
-  // is 0 in JS, so this already comes out correct without an explicit
-  // fallback.
+
   const totalRevenueCents = Number(statsResult.rows[0].total_revenue_cents);
   const averageOrderValueCents = totalOrders === 0 ? 0 : Math.round(totalRevenueCents / totalOrders);
 
-  // orders has no product_id (see this plan's own Global Constraints) -
-  // "top products" is grouped by the free-text product_name snapshot
-  // captured at purchase time, not joined to the products table.
-  // product_icon is wrapped in MAX() because it's non-aggregated but
-  // stable per product_name in this app's data - a mechanical way to
-  // carry a single-valued column through GROUP BY without adding it to
-  // the grouping key.
-  // COUNT(*) doubles as units_sold because orders has no quantity column -
-  // one row is one unit today. If a quantity column is ever added, this
-  // needs to become SUM(quantity) instead.
   const topProductsResult = await pool.query(
     `SELECT product_name,
             MAX(product_icon) AS product_icon,

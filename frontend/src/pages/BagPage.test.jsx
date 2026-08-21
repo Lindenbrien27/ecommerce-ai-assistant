@@ -29,10 +29,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  // useAuthorizedFetch (used by the new promo-code Apply flow, Step 3
-  // below) reads its token from AuthContext, which reads it from
-  // sessionStorage at mount - same setup useAuthorizedFetch.test.jsx
-  // already uses for testing any component that calls this hook.
+
   sessionStorage.setItem(TOKEN_STORAGE_KEY, 'the-token');
   global.fetch = vi.fn((url) => {
     if (String(url).startsWith('/api/products')) {
@@ -44,8 +41,7 @@ beforeEach(() => {
 
 it('renders cart items using real product data looked up by slug', async () => {
   renderPage();
-  // CartContext's own INITIAL_CART_ITEMS seeds headphones/keyboard/cable -
-  // all three now resolve against the fetched product list, not static data.
+
   expect(await screen.findByText('Wireless Noise-Cancelling Headphones')).toBeInTheDocument();
   expect(screen.getByText('Mechanical Keyboard')).toBeInTheDocument();
 });
@@ -65,11 +61,7 @@ it('renders an inline error instead of hanging on a blank page when the product 
 });
 
 it('omits a seeded cart item whose product was deleted from the catalog, without crashing', async () => {
-  // CartContext's INITIAL_CART_ITEMS seeds headphones/keyboard/cable, but
-  // the fetched catalog here is missing 'keyboard' - as if an admin deleted
-  // that product after the cart seed was written. findProduct('keyboard')
-  // then returns undefined; the page must drop that row (and its price)
-  // instead of throwing on product.name/product.price_cents.
+
   global.fetch = vi.fn(() =>
     Promise.resolve({
       ok: true,
@@ -80,19 +72,12 @@ it('omits a seeded cart item whose product was deleted from the catalog, without
   expect(await screen.findByText('Wireless Noise-Cancelling Headphones')).toBeInTheDocument();
   expect(screen.getByText('USB-C Charging Cable (3-pack)')).toBeInTheDocument();
   expect(screen.queryByText('Mechanical Keyboard')).not.toBeInTheDocument();
-  // Subtotal should only reflect headphones (14999) + cable (1999) = 16998.
+
   expect(screen.getByText('$169.98')).toBeInTheDocument();
 });
 
 it('excludes a deleted item\'s delivery surcharge and count from cart totals, not just its row', async () => {
-  // CartContext's INITIAL_CART_ITEMS gives 'headphones' the cart's only
-  // non-zero surcharge (surchargeCents: 900, fulfillment: 'delivery').
-  // Deleting it from the fetched catalog reproduces the exact regression a
-  // prior fix left open: the row itself was correctly omitted, but the
-  // header count, select-all state, and delivery total were still derived
-  // from the raw, unfiltered items array, so headphones' $9.00 surcharge
-  // (and its slot in the count) kept flowing into the displayed totals even
-  // though the product itself no longer existed.
+
   global.fetch = vi.fn(() =>
     Promise.resolve({
       ok: true,
@@ -103,17 +88,11 @@ it('excludes a deleted item\'s delivery surcharge and count from cart totals, no
   await screen.findByText('Mechanical Keyboard');
   expect(screen.queryByText('Wireless Noise-Cancelling Headphones')).not.toBeInTheDocument();
 
-  // Only keyboard + cable remain resolvable - count and select-all must
-  // reflect 2, not the raw cart's 3.
   expect(screen.getByText('2 item(s)')).toBeInTheDocument();
   expect(screen.getByText('Select all (2/2)')).toBeInTheDocument();
 
-  // Subtotal: keyboard (8999) + cable (1999) = 10998, with no phantom
-  // headphones price mixed in.
   expect(screen.getByText('$109.98')).toBeInTheDocument();
 
-  // Delivery must show Free (keyboard's own surcharge is 0) - not the
-  // phantom headphones surcharge.
   const deliveryLabel = screen.getByText(/^Delivery/);
   expect(deliveryLabel.nextSibling).toHaveTextContent('Free');
   expect(screen.queryByText('+$9.00')).not.toBeInTheDocument();
@@ -124,8 +103,7 @@ it('shows the empty-bag state when every cart item\'s product has been deleted f
   renderPage();
   expect(await screen.findByText('Your bag is empty.')).toBeInTheDocument();
   expect(screen.getByText('0 item(s)')).toBeInTheDocument();
-  // The select-all row only renders when there's at least one resolvable
-  // item - none here, so it must not render at all.
+
   expect(screen.queryByLabelText(/select all/i)).not.toBeInTheDocument();
 });
 
@@ -230,13 +208,8 @@ it('recomputes the discount when the cart subtotal changes after a percentage co
   fireEvent.click(screen.getByRole('button', { name: /apply/i }));
   await screen.findByText('✓ SPRING15');
 
-  // All three seeded items (headphones 14999 + keyboard 8999 + cable 1999
-  // = 25997) are selected by default - 15% of 25997 rounds to 3900.
   expect(screen.getByText('-$39.00')).toBeInTheDocument();
 
-  // Deselect headphones - subtotal shrinks to keyboard+cable = 10998, so
-  // the discount must shrink to 15% of THAT (1650), not stay frozen at
-  // the amount the server returned when the code was first applied.
   fireEvent.click(screen.getByLabelText(/include wireless noise-cancelling headphones/i));
 
   expect(await screen.findByText('-$16.50')).toBeInTheDocument();

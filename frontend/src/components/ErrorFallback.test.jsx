@@ -10,8 +10,7 @@ function Bomb() {
 
 describe('ErrorFallback', () => {
   it('renders the friendly fallback instead of crashing to a blank page when a component throws', () => {
-    // Sentry.ErrorBoundary logs the caught error to the console by default -
-    // expected here, not a real test failure.
+
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
@@ -22,17 +21,14 @@ describe('ErrorFallback', () => {
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
-    // The thing that actually broke should never render alongside its own
-    // fallback - proves the boundary replaced the tree, not just added to it.
+
     expect(screen.queryByText(/boom/)).not.toBeInTheDocument();
   });
 
   it('reloads the page when the button is clicked', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const reloadMock = vi.fn();
-    // jsdom's window.location.reload isn't implemented - stub the whole
-    // location object rather than leaving the real (no-op) one in place,
-    // so this actually asserts the button calls it.
+
     Object.defineProperty(window, 'location', {
       value: { ...window.location, reload: reloadMock },
       writable: true,

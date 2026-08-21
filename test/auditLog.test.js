@@ -6,9 +6,6 @@ const { issueToken } = require('../src/services/authService');
 const { auditLog, auditLogger } = require('../src/config/auditLog');
 const app = require('../src/app');
 
-// orderService caches order lookups (src/config/cache.js) - without this,
-// a later test reusing the same order number would see an earlier test's
-// mocked pool.query result served from cache instead of its own.
 test.beforeEach(() => orderCache.clear());
 
 async function withServer(t, run) {
@@ -17,12 +14,6 @@ async function withServer(t, run) {
   const { port } = server.address();
   await run(`http://localhost:${port}`);
 }
-
-// Every t.mock.method(auditLogger, 'info', ...) below intercepts calls made
-// by *any* module that calls auditLog() - see the comment in
-// src/config/auditLog.js on why mocking the shared logger object works
-// across module boundaries where mocking the destructured auditLog
-// function itself would not.
 
 test('auditLog() logs details under the event name via the audit-tagged child logger', (t) => {
   t.mock.method(auditLogger, 'info', () => {});
@@ -48,9 +39,7 @@ test('requesting a code logs auth.otp_requested with the email and whether it wa
   const call = auditLogger.info.mock.calls.find((c) => c.arguments[1] === 'auth.otp_requested');
   assert.ok(call, 'expected an auth.otp_requested audit log entry');
   assert.equal(call.arguments[0].email, 'nobody@example.com');
-  // No SMTP_* configured in this test environment (see emailService.js) -
-  // sent is always false here, which is itself the behavior worth locking
-  // down: the audit trail should show whether an email genuinely went out.
+
   assert.equal(call.arguments[0].sent, false);
 });
 

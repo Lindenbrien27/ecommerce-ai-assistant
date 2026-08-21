@@ -297,7 +297,6 @@ it('ignores a stale page-2 response if the filter changes before it resolves', a
     if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
     fetchCallCount += 1;
 
-    // Call 1: initial page-1 fetch on mount.
     if (fetchCallCount === 1) {
       return Promise.resolve({
         ok: true,
@@ -305,8 +304,6 @@ it('ignores a stale page-2 response if the filter changes before it resolves', a
       });
     }
 
-    // Call 2: the page-2 fetch, deliberately left pending so the test can
-    // change the filter before it resolves.
     if (fetchCallCount === 2) {
       return new Promise((resolve) => {
         resolvePageTwo = () =>
@@ -317,7 +314,6 @@ it('ignores a stale page-2 response if the filter changes before it resolves', a
       });
     }
 
-    // Call 3: the re-fetch triggered by the status filter change (resets to page 1).
     return Promise.resolve({
       ok: true,
       json: async () => ({ orders: filteredOrders, total: 1, page: 1, pageSize: 10 }),
@@ -329,14 +325,10 @@ it('ignores a stale page-2 response if the filter changes before it resolves', a
 
   fireEvent.click(screen.getByRole('button', { name: '2' }));
 
-  // Change the filter while the page-2 request is still in flight.
   fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'delivered' } });
 
   await screen.findByText('ORD-2002');
 
-  // Now let the stale page-2 response land, and flush the promise chain
-  // past a macrotask boundary so a would-be bad update has had its chance
-  // to apply before we assert it didn't.
   await act(async () => {
     resolvePageTwo();
     await new Promise((resolve) => setTimeout(resolve, 0));

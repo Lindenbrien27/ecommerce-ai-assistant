@@ -13,11 +13,6 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-// Same status -> pill class map OrdersPage.jsx's HISTORY_BADGE already
-// uses (index.css's .order-history-badge.status-* rules) - reused here
-// rather than inventing a second admin-only palette for the same five
-// values. This page pins those classes to their dark-mode colors
-// regardless of the site's own light/dark toggle (see index.css).
 const STATUS_BADGE_CLASS = {
   processing: 'status-active',
   shipped: 'status-active',
@@ -40,10 +35,6 @@ function buildQuery({ status, q, page, pageSize }) {
   return params.toString();
 }
 
-// Windowed page-number list with ellipsis gaps, e.g. [1, 'ellipsis-start',
-// 4, 5, 6, 'ellipsis-end', 12] - the two ellipsis entries get distinct
-// string values (not both '...') because they're both real list entries
-// React needs a stable, unique `key` for.
 function buildPageList(current, pageCount) {
   if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
   const pages = [1];

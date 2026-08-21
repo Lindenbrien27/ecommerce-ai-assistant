@@ -12,24 +12,16 @@ test.describe('authentication', () => {
     await verifyAs(page, { email: 'jane.doe@example.com' });
 
     await expect(page).toHaveURL(/\/orders$/);
-    // Every order is a row in the one order history list regardless of
-    // status (see OrdersPage.jsx's own comment on historyOrders) - both
-    // ORD-1001 (shipped) and ORD-1002 (delivered) appear there.
+
     await expect(page.locator('.order-history-row')).toHaveCount(2);
   });
 
-  // No such thing as a "wrong email" rejection anymore - POST /api/auth/otp
-  // /request always succeeds the same way regardless of whether the email
-  // has ever placed an order (see otpService.js's own comment on why:
-  // answering that here would let someone enumerate real customer emails).
-  // What CAN fail is the code itself.
   test('entering the wrong code shows an error and stays on /verify', async ({ page }) => {
     await page.goto('/verify');
     await page.fill('input[type="email"]', 'jane.doe@example.com');
     await page.click('#verify-form button[type="submit"]');
     await page.waitForSelector('#otp-form');
 
-    // Any 6 digits that don't match the real (unknown to this test) code.
     const wrongCode = '000000';
     for (let i = 0; i < wrongCode.length; i += 1) {
       await page.fill(`#otp-digit-${i}`, wrongCode[i]);
@@ -40,9 +32,6 @@ test.describe('authentication', () => {
     await expect(page.locator('.verify-error')).toBeVisible();
   });
 
-  // The other side of the same no-enumeration design: an email with zero
-  // orders still verifies successfully (there's nothing about it to reject)
-  // and lands on a real, honest empty dashboard rather than a dead end.
   test('an email with no orders still verifies successfully and shows an empty state', async ({ page }) => {
     await verifyAs(page, { email: 'nobody@example.com' });
 
@@ -55,8 +44,6 @@ test.describe('authentication', () => {
     await verifyAs(page, { email: 'jane.doe@example.com' });
     await expect(page).toHaveURL(/\/orders$/);
 
-    // Sign Out now lives inside the account menu popover (see
-    // ProfileMenu.jsx), not a directly-visible button - open it first.
     await page.click('.profile-menu-trigger');
     await page.click('.profile-menu-signout');
     await expect(page).toHaveURL(/\/verify$/);

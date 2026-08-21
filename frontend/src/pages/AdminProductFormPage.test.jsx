@@ -114,7 +114,7 @@ it('deletes the product when Delete is clicked and the confirmation is accepted'
     }
     return Promise.resolve({ ok: false });
   });
-  // handleDelete guards on window.confirm before firing the DELETE request.
+
   vi.spyOn(window, 'confirm').mockReturnValue(true);
 
   renderForm('/admin/products/headphones/edit');

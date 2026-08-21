@@ -17,17 +17,13 @@ function captureStream() {
 test('the error serializer strips everything except type, message, and stack', () => {
   const stream = captureStream();
 
-  // The test script sets LOG_LEVEL=silent so pino-http doesn't spam test
-  // output; override just long enough to construct a logger that actually
-  // emits at 'error'.
   const previousLevel = process.env.LOG_LEVEL;
   process.env.LOG_LEVEL = 'info';
   const testLogger = createLogger(stream);
   process.env.LOG_LEVEL = previousLevel;
 
   const err = new Error('boom');
-  // Simulate an HTTP client attaching debug info to the error object -
-  // exactly the shape that would leak a secret via pino's default serializer.
+
   err.headers = { authorization: 'Bearer sk-super-secret-key' };
   err.request = { apiKey: 'sk-super-secret-key' };
 

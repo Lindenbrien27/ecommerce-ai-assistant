@@ -23,8 +23,7 @@ export function AdminPromoCodeFormPage() {
   const [error, setError] = useState(null);
 
   // No single-code admin GET exists (see this task's own Interfaces note)
-  // - the edit variant loads the full list (the same endpoint the list
-  // page already uses) and finds the matching row client-side.
+
   useEffect(() => {
     if (!isEdit) return undefined;
     let cancelled = false;

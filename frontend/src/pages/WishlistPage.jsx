@@ -18,21 +18,6 @@ export function WishlistPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [addedIds, setAddedIds] = useState(() => new Set());
 
-  // Joins each saved entry to its live catalog product once, up front -
-  // every derived value below (priceDropped, savings, filtering) reads
-  // from this instead of calling findProduct repeatedly per render.
-  // Catalog fetch (ProductsContext) hasn't resolved yet - products is null
-  // only during that initial load, and findProduct returns undefined for
-  // every entry until it settles - gated here (inside the memo, since
-  // hooks can't be skipped conditionally) rather than crashing on
-  // product.price_cents below, same one-time "still loading" gate
-  // ProductDetailPage.jsx already uses.
-  //
-  // WISHLIST_ITEMS is static seed data joined against the real, mutable
-  // products table - a saved productId can stop resolving if that product
-  // was deleted from the catalog since. That's an expected, unremarkable
-  // case (not a failure), so entries with no resolvable product are simply
-  // dropped rather than rendered/summed.
   const entries = useMemo(
     () =>
       products
@@ -116,12 +101,7 @@ export function WishlistPage() {
           {visibleEntries.map((entry) => {
             const { product } = entry;
             return (
-              // wishlist-cell is the actual grid item (gets the column's width
-              // for free from CSS Grid) and the container-query ancestor
-              // .wishlist-card needs - a container can't query its own
-              // resolved size, only a descendant can query an ancestor's, so
-              // .wishlist-card's own height: calc(100cqw + 100px) needs this
-              // wrapper one level up to have anything valid to read.
+
               <div className="wishlist-cell" key={product.slug}>
                 <article className="wishlist-card">
                   <div className="wishlist-card-media">

@@ -3,9 +3,6 @@ import { createContext, useContext, useMemo, useState } from 'react';
 const TOKEN_STORAGE_KEY = 'orderAssistantToken';
 const AuthContext = createContext(null);
 
-// Display-only (sidebar profile chip) - every real API call re-verifies the
-// token server-side via authService.verifyToken regardless, so a malformed
-// or foreign string here just means no email to show, not a security gap.
 function decodeEmail(token) {
   if (!token) return null;
   try {

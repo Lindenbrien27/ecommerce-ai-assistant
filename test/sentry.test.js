@@ -42,9 +42,6 @@ test('integrations excludes Sentry\'s own crash-handler defaults - crashHandlers
   const { integrations } = initMock.mock.calls[0].arguments[0];
   assert.equal(typeof integrations, 'function');
 
-  // Sentry.init() calls this with its own default integrations - a fake
-  // defaults array covers the two that matter without needing the real SDK
-  // to compute its full default set.
   const fakeDefaults = [{ name: 'OnUncaughtException' }, { name: 'OnUnhandledRejection' }, { name: 'Http' }];
   const resolved = integrations(fakeDefaults);
   const names = resolved.map((i) => i.name);

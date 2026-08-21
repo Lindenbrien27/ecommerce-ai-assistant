@@ -4,8 +4,6 @@ import { CartProvider } from '../context/CartContext.jsx';
 import { ProductsProvider } from '../context/ProductsContext.jsx';
 import { WishlistPage } from './WishlistPage.jsx';
 
-// wishlistItems.js's real WISHLIST_ITEMS seeds headphones/keyboard/chair -
-// all three need a matching fetched product for findProduct to resolve.
 const PRODUCTS = [
   { slug: 'headphones', name: 'Wireless Noise-Cancelling Headphones', category: 'Audio', price_cents: 14999, icon: 'headphones', colorways: [] },
   { slug: 'keyboard', name: 'Mechanical Keyboard', category: 'Peripherals', price_cents: 8999, icon: 'keyboard', colorways: [] },
@@ -33,11 +31,7 @@ it('renders wishlist entries using real product data looked up by slug', async (
 });
 
 it('omits a saved item whose product was deleted from the catalog, without crashing', async () => {
-  // WISHLIST_ITEMS seeds headphones/keyboard/chair, but the fetched catalog
-  // here is missing 'keyboard' - as if an admin deleted that product after
-  // the wishlist seed was written. findProduct('keyboard') then returns
-  // undefined; the page must drop that entry instead of throwing on
-  // product.price_cents in the priceDropped comparison.
+
   global.fetch = vi.fn(() =>
     Promise.resolve({
       ok: true,

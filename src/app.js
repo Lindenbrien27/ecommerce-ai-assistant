@@ -16,6 +16,7 @@ const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const adminPromoCodeRoutes = require('./routes/adminPromoCodeRoutes');
 const adminInventoryRoutes = require('./routes/adminInventoryRoutes');
+const adminReviewRoutes = require('./routes/adminReviewRoutes');
 const cookieParser = require('cookie-parser');
 const { requireCustomerAuth } = require('./middleware/customerAuth');
 const { requireAdminAuth } = require('./middleware/adminAuth');
@@ -32,46 +33,31 @@ const app = express();
 app.use(securityHeaders);
 
 if (process.env.NODE_ENV === 'production') {
-  // Render terminates TLS at its edge and forwards plain HTTP to us over
-  // exactly one hop - trust proxy: 1 tells Express to derive req.secure
-  // (and req.ip) from the X-Forwarded-* headers that hop sets, rather than
-  // the raw (always-plain-HTTP) socket. This also makes the rate limiters'
-  // per-client IP tracking accurate behind the proxy, instead of every
-  // request appearing to come from Render's single forwarding address.
+
   app.set('trust proxy', 1);
   app.use(enforceHttps);
 }
 
-// Structured request/response logging (method, url, status, response time,
-// a generated request id) for every request, including ones that never
-// reach a route (404s, auth rejections, rate limits).
 app.use(pinoHttp({ logger }));
 
 app.use(express.json());
 app.use(cookieParser());
 
-// Gzips/brotli-compresses JSON and static responses based on the client's
-// Accept-Encoding - without this, the ~189KB JS bundle (and every API
-// response) was going out over the wire completely uncompressed, ~3x
-// larger than necessary, on every single request.
 app.use(compression());
 
 const FRONTEND_DIST = path.join(__dirname, '..', 'frontend', 'dist');
 const INDEX_HTML = path.join(FRONTEND_DIST, 'index.html');
 
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 app.use(
   express.static(FRONTEND_DIST, {
     setHeaders(res, filePath) {
       if (filePath.startsWith(path.join(FRONTEND_DIST, 'assets') + path.sep)) {
-        // Vite content-hashes filenames under assets/ (e.g. index-BkBoJTlF.js)
-        // - the hash changes whenever the content does, so it's always safe,
-        // and valuable, to tell the browser to cache these forever.
+
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       } else {
-        // index.html references the *current* hashed asset filenames by
-        // name - serving a stale copy would point the browser at assets
-        // that no longer exist. no-cache still allows caching, just forces
-        // revalidation (a fast 304 when unchanged) on every load.
+
         res.setHeader('Cache-Control', 'no-cache');
       }
     },
@@ -80,11 +66,6 @@ app.use(
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// A shallow /health only proves the Node process is up - useful as Render's
-// own healthCheckPath (restart-on-failure shouldn't fire just because Neon
-// hiccuped, since restarting this process doesn't fix that), but not a
-// trustworthy "is the product actually working" signal on its own. This is
-// the one meant for an external uptime monitor to poll and alert on.
 app.get('/health/db', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -95,11 +76,6 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
-// A customer proves ownership of an email address via a one-time code sent
-// to it, then gets back a token scoped to that email - no password, no
-// order number, no shared secret involved. authLimiter (IP-keyed, no
-// customer identity exists yet at this point) covers both the request and
-// verify steps.
 app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/chat', requireCustomerAuth, chatLimiter, chatRoutes);
@@ -112,23 +88,12 @@ app.use('/api/admin/products', requireAdminAuth, adminProductRoutes);
 app.use('/api/admin/dashboard', requireAdminAuth, adminDashboardRoutes);
 app.use('/api/admin/promo-codes', requireAdminAuth, adminPromoCodeRoutes);
 app.use('/api/admin/inventory', requireAdminAuth, adminInventoryRoutes);
-// The one public, no-auth mount in this file - every other route above has
-// at least a rate limiter or an auth guard (usually both). productsLimiter
-// (IP-keyed - there's no customer identity on an unauthenticated route)
-// closes that gap the same way authLimiter does for /api/auth.
+app.use('/api/admin/reviews', requireAdminAuth, adminReviewRoutes);
+
 app.use('/api/products', productsLimiter, productRoutes);
 
-// Machine-readable spec for tooling (Postman/Insomnia import, codegen) -
-// also the source of truth /api-docs below renders from.
 app.get('/openapi.json', (req, res) => res.json(openApiSpec));
 
-// A hand-written HTML shell instead of swagger-ui-express's own setup() -
-// its generated page has inline <style> blocks, which this app's CSP
-// (style-src 'self', no unsafe-inline - see README > Security headers)
-// would silently block, breaking the docs page's layout. serveFiles still
-// handles the actual JS/CSS assets and generates swagger-ui-init.js per
-// request; those are all real external files under /api-docs/*, so
-// script-src 'self' already covers them without any CSP exception.
 app.use('/api-docs', apiDocsStyleOverride);
 app.use('/api-docs', swaggerUi.serveFiles(openApiSpec));
 app.get('/api-docs', (req, res) => {
@@ -148,37 +113,16 @@ app.get('/api-docs', (req, res) => {
 </html>`);
 });
 
-// Same index.html every other client route gets (see the fallback just
-// below), but with the relaxed CSP the admin login page's Google Sign-In
-// button needs (see adminCspOverride's own comment). Must be registered
-// before the generic '*' fallback below - Express matches routes in
-// registration order, and the generic one would otherwise catch /admin
-// first and serve it with the strict default policy instead.
 app.get(['/admin', '/admin/*'], adminCspOverride, adminCoopOverride, (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(INDEX_HTML);
 });
 
-// SPA fallback: anything that isn't a static asset or an API route is a
-// client-side route (e.g. /orders/ORD-1001) - hand it index.html and let
-// React Router take over, so direct navigation/refresh on those URLs works.
-// Same no-cache reasoning as the express.static case above - this is the
-// same file, just reached by a different path.
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(INDEX_HTML);
 });
 
-// Backstop for anything that reaches here instead of one of the try/catch
-// blocks every route handler already has of its own - e.g. a malformed
-// request body: express.json() calls next(err) on unparseable JSON, and
-// with nothing registered to handle that, Express's own default error
-// handler used to take over instead, serving the client an HTML page with
-// a full stack trace (including server file paths) and never touching the
-// structured logs at all. Sentry's handler runs first so it can still
-// report/capture the error even though this one sends the actual response;
-// it only reports 5xx by default, so this doesn't add noise for anything
-// already being handled deliberately elsewhere as a 4xx.
 Sentry.setupExpressErrorHandler(app);
 
 app.use((err, req, res, _next) => {

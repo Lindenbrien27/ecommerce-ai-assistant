@@ -1,4 +1,4 @@
-// test/adminOrderShipping.test.js
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
@@ -6,11 +6,6 @@ const { orderCache } = require('../src/config/cache');
 const { issueAdminToken } = require('../src/services/adminAuthService');
 const app = require('../src/app');
 
-// Same two vars emailService.test.js snapshots/restores around its own
-// "configured" test - needed here too so the no-op-re-save test can force
-// isConfigured() to true without leaking RESEND_* into any other test in
-// this file (every other test here relies on it staying unset so
-// sendShippingUpdateEmail short-circuits to false).
 const RESEND_KEYS = ['RESEND_API_KEY', 'EMAIL_FROM'];
 
 test.beforeEach(() => orderCache.clear());
@@ -122,10 +117,7 @@ test('PATCH /api/admin/orders/:orderNumber/shipping updates carrier and tracking
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.carrier, 'UPS');
-    // No SMTP_* configured in the test environment (see package.json's
-    // test script), so isConfigured() is false and sendShippingUpdateEmail
-    // always returns false here - this is the real, honest behavior in
-    // this environment, not a value that needs mocking.
+
     assert.equal(body.emailed, false);
   });
 });
@@ -170,10 +162,6 @@ test('PATCH /api/admin/orders/:orderNumber/shipping only re-emails the customer 
   const Emails = new Resend('x').emails.constructor;
   const sendMail = t.mock.method(Emails.prototype, 'send', async () => ({ data: { id: 'email_123' }, error: null }));
 
-  // Mutable "row" that the mocked pool.query reads/writes, so both the
-  // PATCH handler's "previous" lookup and its UPDATE ... RETURNING see a
-  // consistent view of the order's carrier/tracking across both requests
-  // below - exactly what a real UPDATE would do.
   let currentOrder = { ...ORDER_WITH_ADDRESS };
   t.mock.method(pool, 'query', async (sql, params) => {
     if (/UPDATE orders/.test(sql)) {
@@ -184,7 +172,7 @@ test('PATCH /api/admin/orders/:orderNumber/shipping only re-emails the customer 
   });
 
   await withServer(t, async (base) => {
-    // First PATCH: a real change (null/null -> UPS/1Z999...) must email.
+
     const res1 = await fetch(`${base}/api/admin/orders/ORD-1001/shipping`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },
@@ -195,8 +183,6 @@ test('PATCH /api/admin/orders/:orderNumber/shipping only re-emails the customer 
     assert.equal(body1.emailed, true);
     assert.equal(sendMail.mock.callCount(), 1);
 
-    // Second PATCH: identical carrier/tracking (a no-op re-save) must not
-    // trigger a second email.
     const res2 = await fetch(`${base}/api/admin/orders/ORD-1001/shipping`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Cookie: adminCookie() },

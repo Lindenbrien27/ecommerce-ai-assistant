@@ -14,12 +14,6 @@ function renderPage() {
   );
 }
 
-// Every value here is deliberately distinct from every other value (3
-// orders, not 1, so total revenue != average order value; the one
-// product's revenue/units differ from both) - a fixture where two of
-// these coincidentally matched would make screen.getByText ambiguous
-// (multiple elements sharing the same text), since nothing here is
-// scoped to one card or table cell.
 const STATS = {
   total_revenue_cents: 50000,
   total_orders: 3,
@@ -39,16 +33,16 @@ beforeEach(() => {
 
 it('renders the three stat cards with formatted values', async () => {
   renderPage();
-  expect(await screen.findByText('$500.00')).toBeInTheDocument(); // total revenue
-  expect(screen.getByText('3')).toBeInTheDocument(); // total orders
-  expect(screen.getByText('$166.67')).toBeInTheDocument(); // average order value (50000 / 3, rounded)
+  expect(await screen.findByText('$500.00')).toBeInTheDocument();
+  expect(screen.getByText('3')).toBeInTheDocument();
+  expect(screen.getByText('$166.67')).toBeInTheDocument();
 });
 
 it('renders the top products table', async () => {
   renderPage();
   expect(await screen.findByText('Wireless Noise-Cancelling Headphones')).toBeInTheDocument();
-  expect(screen.getByText('2')).toBeInTheDocument(); // units sold
-  expect(screen.getByText('$167.98')).toBeInTheDocument(); // product revenue
+  expect(screen.getByText('2')).toBeInTheDocument();
+  expect(screen.getByText('$167.98')).toBeInTheDocument();
 });
 
 it('shows the empty state when there are no orders yet', async () => {

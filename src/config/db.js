@@ -1,9 +1,6 @@
 const { Pool } = require('pg');
 const { logError } = require('../utils/logger');
 
-// Neon requires SSL; a plain local/CI Postgres container (e.g. the one the
-// e2e test suite runs against) doesn't support it at all, so forcing SSL
-// unconditionally would break connecting to one.
 const isLocalDatabase = /\/\/[^/]*@?(localhost|127\.0\.0\.1)/.test(process.env.DATABASE_URL || '');
 const ssl = isLocalDatabase ? false : { rejectUnauthorized: false };
 

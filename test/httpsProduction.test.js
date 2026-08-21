@@ -1,8 +1,5 @@
-// Isolated in its own file so node:test's per-file process isolation lets
-// this set NODE_ENV=production before requiring src/app - which reads that
-// env var once, at module load, to decide whether to mount trust proxy and
-// enforceHttps at all. Every other test file runs without NODE_ENV set, so
-// this can't leak into them.
+
+
 process.env.NODE_ENV = 'production';
 
 const test = require('node:test');

@@ -1,4 +1,4 @@
--- Up Migration
+
 
 CREATE TABLE inventory_locations (
   id SERIAL PRIMARY KEY,
@@ -80,8 +80,6 @@ INSERT INTO purchase_order_items (purchase_order_id, inventory_item_id, quantity
   (2, 4, 60, 5000),
   (3, 8, 20, 18000),
   (4, 10, 100, 800);
-
--- Down Migration
 
 DROP TABLE IF EXISTS purchase_order_items;
 DROP TABLE IF EXISTS purchase_orders;

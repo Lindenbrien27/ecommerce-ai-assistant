@@ -4,18 +4,8 @@ const { sendOtpEmail } = require('../services/emailService');
 const { logError } = require('../utils/logger');
 const { auditLog } = require('../config/auditLog');
 
-// [^\s@]+ on both sides of a literal \. that character class can also
-// match is a classic ReDoS shape (CodeQL js/polynomial-redos) - on a
-// failing match like "x@" + "!.".repeat(50), the engine backtracks
-// through every possible split point between the two +'s and the literal
-// dot. EMAIL_RE here has no @ inside either segment, so it can't be
-// ambiguous the same way; the "must contain a dot" requirement is
-// re-checked as a plain substring search in isValidEmail below instead of
-// being folded back into the regex.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
-// RFC 5321's own cap, and cheap insurance regardless of the regex fix
-// above - no legitimate email is longer than this, so rejecting first
-// keeps every check below working on a bounded string.
+
 const EMAIL_MAX_LENGTH = 254;
 
 function isValidEmail(email) {
@@ -25,13 +15,6 @@ function isValidEmail(email) {
   return domain.includes('.') && !domain.startsWith('.') && !domain.endsWith('.');
 }
 
-// Always the same response shape regardless of whether this email has ever
-// placed an order, or whether the email actually sent - see otpService's
-// own comment for why. devCode only ever appears outside production, and
-// only when there's no real email provider configured to have sent it
-// instead - the same "convenient in dev/CI, impossible in prod" shape this
-// app already uses for other things (e.g. the ANTHROPIC_API_KEY-missing
-// path degrading instead of the app refusing to start).
 async function requestOtpHandler(req, res) {
   const { email } = req.body;
 
@@ -84,9 +67,4 @@ async function verifyOtpHandler(req, res) {
   }
 }
 
-// EMAIL_RE is exported alongside isValidEmail solely so a test can prove
-// the regex construction itself is safe against pathological input,
-// independent of isValidEmail's own length gate - the length check alone
-// already keeps every real call site safe, but it shouldn't be the only
-// thing standing between this regex and a catastrophic-backtracking input.
 module.exports = { requestOtpHandler, verifyOtpHandler, isValidEmail, EMAIL_RE };

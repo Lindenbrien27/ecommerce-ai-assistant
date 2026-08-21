@@ -13,18 +13,12 @@ const TABS = [
   { key: 'reviews', label: 'Reviews' },
 ];
 
-// Like Reaction Floating Particle Effect's color palette - same set
-// ProductCard/ShopNowDialog use (see either's own HEART_COLORS comment).
 const HEART_COLORS = ['#ff2d78', '#ef4444', '#a855f7', '#ff6b6b', '#ff9f43'];
 
 function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
-// Reachable for any product with a PRODUCT_DETAILS entry (see that file -
-// currently all six catalog products). Rating/reviews/specs are
-// fabricated promotional content, same tier as ShopNowDialog's AirBuds
-// White - this app has no real reviews table or spec sheet anywhere.
 export function ProductDetailPage() {
   const { productId } = useParams();
   const { products, error, findProduct } = useProducts();
@@ -62,11 +56,6 @@ export function ProductDetailPage() {
     setHearts((prev) => prev.filter((h) => h.id !== id));
   }
 
-  // A failed fetch leaves products === null forever, same as "still
-  // loading" - checked first so a load failure renders the same inline
-  // error ShopPage/AdminProductsPage use instead of either hanging on a
-  // blank page forever (the loading gate below) or bouncing to /shop
-  // (the not-found gate further down).
   if (!product && error) {
     return (
       <p className="verify-error" role="alert">
@@ -75,16 +64,8 @@ export function ProductDetailPage() {
     );
   }
 
-  // Catalog fetch (ProductsContext) hasn't resolved yet - products is null
-  // only during that initial load, never once it settles (empty array on
-  // an empty catalog, populated array otherwise), so this is a one-time
-  // "still loading" gate, not an ongoing loading state to render chrome
-  // for. Redirecting here before the fetch resolves would send every
-  // fresh page load straight back to /shop.
   if (!product && products === null) return null;
 
-  // No matching product, or one with no PRODUCT_DETAILS entry - back to
-  // the grid rather than a dead/broken page.
   if (!product || !detail) return <Navigate to="/shop" replace />;
 
   const { name, category, description, price_cents: priceCents, original_price_cents: originalPriceCents, colorways, icon } = product;

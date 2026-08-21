@@ -12,9 +12,7 @@ async function runMigrations() {
     direction: 'up',
     migrationsTable: 'pgmigrations',
     singleTransaction: true,
-    // Routes node-pg-migrate's own messages through pino instead of raw
-    // console lines, so migration output stays structured JSON like every
-    // other log this app produces.
+
     logger: {
       debug: (msg) => logger.debug(msg),
       info: (msg) => logger.info(msg),

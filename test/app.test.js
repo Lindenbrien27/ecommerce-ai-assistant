@@ -5,10 +5,6 @@ const { orderCache } = require('../src/config/cache');
 const { issueToken } = require('../src/services/authService');
 const app = require('../src/app');
 
-// orderService now caches order lookups (src/config/cache.js) - without
-// this, a later test in this file reusing the same order number/email
-// would see the previous test's mocked pool.query result served from
-// cache instead of its own newly-mocked one.
 test.beforeEach(() => orderCache.clear());
 
 async function withServer(t, run) {
@@ -72,11 +68,7 @@ test('POST /api/auth/otp/request accepts a valid email and returns a devCode out
       body: JSON.stringify({ email: 'jane@example.com' }),
     });
     assert.equal(res.status, 200);
-    // Never a Set-Cookie - session fixation targets a server-side session
-    // identifier the server accepts/continues across the auth boundary,
-    // typically a cookie. This app has no session store at all; a guard
-    // against ever accidentally growing one here (see README > Penetration
-    // testing).
+
     assert.equal(res.headers.get('set-cookie'), null);
     const body = await res.json();
     assert.match(body.devCode, /^\d{6}$/);
@@ -116,19 +108,7 @@ test('POST /api/auth/otp/request rejects an invalid email', async (t) => {
 });
 
 test('EMAIL_RE does not catastrophically backtrack on a crafted adversarial string', () => {
-  // A regression test for a real CodeQL js/polynomial-redos finding: the
-  // old EMAIL_RE (/^[^\s@]+@[^\s@]+\.[^\s@]+$/) had two +'s that could
-  // both match '.', which is ambiguous with the literal \. between them -
-  // on a *failing* match, the engine backtracks through every possible
-  // split point. Confirmed against the actual old pattern before writing
-  // this fix: 'x@' + '!.'.repeat(30000) + a trailing '@' (so the final
-  // [^\s@]+$ group can never close out the match, forcing exhaustive
-  // backtracking) took ~900ms; at 50000 reps, ~2.5s - roughly quadratic
-  // growth, i.e. genuinely polynomial, not a fluke. isValidEmail's own
-  // 254-char cap means no real call site can ever reach this - EMAIL_RE
-  // is tested directly here (bypassing that cap) so the regex
-  // construction itself is provably safe, not just shielded by a
-  // caller-side length check that could be loosened or bypassed later.
+
   const { EMAIL_RE } = require('../src/controllers/authController');
   const adversarial = `x@${'!.'.repeat(50000)}@`;
 
@@ -253,7 +233,7 @@ test('GET /api/orders lists only the authenticated customer\'s orders', async (t
 test('GET /api/orders returns a nextCursor and honors limit when more rows remain', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.match(sql, /LIMIT \$4/);
-    assert.equal(params[3], 3); // limit + 1, to detect a next page
+    assert.equal(params[3], 3);
     return {
       rows: [
         { order_number: 'ORD-1001', created_at: '2026-01-03T00:00:00Z', id: 3 },
@@ -298,9 +278,6 @@ test('GET /api/orders rejects a malformed cursor', async (t) => {
   });
 });
 
-// refund_reason is an internal admin note written through the admin refund
-// endpoint - it rides along on orderService's SELECT * (which the admin
-// paths need), so both customer-facing responses have to strip it.
 test('GET /api/orders/:id does not expose the internal refund_reason note', async (t) => {
   t.mock.method(pool, 'query', async () => ({
     rows: [{
@@ -322,7 +299,7 @@ test('GET /api/orders/:id does not expose the internal refund_reason note', asyn
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal('refund_reason' in body, false);
-    // The rest of the refund is legitimately the customer's to see.
+
     assert.equal(body.refund_amount_cents, 5500);
     assert.equal(body.status, 'returned');
   });
@@ -433,12 +410,7 @@ test('POST /api/chat rejects a request with no messages', async (t) => {
 });
 
 test('POST /api/chat rejects a message with a fabricated tool_use/tool_result content array', async (t) => {
-  // Found in a security review: the real frontend only ever sends plain-
-  // string content, but nothing previously stopped a client from injecting
-  // its own fake prior "assistant" turn claiming a tool already ran and
-  // returned attacker-chosen data - Anthropic's message content can be an
-  // array of blocks (tool_use/tool_result), and that fabricated history
-  // would have gone straight into the first real call to the model.
+
   const token = issueToken('jane@example.com');
 
   await withServer(t, async (base) => {

@@ -1,29 +1,25 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useOrders } from '../context/OrdersContext.jsx';
 import { ProductImage } from '../components/ProductImage.jsx';
 import { AnimatedItem } from '../components/AnimatedList.jsx';
 import {
+  BoxIcon,
   CheckIcon,
   ChevronDownIcon,
   DownloadIcon,
   EmptyOrdersIcon,
+  HomeIcon,
   SearchIcon,
+  TruckIcon,
   UndoIcon,
   XIcon,
 } from '../components/icons.jsx';
-import { computeOrderTotal } from '../utils/pricing.js';
+import { computeOrderTotal, formatCents } from '../utils/pricing.js';
 import { downloadInvoice } from '../utils/invoice.js';
+import { STATUS_STEPS, trackingUrl } from './OrderDetailPage.jsx';
 
-// The filter bar's own tabs - a real status each, unlike the old "On
-// Shipping"/"Arrived" wording. "Shipped" still covers both shipped and
-// out_for_delivery - this app has no separate tab for the latter.
-// "Returned" has no matching value in this app's real `status` enum (see
-// the CHECK constraint in migrations/1784973065584_initial-schema.sql) -
-// kept in the list since it's part of the reference design being copied,
-// but its count is always 0 and its filter always empty rather than
-// matching it to some other status that isn't actually the same thing.
 const STATUS_FILTERS = [
   { key: 'all', label: 'All', statuses: null },
   { key: 'processing', label: 'Processing', statuses: ['processing'] },
@@ -33,10 +29,6 @@ const STATUS_FILTERS = [
   { key: 'cancelled', label: 'Cancelled', statuses: ['cancelled'] },
 ];
 
-// Orders still "in motion" - used only to pick this row's own action
-// buttons/subtitle wording below, not to feature them anywhere special
-// (there's no separate hero/timeline section on this page anymore - every
-// order, regardless of status, is just a row in the one list below).
 const IN_MOTION_STATUSES = ['processing', 'shipped', 'out_for_delivery'];
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -49,25 +41,15 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
 });
 
 const HISTORY_BADGE = {
-  delivered: { label: 'Delivered', icon: CheckIcon, className: 'status-delivered' },
-  returned: { label: 'Returned', icon: UndoIcon, className: 'status-returned' },
-  cancelled: { label: 'Cancelled', icon: XIcon, className: 'status-cancelled' },
-  // In-motion statuses reuse the same "where the order is" blue this app
-  // already uses everywhere else that needs one (--color-active-surface/
-  // -text) - no icon, since none of this file's existing glyphs mean "in
-  // transit" and a borrowed one would be misleading.
-  processing: { label: 'Processing', icon: null, className: 'status-active' },
-  shipped: { label: 'Shipped', icon: null, className: 'status-active' },
-  out_for_delivery: { label: 'Out for delivery', icon: null, className: 'status-active' },
+  delivered: { label: 'Delivered', className: 'status-delivered', icon: CheckIcon },
+  returned: { label: 'Returned', className: 'status-returned', icon: UndoIcon },
+  cancelled: { label: 'Cancelled', className: 'status-cancelled', icon: XIcon },
+
+  processing: { label: 'Processing', className: 'status-active', icon: TruckIcon },
+  shipped: { label: 'Shipped', className: 'status-active', icon: TruckIcon },
+  out_for_delivery: { label: 'Out for delivery', className: 'status-active', icon: TruckIcon },
 };
 
-// What each row's own subtitle date means per status - created_at is the
-// only real timestamp this app has (no delivered_at/cancelled_at/
-// returned_at column exists, see migrations/1784973065584_initial-
-// schema.sql), so it doubles as an honest stand-in for "when this status
-// happened," not a fabricated precise event time. In-motion orders have no
-// such status-change event to report yet, so they get their order date
-// instead.
 function historySubtitle(order) {
   const when = dateFormatter.format(new Date(order.created_at));
   if (order.status === 'delivered') return `Delivered ${when}`;
@@ -76,77 +58,192 @@ function historySubtitle(order) {
   return `Ordered ${when}`;
 }
 
-// One collapsible row - expand state is owned locally, not lifted to a
-// shared Set in OrdersPage, since "rows expand independently" is exactly
-// what a plain per-row useState already gives for free; a shared
-// Set(expandedOrderNumbers) would do the identical job with more code.
+const JOURNEY_STAGES = [{ key: 'placed', label: 'Placed' }, ...STATUS_STEPS];
+const STAGE_ICON = {
+  placed: CheckIcon,
+  processing: BoxIcon,
+  shipped: TruckIcon,
+  out_for_delivery: TruckIcon,
+  delivered: HomeIcon,
+};
+
+function pickHeroOrder(orders) {
+  if (!orders) return null;
+  let best = null;
+  let bestRank = -1;
+  for (const order of orders) {
+    const stepIndex = STATUS_STEPS.findIndex((s) => s.key === order.status);
+    if (stepIndex === -1 || !IN_MOTION_STATUSES.includes(order.status)) continue;
+    if (stepIndex > bestRank || (stepIndex === bestRank && new Date(order.created_at) > new Date(best.created_at))) {
+      best = order;
+      bestRank = stepIndex;
+    }
+  }
+  return best;
+}
+
+function JourneyHero({ order }) {
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => {
+    let raf1;
+    let raf2;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setAnimated(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+
+  const currentIndex = STATUS_STEPS.findIndex((s) => s.key === order.status);
+  const reachedIndex = currentIndex + 1;
+  const targetFraction = reachedIndex / (JOURNEY_STAGES.length - 1);
+  const total = computeOrderTotal(order);
+  const trackUrl = order.tracking_number ? trackingUrl(order.carrier, order.tracking_number) : null;
+  const stageLabel = STATUS_STEPS[currentIndex].label;
+  const etaText = order.estimated_delivery
+    ? `Est. arrival ${dateFormatter.format(new Date(order.estimated_delivery))}`
+    : "We'll update this as it moves";
+
+  return (
+    <div className="order-live-hero">
+      <div className="order-live-top">
+        <span className="order-live-badge">
+          <span className="order-live-dot" aria-hidden="true" /> Live
+        </span>
+        <span className="order-live-order-no">{order.order_number}</span>
+      </div>
+      <p className="order-live-product">
+        Your <strong>{order.product_name}</strong> is on its way
+      </p>
+      <p className="order-live-caption" aria-live="polite">
+        {stageLabel} &middot; {etaText}
+      </p>
+
+      <div className={`order-live-journey${animated ? ' animated' : ''}`} aria-hidden="true">
+        <div className="order-live-track">
+          <div className="order-live-track-fill" style={{ '--target': targetFraction }} />
+        </div>
+        <div className="order-live-marker" style={{ '--target': targetFraction }}>
+          <TruckIcon />
+        </div>
+        <div className="order-live-stops">
+          {JOURNEY_STAGES.map((stage, i) => {
+            const Icon = STAGE_ICON[stage.key];
+            return (
+              <span key={stage.key} className={`order-live-stop${i <= reachedIndex ? ' reached' : ''}`}>
+                <span className="order-live-stop-dot"><Icon /></span>
+                <span className="order-live-stop-label">{stage.label}</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="order-live-actions">
+        {trackUrl && (
+          <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="order-live-btn primary">
+            Track live
+          </a>
+        )}
+        {total !== null && (
+          <button type="button" className="order-live-btn" onClick={() => downloadInvoice(order)}>
+            <DownloadIcon /> Download invoice
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function monthGroupLabel(dateStr, now = new Date()) {
+  const d = new Date(dateStr);
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return 'This month';
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  if (d.getFullYear() === prevMonth.getFullYear() && d.getMonth() === prevMonth.getMonth()) return 'Last month';
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(d);
+}
+
+function groupByMonth(historyOrders) {
+  const groups = [];
+  for (const order of historyOrders) {
+    const label = monthGroupLabel(order.created_at);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.orders.push(order);
+    else groups.push({ label, orders: [order] });
+  }
+  return groups;
+}
+
 function OrderHistoryRow({ order, index }) {
   const [expanded, setExpanded] = useState(false);
   const badge = HISTORY_BADGE[order.status] ?? HISTORY_BADGE.delivered;
-  const BadgeIcon = badge.icon;
   const total = computeOrderTotal(order);
-  const detailId = `order-history-detail-${order.order_number}`;
+  const detailId = `order-row-detail-${order.order_number}`;
   const isActive = IN_MOTION_STATUSES.includes(order.status);
 
   return (
-    <li className={`order-history-row${order.status === 'cancelled' ? ' cancelled' : ''}${expanded ? ' expanded' : ''}`}>
-      {/* AnimatedItem (see components/AnimatedList.jsx) just adds the
-          scroll-into-view pop-in around this row's real content - it wraps
-          rather than replaces the row, so the row's own expand/collapse
-          button, links, and .order-history-row border/status styling above
-          are untouched. Capped stagger delay so a long, already-loaded
-          order history doesn't make the last rows wait a visibly long time
-          to animate in on first scroll. */}
-      <AnimatedItem as="div" className="" index={index} delay={Math.min(index * 0.04, 0.4)}>
+    <li className={`order-row${order.status === 'cancelled' ? ' cancelled' : ''}${expanded ? ' expanded' : ''}`}>
+      {}
+      <AnimatedItem as="div" className="order-row-inner" index={index} delay={Math.min(index * 0.03, 0.3)}>
         <button
           type="button"
-          className="order-history-summary"
+          className="order-row-summary"
           onClick={() => setExpanded((e) => !e)}
           aria-expanded={expanded}
           aria-controls={detailId}
         >
           <ProductImage icon={order.product_icon} size="xs" />
-          <span className="order-history-info">
-            <span className="order-history-title">{order.product_name}</span>
-            <span className="order-history-meta">{historySubtitle(order)}</span>
+          <span className="order-row-info">
+            <span className="order-row-name">{order.product_name}</span>
+            <span className="order-row-meta">
+              <span className="order-row-number">{order.order_number}</span> · {historySubtitle(order)}
+            </span>
           </span>
-          <span className={`order-history-badge ${badge.className}`}>
-            {BadgeIcon && <BadgeIcon />} {badge.label}
+          <span className={`order-pass-status ${badge.className}`}>
+            <badge.icon aria-hidden="true" /> {badge.label}
           </span>
-          <ChevronDownIcon className="order-history-chevron" aria-hidden="true" />
+          {total !== null && <span className="order-pass-amount">{formatCents(total)}</span>}
+          <ChevronDownIcon className="order-row-chevron" aria-hidden="true" />
         </button>
 
-        {expanded && (
-          <div className="order-history-detail" id={detailId}>
-            <div className="order-history-detail-field">
-              <span>Order</span>
-              <span>
-                {order.order_number} · Qty: 1
-              </span>
-            </div>
-            {order.status === 'delivered' && order.estimated_delivery && (
-              <div className="order-history-detail-field">
-                <span>Estimated arrival</span>
-                <span>{dateFormatter.format(new Date(order.estimated_delivery))}</span>
-              </div>
-            )}
-            <div className="order-history-detail-actions">
-              <Link to={`/orders/${order.order_number}`} className="order-history-detail-btn">
-                {isActive ? 'Track package' : 'View Details'}
-              </Link>
-              {total !== null && (
-                <button type="button" className="order-history-detail-btn" onClick={() => downloadInvoice(order)}>
-                  <DownloadIcon /> Download Invoice
-                </button>
+        {}
+        <div
+          className={`order-row-detail-wrap${expanded ? ' expanded' : ''}`}
+          id={detailId}
+          {...(!expanded && { inert: '' })}
+        >
+          <div className="order-row-detail-clip">
+            <div className="order-pass-detail order-row-detail">
+              <p className="order-pass-detail-field">
+                <span>Order</span>
+                <span>{order.order_number} · Qty: 1</span>
+              </p>
+              {order.status === 'delivered' && order.estimated_delivery && (
+                <p className="order-pass-detail-field">
+                  <span>Estimated arrival</span>
+                  <span>{dateFormatter.format(new Date(order.estimated_delivery))}</span>
+                </p>
               )}
-              {!isActive && (
-                <Link to="/shop" className="order-history-detail-btn buy-again">
-                  Buy again
+              <div className="order-pass-detail-actions">
+                <Link to={`/orders/${order.order_number}`} className="order-pass-detail-btn">
+                  {isActive ? 'Track package' : 'View Details'}
                 </Link>
-              )}
+                {total !== null && (
+                  <button type="button" className="order-pass-detail-btn" onClick={() => downloadInvoice(order)}>
+                    <DownloadIcon /> Download Invoice
+                  </button>
+                )}
+                {!isActive && (
+                  <Link to="/shop" className="order-pass-detail-btn buy-again">
+                    Buy again
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </AnimatedItem>
     </li>
   );
@@ -160,14 +257,7 @@ export function OrdersPage() {
 
   // The glide indicator behind the active filter tab - measured, not
   // hardcoded, since each tab's width varies with its own label length and
-  // count digits (see .order-filter-tab). Recomputed whenever the active
-  // tab or any tab's rendered width changes (counts arrive async after the
-  // orders fetch resolves, which can widen/narrow a tab after first paint).
-  // top/height are measured too, not just left/width - .order-filter-tabs
-  // itself wraps onto multiple rows at narrow widths, and a CSS-only
-  // height: calc(100% - 6px) assumes a single row, stretching the indicator
-  // to cover every wrapped row at once instead of just the active tab's own
-  // row.
+
   const tabRefs = useRef({});
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, top: 0, height: 0 });
   const counts = {};
@@ -179,10 +269,13 @@ export function OrdersPage() {
       : 0;
   }
 
+  const heroOrder = pickHeroOrder(orders);
+
   const activeStatuses = STATUS_FILTERS.find((f) => f.key === activeFilter).statuses;
   const query = searchQuery.trim().toLowerCase();
   const historyOrders = orders
     ? orders
+        .filter((o) => !heroOrder || o.order_number !== heroOrder.order_number)
         .filter((o) => !activeStatuses || activeStatuses.includes(o.status))
         .filter((o) => selectedCategories.size === 0 || selectedCategories.has(o.product_icon))
         .filter((o) => !query || o.product_name.toLowerCase().includes(query) || o.order_number.toLowerCase().includes(query))
@@ -201,26 +294,15 @@ export function OrdersPage() {
       }
     }
     measure();
-    // Re-measure on resize too, not just when the active tab or its counts
-    // change - which row (if any) the tabs wrap onto depends on the
-    // viewport's own width, so the same active tab can land at a different
-    // top/left purely from the window resizing, with nothing else about
-    // the filters themselves changing.
+
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-    // counts.all is a stand-in for "any tab's count changed" - every count
-    // recomputes together whenever `orders` resolves, so watching one is
-    // enough to re-measure after their post-fetch width change.
+
   }, [activeFilter, counts.all]);
 
   return (
     <div className="orders-page-root">
-      {/* The heading itself (and the decorative header-art flourish that
-          used to sit next to it) is gone from here - Layout.jsx now owns
-          "Your Orders" as part of the shared page-header row alongside the
-          AI Assistant toggle (see Layout.jsx's PAGE_HEADERS). A real,
-          static header now, not part of the scrollable content at all -
-          .order-cards-scroll below only ever holds the order history list. */}
+      {}
       <div className="orders-header">
         <div className="orders-filter-row">
           <nav className="order-filter-tabs" aria-label="Filter orders by status">
@@ -252,9 +334,7 @@ export function OrdersPage() {
             ))}
           </nav>
 
-          {/* A real, working filter - narrows the order history list below
-              by product name or order number, entirely client-side against
-              data this page already has in memory. */}
+          {}
           <div className="storefront-search">
             <SearchIcon aria-hidden="true" />
             <label htmlFor="orders-search-input" className="sr-only">
@@ -292,13 +372,7 @@ export function OrdersPage() {
             </ul>
           </>
         )}
-        {/* A real, expected state now, not just a theoretical edge case -
-            any email that verifies via OTP lands here, whether or not it's
-            ever actually placed an order (see README > Auth), so this
-            explains why rather than just saying "not found." "Try a
-            different email" just signs out - ProtectedRoute already sends a
-            signed-out visitor to /verify, so there's no separate redirect
-            to wire up here. */}
+        {}
         {orders && orders.length === 0 && (
           <div className="orders-empty-state fade-in">
             <EmptyOrdersIcon className="orders-empty-icon" aria-hidden="true" />
@@ -319,16 +393,29 @@ export function OrdersPage() {
 
         {orders && orders.length > 0 && (
           <>
-            <h2 className="section-heading">Updated order history</h2>
+            {heroOrder && <JourneyHero order={heroOrder} />}
+
+            <h2 className="section-heading">{heroOrder ? 'Rest of your history' : 'Updated order history'}</h2>
 
             {historyOrders.length === 0 ? (
               <p className="subtitle fade-in">No orders in this category.</p>
             ) : (
-              <ul className="order-history-list fade-in">
-                {historyOrders.map((order, index) => (
-                  <OrderHistoryRow key={order.order_number} order={order} index={index} />
-                ))}
-              </ul>
+              <div className="order-ledger fade-in">
+                {(() => {
+                  let i = 0;
+                  return groupByMonth(historyOrders).map((group) => (
+                    <div className="order-group" key={group.label}>
+                      <p className="order-group-label">{group.label}</p>
+                      <ul className="order-row-list">
+                        {group.orders.map((order) => {
+                          const rowIndex = i++;
+                          return <OrderHistoryRow key={order.order_number} order={order} index={rowIndex} />;
+                        })}
+                      </ul>
+                    </div>
+                  ));
+                })()}
+              </div>
             )}
 
             {nextCursor && (

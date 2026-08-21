@@ -1,9 +1,5 @@
 import { Brand } from './Brand.jsx';
 
-// Sentry.ErrorBoundary's fallback - what a customer sees instead of a blank
-// crashed page if a rendering error slips through. Reuses the same
-// app-shell/brand markup every other page already uses, rather than a
-// bare, unstyled error dump - a broken page shouldn't also look broken.
 export function ErrorFallback() {
   return (
     <div className="app-shell">

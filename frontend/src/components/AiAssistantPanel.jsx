@@ -4,25 +4,9 @@ import { useChatConversation, SUGGESTED_PROMPTS } from '../hooks/useChatConversa
 import { useOrders } from '../context/OrdersContext.jsx';
 import { SendIcon, SparkleIcon } from './icons.jsx';
 
-// The storefront's docked right-side drawer - a real, working client for the
-// same /api/chat endpoint ChatPage.jsx talks to (via the shared
-// useChatConversation hook), not a decorative mockup of one. Rendered only
-// on non-/chat routes (see Layout.jsx) so there's never a second, redundant
-// chat surface open at the same time as the full ChatPage.
-// isOpen is fully owned by Layout.jsx now, not local state here - the
-// header below used to be its own button that minimized this panel to an
-// icon rail; the single AI Assistant toggle in the page header is the only
-// control left (see .ai-toggle), so this component just renders whichever
-// state it's told instead of tracking one itself.
 export function AiAssistantPanel({ isOpen }) {
   const { bubbles, pending, sendMessage } = useChatConversation();
-  // This panel has no fetch of its own to gate on - the greeting/suggested-
-  // prompts placeholder below is skeleton'd purely so the sidebar, center
-  // page, and this panel all read as one app loading together and settle
-  // together (see Layout.jsx/OrdersPage.jsx's own skeletons), not because
-  // the AI assistant itself is waiting on the orders fetch. The input form
-  // stays real and usable throughout - there's no actual reason chatting
-  // has to wait for the order list.
+
   const { orders } = useOrders();
   const [input, setInput] = useState('');
   const logRef = useRef(null);

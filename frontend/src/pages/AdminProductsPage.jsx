@@ -4,6 +4,7 @@ import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 import { SearchIcon } from '../components/icons.jsx';
 import { ProductImage } from '../components/ProductImage.jsx';
 import { formatCents } from '../utils/pricing.js';
+import { AdminNewProductSheet } from '../components/AdminNewProductSheet.jsx';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 const DEFAULT_PAGE_SIZE = 10;
@@ -17,9 +18,6 @@ function buildQuery({ q, category, page, pageSize }) {
   return params.toString();
 }
 
-// Windowed page-number list with ellipsis gaps - identical logic to
-// AdminOrdersPage.jsx's own buildPageList (see that file's comment for
-// why the two ellipsis entries need distinct string keys).
 function buildPageList(current, pageCount) {
   if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1);
   const pages = [1];
@@ -30,11 +28,6 @@ function buildPageList(current, pageCount) {
   return pages;
 }
 
-// No status field exists on products - they just exist or don't (no
-// draft/archive state, see the original catalog plan's own scope trim).
-// This derives a real, data-backed substitute for the reference design's
-// Status column instead of leaving the column empty or fabricating a
-// status the schema doesn't have.
 function stockBadge(stockQuantity) {
   if (stockQuantity <= 0) return { className: 'out-of-stock', label: 'Out of Stock' };
   if (stockQuantity < 10) return { className: 'low-stock', label: 'Low Stock' };
@@ -51,6 +44,8 @@ export function AdminProductsPage() {
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState(null);
+
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +74,7 @@ export function AdminProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [q, category, page, pageSize]);
+  }, [q, category, page, pageSize, reloadToken]);
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -115,9 +110,7 @@ export function AdminProductsPage() {
             {total} product{total === 1 ? '' : 's'}
           </span>
         </div>
-        <Link to="/admin/products/new" className="admin-products-new-link">
-          New Product
-        </Link>
+        <AdminNewProductSheet onCreated={() => setReloadToken((t) => t + 1)} />
       </div>
 
       <div className="admin-products-toolbar">

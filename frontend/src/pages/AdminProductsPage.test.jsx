@@ -48,10 +48,11 @@ it('links each row to that product\'s edit page', async () => {
   );
 });
 
-it('links to the new-product page', async () => {
+it('opens the new-product sheet from the trigger button', async () => {
   renderPage();
   await screen.findByText('Wireless Noise-Cancelling Headphones');
-  expect(screen.getByRole('link', { name: /new product/i })).toHaveAttribute('href', '/admin/products/new');
+  fireEvent.click(screen.getByRole('button', { name: /new product/i }));
+  expect(await screen.findByRole('dialog', { name: /new product/i })).toBeInTheDocument();
 });
 
 it('shows an original price struck through when a product has one', async () => {
@@ -64,9 +65,7 @@ it('shows an original price struck through when a product has one', async () => 
 it('shows an In Stock badge for products at or above the 10-unit threshold', async () => {
   renderPage();
   await screen.findByText('Wireless Noise-Cancelling Headphones');
-  // Both fixture products (42 and 18 units) are >= 10, so both rows read
-  // In Stock - the Low Stock threshold itself is exercised by the
-  // dedicated fixture in the next test.
+
   expect(screen.getAllByText('In Stock')).toHaveLength(2);
 });
 

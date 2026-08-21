@@ -15,8 +15,6 @@ function adminCookie() {
   return `adminToken=${issueAdminToken({ id: 1, email: 'lindenbrien27@gmail.com' })}`;
 }
 
-// Sequential mock: walks a fixed array of results in call order, matching
-// the style used by test/adminInventoryService.test.js's sequentialMock.
 function sequentialMock(t, results) {
   let i = 0;
   return t.mock.method(pool, 'query', async () => {
@@ -27,7 +25,6 @@ function sequentialMock(t, results) {
   });
 }
 
-// getStockLedger query order: categories, locations, suppliers, count, items, stats, stockValue, avgLeadTime.
 function stockLedgerMockResults() {
   return [
     { rows: [{ category: 'Audio' }] },
@@ -52,7 +49,6 @@ function stockLedgerMockResults() {
   ];
 }
 
-// getReorderQueue query order: suppliers, count, items, stats.
 function reorderQueueMockResults() {
   return [
     { rows: [{ id: 1, name: 'Acme Supplies' }] },
@@ -62,7 +58,6 @@ function reorderQueueMockResults() {
   ];
 }
 
-// getPurchaseOrders query order: count, purchaseOrders, openCount.
 function purchaseOrdersMockResults() {
   return [
     { rows: [{ total: '0' }] },
@@ -70,10 +65,6 @@ function purchaseOrdersMockResults() {
     { rows: [{ total: '0' }] },
   ];
 }
-
-// ---------------------------------------------------------------------------
-// GET /api/admin/inventory (stock ledger)
-// ---------------------------------------------------------------------------
 
 test('GET /api/admin/inventory requires admin auth', async (t) => {
   await withServer(t, async (base) => {
@@ -131,10 +122,6 @@ test('GET /api/admin/inventory?location=1 still returns 200', async (t) => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// GET /api/admin/inventory/reorder
-// ---------------------------------------------------------------------------
-
 test('GET /api/admin/inventory/reorder requires admin auth', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(`${base}/api/admin/inventory/reorder`);
@@ -167,10 +154,6 @@ test('GET /api/admin/inventory/reorder?supplier=abc returns 400', async (t) => {
     assert.equal(res.status, 400);
   });
 });
-
-// ---------------------------------------------------------------------------
-// GET /api/admin/inventory/purchase-orders
-// ---------------------------------------------------------------------------
 
 test('GET /api/admin/inventory/purchase-orders requires admin auth', async (t) => {
   await withServer(t, async (base) => {

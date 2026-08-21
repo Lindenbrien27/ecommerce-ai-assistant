@@ -14,6 +14,7 @@ const WRITABLE_FIELDS = [
   'sku',
   'stock_quantity',
   'colorways',
+  'specs',
 ];
 
 function fieldsFromBody(body) {
@@ -106,4 +107,11 @@ async function deleteProduct(req, res) {
   }
 }
 
-module.exports = { createProduct, updateProduct, deleteProduct, listProducts };
+function uploadProductImage(req, res) {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file was uploaded.' });
+  }
+  res.status(201).json({ url: `/uploads/products/${req.file.filename}` });
+}
+
+module.exports = { createProduct, updateProduct, deleteProduct, listProducts, uploadProductImage };

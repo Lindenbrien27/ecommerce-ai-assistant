@@ -29,14 +29,11 @@ beforeEach(() => {
 });
 
 describe('AdminAuthContext logout', () => {
-  // logout() previously did a bare `await fetch(...)` with no try/catch - a
-  // network failure would both throw as an unhandled rejection AND leave
-  // `email` set, so the UI kept showing the user as logged in after a
-  // logout that failed to even reach the server.
+
   it('still clears local email state when the logout request fails on the network', async () => {
     global.fetch.mockImplementation((url, options) => {
       if (!options) {
-        // AdminAuthProvider's initial GET /api/admin/auth/me on mount.
+
         return Promise.resolve({ ok: true, json: async () => ({ email: 'admin@example.com' }) });
       }
       return Promise.reject(new Error('network down'));

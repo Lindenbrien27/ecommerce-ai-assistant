@@ -1,10 +1,6 @@
 const { pool } = require('../config/db');
 const { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('./orderService');
 
-// status/available/days_of_cover are derived per row, never stored - same
-// reasoning as adminProductService's own stockBadge equivalent on the
-// frontend, just computed here in SQL since every one of the 3 endpoints
-// below needs it (the frontend's per-page stockBadge() only had one caller).
 const ITEM_COLUMNS = `
   i.id, i.product_slug, p.name AS product_name, p.category, p.icon, p.price_cents,
   l.id AS location_id, l.name AS location_name,
@@ -64,11 +60,6 @@ async function getStockLedger({ q = null, category = null, location = null, supp
     [...params, clamped.pageSize, offset]
   );
 
-  // Stats are computed over the *entire* inventory_items table, not the
-  // filtered set - the reference design's stat cards don't move when the
-  // table below them is filtered, same as AdminProductsPage's category
-  // dropdown always listing every real category regardless of the current
-  // filter (see that file's own comment on why).
   const statsResult = await pool.query(`
     SELECT
       COALESCE(SUM(on_hand) FILTER (WHERE avg_daily_units_sold > 0), 0) / NULLIF(SUM(avg_daily_units_sold) FILTER (WHERE avg_daily_units_sold > 0), 0) AS days_of_cover,

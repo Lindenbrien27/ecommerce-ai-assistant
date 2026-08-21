@@ -1,12 +1,4 @@
--- Up Migration
 
--- Every order seeded so far belongs to one of these five customers (see
--- migrations/1784973065584_initial-schema.sql,
--- 1785245334753_add-lindenbrien-seed-orders.sql,
--- 1785410305029_add-lindenbrien-volume-history-orders.sql,
--- 1785631599842_add-dev-seed-account.sql). Keyed on customer_email, not
--- order_number, since backfilling one real address per customer is
--- simpler and just as plausible as inventing a distinct one per order.
 
 UPDATE orders SET
   recipient_name = 'Jane Doe',
@@ -58,8 +50,3 @@ UPDATE orders SET
   country = 'US'
 WHERE customer_email = 'dev@example.com';
 
--- Down Migration
-
--- No-op: reverting this migration means "forget the addresses," which the
--- schema migration's own down (dropping the columns entirely) already
--- covers. Nothing to explicitly undo here.

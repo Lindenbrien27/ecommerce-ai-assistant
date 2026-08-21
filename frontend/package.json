@@ -10,14 +10,22 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@sentry/react": "^10.68.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "framer-motion": "^13.1.0",
     "graphify": "^1.0.0",
     "ldrs": "^1.1.9",
+    "lucide-react": "^1.31.0",
+    "radix-ui": "^1.6.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.1",
-    "sonner": "^2.0.8"
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

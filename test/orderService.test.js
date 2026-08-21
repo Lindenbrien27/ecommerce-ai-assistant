@@ -4,10 +4,6 @@ const { pool } = require('../src/config/db');
 const { orderCache } = require('../src/config/cache');
 const orderService = require('../src/services/orderService');
 
-// A clean cache before every test - several tests below mock the same
-// order number/email with different pool.query results, and a cache hit
-// from an earlier test would otherwise serve stale data instead of calling
-// the newly-mocked pool.query.
 test.beforeEach(() => orderCache.clear());
 
 test('getOrderByNumber returns the matching row', async (t) => {
@@ -32,8 +28,8 @@ test('getOrdersByEmail returns a page of rows for a customer with no next cursor
   t.mock.method(pool, 'query', async (sql, params) => {
     assert.match(sql, /WHERE customer_email = \$1/);
     assert.equal(params[0], 'jane.doe@example.com');
-    assert.equal(params[1], null); // no cursor on the first page
-    assert.equal(params[3], 21); // default page size (20) + 1, to detect a next page
+    assert.equal(params[1], null);
+    assert.equal(params[3], 21);
     return { rows: [{ order_number: 'ORD-1001' }, { order_number: 'ORD-1002' }] };
   });
 
@@ -44,7 +40,7 @@ test('getOrdersByEmail returns a page of rows for a customer with no next cursor
 
 test('getOrdersByEmail returns a nextCursor when more rows remain beyond the page size', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
-    assert.equal(params[3], 3); // requested limit (2) + 1
+    assert.equal(params[3], 3);
     return {
       rows: [
         { order_number: 'ORD-1001', created_at: '2026-01-03T00:00:00Z', id: 3 },
@@ -86,10 +82,7 @@ function encodeCursor(obj) {
 }
 
 test('getOrdersByEmail rejects a well-typed cursor with a createdAt that is not a real date', async (t) => {
-  // Found in a security review: this used to reach the query and fail
-  // there instead (an invalid ::timestamptz literal), which the controller
-  // reports as a 500 - a malformed client cursor should 400, not look like
-  // a server fault.
+
   const cursor = encodeCursor({ createdAt: 'not-a-real-date', id: 5 });
   await assert.rejects(
     orderService.getOrdersByEmail('jane.doe@example.com', { cursor }),
@@ -200,12 +193,11 @@ test('toCustomerOrder strips the internal refund_reason admin note', () => {
   const customerView = orderService.toCustomerOrder(row);
 
   assert.equal('refund_reason' in customerView, false);
-  // Everything else about the refund is legitimately the customer's to see.
+
   assert.equal(customerView.refund_amount_cents, 5500);
   assert.equal(customerView.refunded_at, '2026-01-02T00:00:00Z');
   assert.equal(customerView.status, 'returned');
-  // The source row (a shared orderCache entry) is left intact - the admin
-  // paths read the same object and do need refund_reason.
+
   assert.equal(row.refund_reason, 'suspected fraud');
 });
 

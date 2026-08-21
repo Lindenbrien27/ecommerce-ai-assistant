@@ -57,9 +57,7 @@ test('two concurrent requests for the same email each get their own independentl
   const [codeA, codeB] = await Promise.all([requestOtp('jane@example.com'), requestOtp('jane@example.com')]);
 
   assert.equal(inserted.length, 2);
-  // Verifying against a store that still has BOTH rows, code A's hash must
-  // still be found even though code B was requested after it - neither
-  // request's insert overwrote the other's.
+
   const hashesInserted = inserted.map((args) => args[1]);
   assert.ok(hashesInserted.includes(hashCode(codeA)));
   assert.ok(hashesInserted.includes(hashCode(codeB)));
@@ -71,9 +69,7 @@ test('verifyOtp returns OK and deletes only the matched row, not every outstandi
   const queries = [];
   t.mock.method(pool, 'query', async (sql, args) => {
     queries.push({ sql, args });
-    // A second, unrelated outstanding code for the same email - simulates
-    // another concurrent/independent request (e.g. a second tab) that
-    // hasn't been verified yet. It must survive this call.
+
     if (sql.startsWith('SELECT')) return { rows: [matchedRow, row({ code: '999999' })] };
     return { rows: [] };
   });
@@ -83,9 +79,7 @@ test('verifyOtp returns OK and deletes only the matched row, not every outstandi
   assert.equal(result, OtpResult.OK);
   const del = queries.find((q) => q.sql.startsWith('DELETE'));
   assert.ok(del, 'a verified code must be deleted so it cannot be replayed');
-  // By the matched row's own id, not a blanket "every row for this email" -
-  // an unrelated still-outstanding code (e.g. another tab's in-flight
-  // request) must not be deleted as a side effect of this one succeeding.
+
   assert.deepEqual(del.args, [matchedRow.id]);
 });
 
@@ -126,8 +120,7 @@ test('verifyOtp returns INVALID (not OK) when the code is wrong, and records the
 
 test('verifyOtp treats an expired code as if it never existed, and does not match it', async (t) => {
   t.mock.method(pool, 'query', async (sql) => {
-    // The service's own WHERE expires_at > now() means an expired row
-    // simply never comes back from this SELECT.
+
     if (sql.startsWith('SELECT')) return { rows: [] };
     return { rows: [] };
   });

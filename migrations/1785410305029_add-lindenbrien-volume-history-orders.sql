@@ -1,19 +1,5 @@
--- Up Migration
 
--- 35 more orders for lindenbrien27@gmail.com (the app owner's own real
--- inbox, see migrations/1785245334753_add-lindenbrien-seed-orders.sql),
--- spanning January 2025 through July 2026 - enough real history for the
--- new Order Volume widget's Last Month/This Year/Last Year views to each
--- have something genuine to chart, instead of the 2-order account this
--- otherwise still is.
---
--- Every status here is chosen for date plausibility relative to "today"
--- (2026-07-30) - orders placed months ago are 'delivered' (or, twice,
--- 'cancelled'); only the two most recent ones (mid-to-late July 2026) are
--- still 'out_for_delivery'/'processing'. estimated_delivery is always in
--- the future for those two still-in-flight orders and always unset for
--- the two cancelled ones, matching the existing stale-estimate fix in
--- migrations/1785068947495_fix-seed-order-dates.sql.
+
 INSERT INTO orders
   (order_number, customer_email, product_name, status, carrier, tracking_number, estimated_delivery,
    created_at, unit_price_cents, delivery_cost_cents, vat_cents, voucher_cents, voucher_code, product_icon)
@@ -54,7 +40,5 @@ VALUES
   ('ORD-2034', 'lindenbrien27@gmail.com', 'Desk Cable Organizer Tray', 'out_for_delivery', 'UPS', '1Z999AA10300034', '2026-08-01', '2026-07-18T15:40:00Z', 1999, 1999, 160, 0, NULL, 'chair'),
   ('ORD-2035', 'lindenbrien27@gmail.com', 'Monitor Privacy Screen', 'processing', NULL, NULL, '2026-08-05', '2026-07-26T13:00:00Z', 3999, 999, 320, 0, NULL, 'monitor')
 ON CONFLICT (order_number) DO NOTHING;
-
--- Down Migration
 
 DELETE FROM orders WHERE order_number LIKE 'ORD-20%';

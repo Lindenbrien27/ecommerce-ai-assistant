@@ -8,14 +8,6 @@ async function settle() {
   await new Promise((resolve) => setImmediate(resolve));
 }
 
-// process.on is mocked here rather than actually registering (and then
-// emitting) real 'uncaughtException'/'unhandledRejection' events - Node's
-// own test runner installs its own listener for the former specifically to
-// detect genuine crashes during a test run, and process.emit(...) would
-// trigger that too, failing this test for the wrong reason. Capturing the
-// callback registerCrashHandlers() hands to process.on and invoking it
-// directly exercises the exact same handler logic without going anywhere
-// near the real process event.
 function captureHandler(t, eventName) {
   const onMock = t.mock.method(process, 'on', () => {});
   registerCrashHandlers();

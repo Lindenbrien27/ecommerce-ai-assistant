@@ -140,8 +140,7 @@ test('GET /admin/login serves the app with a relaxed CSP allowing Google Sign-In
     const csp = res.headers.get('content-security-policy');
     assert.match(csp, /script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client/);
     assert.match(csp, /frame-src 'self' https:\/\/accounts\.google\.com/);
-    // Google's gsi/client script injects its own stylesheet from this path -
-    // a 'self'-only style-src blocks it outright.
+
     assert.match(csp, /style-src 'self' https:\/\/accounts\.google\.com\/gsi\/style/);
   });
 });
@@ -168,12 +167,3 @@ test('GET /orders keeps the strict default COOP - the admin override is scoped t
   });
 });
 
-// The admin-login-specific rate limit tests (POST /google trips it, GET /me
-// doesn't share its budget) live in test/rateLimiter.test.js instead of
-// here - node:test isolates each file into its own process, so a fresh file
-// gets a fresh adminLoginLimiter counter. Kept in this file, the tests above
-// (four of which already POST to /google) would eat into the same budget
-// this test needs to measure precisely, an artifact of the limiter being a
-// module-level singleton shared across every test in one process, same
-// reasoning rateLimiter.test.js's own comments already document for
-// chatLimiter/ordersLimiter/authLimiter.

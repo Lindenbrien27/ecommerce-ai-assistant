@@ -3,19 +3,8 @@ import { Link } from 'react-router-dom';
 import { ChevronRightIcon, TrashIcon } from '../components/icons.jsx';
 import { formatCents } from '../utils/pricing.js';
 
-// Simulated only - this app has no real checkout backend to actually
-// submit to, so Continue just shows this loading treatment for a beat
-// before settling back to idle, rather than advancing the step indicator
-// above to a step (Delivery) that has no real content behind it yet (see
-// CheckoutPage's own STEPS comment).
 const PROCESSING_MS = 1600;
 
-// Fabricated checkout content, same tier as ShopNowDialog's AirBuds White
-// and Cloud Shift Runner itself - this app has no real cart/checkout
-// backend, so the two line items and their math below are invented but
-// internally consistent (24800 + 8600 subtotal, minus the 1800 promo
-// discount, plus 2765 estimated tax, lands on the same $343.65 total the
-// approved design shows).
 const CART_ITEMS = [
   { id: 'jacket', name: 'Leather Biker Jacket', meta: 'Black · M · Qty 1', priceCents: 24800 },
   { id: 'tank', name: 'Ribbed Tank Set', meta: 'Chalk · S · Qty 1', priceCents: 8600, originalPriceCents: 11800 },
@@ -25,10 +14,6 @@ const TAX_CENTS = 2765;
 const DISCOUNT_CENTS = 1800;
 const TOTAL_CENTS = 34365;
 
-// Only the Customer step (1 of 4) has real content - Delivery/Payment/
-// Review exist as labels in the stepper only, matching the source design,
-// which likewise only shows this one step filled in. Not a working
-// multi-step wizard yet.
 const STEPS = ['Customer', 'Delivery', 'Payment', 'Review'];
 
 export function CheckoutPage() {
@@ -41,7 +26,7 @@ export function CheckoutPage() {
 
   return (
     <div className="checkout-root">
-      <nav className="product-detail-breadcrumb" aria-label="Breadcrumb">
+      <nav className="checkout-breadcrumb" aria-label="Breadcrumb">
         <Link to="/shop">Store</Link>
         <ChevronRightIcon aria-hidden="true" />
         <Link to="/bag">Bag</Link>

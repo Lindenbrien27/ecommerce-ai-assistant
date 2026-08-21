@@ -6,15 +6,8 @@ const { issueToken } = require('../src/services/authService');
 const { OAuth2Client } = require('google-auth-library');
 const app = require('../src/app');
 
-// orderService caches order lookups (src/config/cache.js) - doesn't change
-// what these tests assert on (HTTP status codes, not pool.query call
-// counts), but keeps this file consistent with the others that mock
-// pool.query directly, in case a later test here relies on a fresh lookup.
 test.beforeEach(() => orderCache.clear());
 
-// Isolated in its own file so node:test's per-file process isolation gives
-// this a fresh chatLimiter/ordersLimiter/authLimiter counter, unaffected by
-// calls made in app.test.js.
 test('returns 429 once a client exceeds RATE_LIMIT_MAX requests to /api/chat', async (t) => {
   const server = app.listen(0);
   t.after(() => server.close());
@@ -69,14 +62,6 @@ test('/api/chat rate limit is keyed by authenticated customer, not source IP - t
   const max = Number(process.env.RATE_LIMIT_MAX);
   assert.ok(max > 0, 'RATE_LIMIT_MAX must be set for this test');
 
-  // Every request in this test comes from the same test process (the same
-  // IP either way) - a key generator that fell back to req.ip regardless
-  // of identity would exhaust jane's and john's requests out of one shared
-  // bucket. Keyed by customer, each gets their own full budget. Emails
-  // unique to this test, not reused from the file's other tests - the
-  // limiter's in-memory store is a module-level singleton shared across
-  // every test in this file, so a previously-exhausted identity would still
-  // read as rate-limited here.
   const janeHeaders = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${issueToken('rate-limit-key-test-jane@example.com')}`,
@@ -85,11 +70,7 @@ test('/api/chat rate limit is keyed by authenticated customer, not source IP - t
     'Content-Type': 'application/json',
     Authorization: `Bearer ${issueToken('rate-limit-key-test-john@example.com')}`,
   };
-  // Empty on purpose, same as the test above - this fails validation with a
-  // 400 before ever reaching the real Anthropic call (no real
-  // ANTHROPIC_API_KEY in test/CI), but the rate limiter runs before route
-  // validation either way, so the budget still counts down. All this test
-  // needs is a consistent, cheap non-429 status to count against the limit.
+
   const body = JSON.stringify({ messages: [] });
 
   for (let i = 0; i < max; i += 1) {
@@ -99,8 +80,6 @@ test('/api/chat rate limit is keyed by authenticated customer, not source IP - t
   const janeOverLimit = await fetch(`${base}/api/chat`, { method: 'POST', headers: janeHeaders, body });
   assert.equal(janeOverLimit.status, 429, "jane should now be rate limited on jane's own budget");
 
-  // john hasn't made a single request yet - his budget should be untouched
-  // by jane's, even though both came from the same IP.
   const johnFirstRequest = await fetch(`${base}/api/chat`, { method: 'POST', headers: johnHeaders, body });
   assert.notEqual(johnFirstRequest.status, 429, "john's first request should not be affected by jane's limit");
 });
@@ -128,12 +107,6 @@ test('returns 429 once a client exceeds RATE_LIMIT_AUTH_MAX requests to /api/aut
   assert.equal(res.status, 429);
 });
 
-// adminLoginLimiter is mounted on just POST /api/admin/auth/google (see
-// adminAuthRoutes.js) - it used to be mounted on the whole
-// /api/admin/auth router in app.js, which meant GET /me (polled on every
-// page load by the frontend's AdminAuthContext) counted against the same
-// tiny 5-attempts-per-window budget as actual login attempts, locking the
-// admin out after ~4 page reloads.
 test('returns 429 once a client exceeds RATE_LIMIT_ADMIN_LOGIN_MAX requests to POST /api/admin/auth/google', async (t) => {
   process.env.GOOGLE_CLIENT_ID = 'test-client-id';
   t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async () => ({

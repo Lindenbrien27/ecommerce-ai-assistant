@@ -8,6 +8,7 @@ import {
   ShopIcon,
   PersonIcon,
   TicketIcon,
+  StarIcon,
   LogoutIcon,
   PanelLeftIcon,
   BoxIcon,
@@ -25,11 +26,6 @@ export function AdminNav() {
   const ordersActive = pathname === '/admin' || pathname.startsWith('/admin/orders');
   const inventoryActive = pathname.startsWith('/admin/inventory');
 
-  // Starts expanded if the sidebar mounts directly on an inventory route
-  // (a page refresh, or a deep link). The effect below re-expands it on
-  // every *navigation* onto an inventory route too, but deliberately
-  // doesn't run on every render - so a manual collapse-while-still-on-
-  // that-page click (toggled below) sticks instead of snapping back open.
   const [inventoryExpanded, setInventoryExpanded] = useState(inventoryActive);
   useEffect(() => {
     if (inventoryActive) setInventoryExpanded(true);
@@ -117,6 +113,12 @@ export function AdminNav() {
                   className={({ isActive }) => `admin-sidenav-item${isActive ? ' active' : ''}`}
                 >
                   <TicketIcon /> <span className="admin-sidenav-label">Promo Codes</span>
+                </NavLink>
+                <NavLink
+                  to="/admin/reviews"
+                  className={({ isActive }) => `admin-sidenav-item${isActive ? ' active' : ''}`}
+                >
+                  <StarIcon /> <span className="admin-sidenav-label">Reviews</span>
                 </NavLink>
               </div>
             </nav>

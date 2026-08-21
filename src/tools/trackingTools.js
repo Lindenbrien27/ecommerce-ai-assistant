@@ -1,9 +1,5 @@
 const orderService = require('../services/orderService');
 
-// Fixed, not the paginated default - the model has no cursor to hand back
-// on a follow-up call, so this has to be a single self-contained page. Caps
-// what a "list my orders" question can pull into the conversation, so a
-// customer with a very long order history doesn't blow up the prompt.
 const MAX_ORDERS_FOR_CHAT = 20;
 
 const definitions = [
@@ -39,10 +35,6 @@ const definitions = [
   },
 ];
 
-// Whatever these tools return goes straight into the model's context and,
-// from there, into what the assistant will happily tell the customer - so
-// the same internal-field stripping the REST controller does applies here
-// too (see orderService.toCustomerOrder).
 function ownedBy(order, customerEmail) {
   if (!order) return null;
   return order.customer_email.toLowerCase() === customerEmail.toLowerCase()
@@ -50,10 +42,6 @@ function ownedBy(order, customerEmail) {
     : null;
 }
 
-// Every implementation is scoped to the authenticated customer via
-// context.customerEmail - never a value the model supplies. This is what
-// stops the assistant from being usable as an oracle to look up someone
-// else's order, regardless of what a crafted prompt asks it to do.
 const implementations = {
   get_order_by_number: async ({ orderNumber }, { customerEmail }) => {
     const order = await orderService.getOrderByNumber(orderNumber);

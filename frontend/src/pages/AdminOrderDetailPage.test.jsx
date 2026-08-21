@@ -102,7 +102,6 @@ it('logs out (redirecting to /admin/login via AdminProtectedRoute) on a 401 from
     expect(loggedOut).toBe(true);
   });
 
-  // A 401 should route the admin to sign in again, not show a generic error.
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -268,7 +267,7 @@ it('surfaces an error when the shipping update fails', async () => {
 it('shows the refund form pre-filled with the order total when not yet refunded', async () => {
   renderPage();
   await screen.findByText('Sneakers');
-  // ORDER fixture: unit_price_cents 5000 + delivery_cost_cents 500 = 5500
+
   expect(screen.getByLabelText(/refund amount/i)).toHaveValue(55);
 });
 
@@ -298,9 +297,7 @@ it('submits a refund with the entered amount and restock choice', async () => {
     call = global.fetch.mock.calls.find(([u, o]) => u === '/api/admin/orders/ORD-1001/refund' && o?.method === 'POST');
     expect(call).toBeTruthy();
   });
-  // Assert outside the mock implementation: processRefund wraps its fetch
-  // call in try/catch, so an assertion thrown inside the mock itself would
-  // be swallowed as a caught error and never fail this test.
+
   const body = JSON.parse(call[1].body);
   expect(body).toMatchObject({ amount_cents: 5500, restock: true, reason: 'Wrong size' });
 });
@@ -309,11 +306,7 @@ it('shows a read-only refund summary instead of the form when the order is alrea
   global.fetch = vi.fn((url, opts) => {
     if (url === '/api/admin/auth/me') return Promise.resolve({ ok: false });
     if (url === '/api/admin/orders/ORD-1001' && !opts) {
-      // A partial refund (2000, not the fixture's full 5500 total) so its
-      // rendered "$20.00" is textually distinct from the page's own
-      // "Total paid" field (which would also read "$55.00" for this same
-      // ORDER fixture) - getByText would otherwise match both and throw
-      // on multiple elements.
+
       return Promise.resolve({
         ok: true,
         json: async () => ({ ...ORDER, status: 'returned', refund_amount_cents: 2000, restocked: true, refunded_at: '2026-01-02T00:00:00Z', refund_reason: 'Wrong size' }),
@@ -329,7 +322,6 @@ it('shows a read-only refund summary instead of the form when the order is alrea
   expect(screen.getByText(/wrong size/i)).toBeInTheDocument();
   expect(screen.queryByLabelText(/refund amount/i)).not.toBeInTheDocument();
 
-  // Same formatting the page already uses elsewhere (e.g. the "Ordered" field).
   const expectedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(
     new Date('2026-01-02T00:00:00Z')
   );
@@ -385,7 +377,7 @@ it('logs out on a 401 from the refund submission', async () => {
 it('caps the refund amount input at the order total, matching the server-side cap', async () => {
   renderPage();
   await screen.findByText('Sneakers');
-  // ORDER fixture: unit_price_cents 5000 + delivery_cost_cents 500 = 5500
+
   expect(screen.getByLabelText(/refund amount/i)).toHaveAttribute('max', '55');
 });
 
@@ -413,8 +405,6 @@ describe('a refunded order', () => {
     renderPage();
     await screen.findByText('Sneakers');
 
-    // Neither a (blank, because 'returned' has no matching <option>)
-    // dropdown nor a live Save button to PATCH the old status back with.
     expect(screen.queryByLabelText(/change status/i)).not.toBeInTheDocument();
     expect(screen.getByText(/locked to .returned./i)).toBeInTheDocument();
   });
@@ -429,7 +419,6 @@ describe('a refunded order', () => {
     renderPage();
     await screen.findByText('Sneakers');
 
-    // The only Save left is the shipping one.
     const saveButtons = screen.getAllByRole('button', { name: /save/i });
     expect(saveButtons).toHaveLength(1);
     fireEvent.click(saveButtons[0]);

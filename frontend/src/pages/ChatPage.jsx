@@ -29,7 +29,7 @@ export function ChatPage() {
   }
 
   return (
-    <>
+    <div className="chat-page-root">
       {/* The heading ("Order Support Assistant") moved into Layout.jsx's
           shared page-header row, alongside the search bar/theme toggle -
           this row now only holds what's actually specific to this page. */}
@@ -42,14 +42,7 @@ export function ChatPage() {
         )}
       </div>
 
-      {/* tabIndex so a keyboard-only user can actually reach and scroll this
-          region once its content overflows - a scrollable container with no
-          focusable content inside it and no way to focus the container
-          itself is a keyboard trap (WCAG 2.1.1/2.1.3, axe's
-          scrollable-region-focusable rule). Only ever actually overflows on
-          narrower viewports/longer transcripts - caught by the e2e a11y
-          suite on Mobile Safari specifically, not locally on a wider
-          desktop viewport where the same transcript fit without scrolling. */}
+      {}
       <div
         id="chat"
         ref={chatRef}
@@ -110,6 +103,6 @@ export function ChatPage() {
           <SendIcon />
         </button>
       </form>
-    </>
+    </div>
   );
 }

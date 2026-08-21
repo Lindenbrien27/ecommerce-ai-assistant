@@ -3,13 +3,6 @@ const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
 const adminInventoryService = require('../src/services/adminInventoryService');
 
-// adminInventoryService's 3 exports each fire several *sequential* pool.query
-// calls in a fixed order (see the file itself). Rather than branching on SQL
-// text per call (fragile - several queries share substrings), each mock here
-// walks a `steps` array in call order: step.match (optional) is asserted
-// against the incoming sql, step.assertParams (optional) against params, and
-// step.result is returned. Mirrors adminProductService.test.js's flat,
-// explicit style otherwise.
 function sequentialMock(t, steps) {
   let i = 0;
   return t.mock.method(pool, 'query', async (sql, params) => {
@@ -22,12 +15,6 @@ function sequentialMock(t, steps) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// getStockLedger
-// ---------------------------------------------------------------------------
-
-// Query order: categories, locations, suppliers, count, items, stats,
-// stockValue, avgLeadTime.
 function stockLedgerSteps({ items = [], total = '0', category = null, location = null, supplier = null, searchTerm = null, status = null, pageSize, offset } = {}) {
   return [
     { match: /DISTINCT category/, result: { rows: [{ category: 'Audio' }, { category: 'Footwear' }] } },
@@ -68,8 +55,7 @@ function stockLedgerSteps({ items = [], total = '0', category = null, location =
 }
 
 test('getStockLedger returns items, stats, categories/locations/suppliers unfiltered', async (t) => {
-  // Hand-computed: available = on_hand - allocated; days_of_cover = on_hand / avg_daily_units_sold
-  // (null when avg_daily_units_sold isn't > 0); status per the CASE in the service's ITEM_COLUMNS SQL.
+
   const items = [
     { id: 1, sku_code: 'A-1', on_hand: 50, allocated: 10, available: 40, reorder_point: 20, avg_daily_units_sold: 5, days_of_cover: 10, status: 'in_stock' },
     { id: 2, sku_code: 'B-1', on_hand: 15, allocated: 5, available: 10, reorder_point: 20, avg_daily_units_sold: 3, days_of_cover: 5, status: 'low_stock' },
@@ -133,7 +119,7 @@ test('getStockLedger clamps pageSize to MAX_PAGE_SIZE and page to at least 1', a
 });
 
 test('getStockLedger derives LIMIT/OFFSET from page and pageSize', async (t) => {
-  // page 3, pageSize 5 -> offset (3-1)*5 = 10
+
   sequentialMock(t, stockLedgerSteps({ total: '30', pageSize: 5, offset: 10 }));
 
   const result = await adminInventoryService.getStockLedger({ page: 3, pageSize: 5 });
@@ -141,11 +127,6 @@ test('getStockLedger derives LIMIT/OFFSET from page and pageSize', async (t) => 
   assert.equal(result.pageSize, 5);
 });
 
-// ---------------------------------------------------------------------------
-// getReorderQueue
-// ---------------------------------------------------------------------------
-
-// Query order: suppliers, count, items, stats.
 function reorderQueueSteps({ items = [], total = '0', supplier = null, searchTerm = null, urgency = null, pageSize, offset } = {}) {
   return [
     { match: /SELECT id, name FROM suppliers/, result: { rows: [{ id: 1, name: 'Acme Supplies' }] } },
@@ -178,10 +159,7 @@ function reorderQueueSteps({ items = [], total = '0', supplier = null, searchTer
 }
 
 test('getReorderQueue computes deficit and suggested_po_qty from reorder_point/available', async (t) => {
-  // Hand-computed:
-  // Row1: deficit = max(0, 20 - 5) = 15; rawSuggested = 20*2 - 5 = 35 -> round(3.5)*10 = 40 -> max(10,40) = 40
-  // Row2: deficit = max(0, 10 - 10) = 0;  rawSuggested = 10*2 - 10 = 10 -> round(1)*10 = 10 -> max(10,10) = 10
-  // Row3: deficit = max(0, 50 - -10) = 60; rawSuggested = 50*2 - -10 = 110 -> round(11)*10 = 110 -> max(10,110) = 110
+
   const items = [
     { id: 1, sku_code: 'A-1', reorder_point: 20, available: 5, status: 'low_stock' },
     { id: 2, sku_code: 'B-1', reorder_point: 10, available: 10, status: 'low_stock' },
@@ -230,11 +208,6 @@ test('getReorderQueue clamps pageSize to MAX_PAGE_SIZE and page to at least 1', 
   assert.equal(result.pageSize, 100);
 });
 
-// ---------------------------------------------------------------------------
-// getPurchaseOrders
-// ---------------------------------------------------------------------------
-
-// Query order: count, purchaseOrders (items), openCount.
 function purchaseOrdersSteps({ purchaseOrders = [], total = '0', status = null, searchTerm = null, pageSize, offset, openCount = '0' } = {}) {
   return [
     {
@@ -256,9 +229,7 @@ function purchaseOrdersSteps({ purchaseOrders = [], total = '0', status = null, 
 }
 
 test('getPurchaseOrders sums item_count/total_units/total_cents from line items', async (t) => {
-  // Hand-computed from 2 line items on one PO:
-  // item1: qty 5 @ 10000c = 50000c; item2: qty 10 @ 20000c = 200000c
-  // -> item_count 2, total_units 15, total_cents 250000
+
   const purchaseOrders = [
     {
       id: 1,
