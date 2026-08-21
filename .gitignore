@@ -10,3 +10,4 @@ playwright/.cache/
 .DS_Store
 .superpowers/
 
+uploads/

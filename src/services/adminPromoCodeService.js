@@ -3,12 +3,6 @@ const { pool } = require('../config/db');
 const REQUIRED_FIELDS = ['code', 'discount_type', 'discount_value'];
 const DISCOUNT_TYPES = Object.freeze(['percentage', 'fixed']);
 
-// code is both the primary key and a literal path segment (PATCH/DELETE
-// /api/admin/promo-codes/:code) - uppercase alphanumeric with single
-// hyphens/underscores as separators, no leading/trailing/consecutive
-// separators. Anything else (a `/`, `%`, whitespace, ...) would create a
-// row that's permanently unreachable through that route. Same reasoning
-// adminProductService.js's own SLUG_PATTERN documents for `slug`.
 const CODE_PATTERN = /^[A-Z0-9]+(?:[_-][A-Z0-9]+)*$/;
 
 class ValidationError extends Error {}
@@ -92,12 +86,6 @@ async function createPromoCode(fields) {
   }
 }
 
-// Fetches the current row first and merges, same reasoning
-// adminProductService.updateProduct's own comment documents: a plain SQL
-// UPDATE with unconditional SET clauses would overwrite every unlisted
-// field with NULL/undefined. code, usage_count, and created_at are never
-// part of the merge - a PATCH changes a code's terms, not its identity or
-// its usage history.
 async function updatePromoCode(code, fields) {
   validateFields(fields, { partial: true });
 
@@ -105,11 +93,6 @@ async function updatePromoCode(code, fields) {
   if (existing.rows.length === 0) return null;
   const current = existing.rows[0];
 
-  // discount_value's percentage-<=100 check needs the *effective* type
-  // (the merged one, not just whatever was in this partial request) -
-  // re-validate against the merged shape so e.g. patching only
-  // discount_value on an existing percentage code still catches a value
-  // over 100.
   const merged = {
     discount_type: fields.discount_type ?? current.discount_type,
     discount_value: fields.discount_value ?? current.discount_value,

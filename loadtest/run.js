@@ -1,18 +1,11 @@
 const autocannon = require('autocannon');
 
-// Same seed customer test/e2e already use (migrations/1784973065584_initial-schema.sql).
 const EMAIL = 'jane.doe@example.com';
 
 const TARGET = process.env.LOADTEST_TARGET || 'http://127.0.0.1:3000';
 const DURATION = Number(process.env.LOADTEST_DURATION) || 15;
 const CONNECTIONS = Number(process.env.LOADTEST_CONNECTIONS) || 20;
 
-// This measures the backend/database's real throughput headroom under
-// concurrency - not the rate limiter, which already has its own dedicated,
-// deterministic coverage in test/rateLimiter.test.js. Run this against a
-// server with RATE_LIMIT_ORDERS_MAX set high (see
-// .github/workflows/loadtest.yml) or every request past the first ~30/min
-// just measures 429s instead of real backend latency.
 async function getToken() {
   const requestRes = await fetch(`${TARGET}/api/auth/otp/request`, {
     method: 'POST',
@@ -22,9 +15,7 @@ async function getToken() {
   if (!requestRes.ok) {
     throw new Error(`Setup failed: POST /api/auth/otp/request returned ${requestRes.status}`);
   }
-  // NODE_ENV is 'test' here (see .github/workflows/loadtest.yml) and no SMTP_*
-  // is configured, so the code comes back directly instead of being emailed -
-  // same devCode fallback the e2e suite relies on (see e2e/helpers.js).
+
   const { devCode } = await requestRes.json();
   if (!devCode) {
     throw new Error('Setup failed: no devCode in response - is SMTP configured or NODE_ENV=production?');
@@ -59,10 +50,6 @@ async function run() {
   const token = await getToken();
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  // GET /api/orders - the keyset-paginated list endpoint (see README >
-  // Pagination). Real seed data only has 2 orders for this customer, well
-  // under the default page size, so this exercises the common case: a
-  // single page, no cursor.
   const ordersResult = await autocannon({
     url: `${TARGET}/api/orders?limit=20`,
     connections: CONNECTIONS,
@@ -70,8 +57,6 @@ async function run() {
     headers: authHeaders,
   });
 
-  // GET /api/orders/:id - single-row lookup by order_number, the other
-  // shape of read traffic this app actually serves.
   const orderDetailResult = await autocannon({
     url: `${TARGET}/api/orders/${ORDER_NUMBER}`,
     connections: CONNECTIONS,
@@ -82,11 +67,6 @@ async function run() {
   const ordersOk = summarize('GET /api/orders (paginated list)', ordersResult);
   const orderDetailOk = summarize('GET /api/orders/:id', orderDetailResult);
 
-  // Latency numbers are printed for a human to read, not gated on - they're
-  // a function of whatever hardware happened to run this, which varies a
-  // lot on shared CI runners. Any error/timeout/non-2xx response is not:
-  // that's the server actually failing under load, not the environment
-  // being slow, so that's what fails the run.
   if (!ordersOk || !orderDetailOk) {
     console.error('\nLoad test failed: at least one scenario had errors, timeouts, or non-2xx responses.');
     process.exitCode = 1;

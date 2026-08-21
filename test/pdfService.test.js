@@ -1,4 +1,4 @@
-// test/pdfService.test.js
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { computeOrderTotal, formatCents } = require('../src/utils/pricing');

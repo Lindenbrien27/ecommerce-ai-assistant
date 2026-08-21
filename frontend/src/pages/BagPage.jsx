@@ -18,25 +18,11 @@ import { useCart } from '../context/CartContext.jsx';
 import { useProducts } from '../context/ProductsContext.jsx';
 import { formatCents } from '../utils/pricing.js';
 
-// How long a press-and-hold on the confirm dialog's Remove button takes to
-// actually delete the item - releasing before this fires cancels instead
-// (see startHold/cancelHold below). Matches ROW_EXIT_MS's own role: both
-// are timing constants the JS setTimeout calls need to agree with, one
-// with the CSS transition duration on .remove-btn.holding .remove-fill
-// (index.css), the other with .cart-item.leaving's own transition.
 const REMOVE_HOLD_MS = 1500;
 const ROW_EXIT_MS = 320;
-// Undo toast dwell time - restarts from this full duration every time the
-// mouse leaves it (see UndoToast below), rather than resuming whatever
-// time was left when the hover started.
+
 const UNDO_TOAST_MS = 6000;
 
-// toast.custom hands back an id, not a data prop - id/productName/onUndo
-// are threaded through as plain props instead. duration: Infinity on the
-// toast.custom() call (see completeRemoval) hands the entire timing/pause
-// contract to this component instead of Sonner's own per-toast timer,
-// which only supports pause-then-resume, not "start over from 6s" on
-// mouseleave.
 function UndoToast({ id, productName, onUndo }) {
   const timerRef = useRef(null);
 
@@ -47,7 +33,7 @@ function UndoToast({ id, productName, onUndo }) {
   useEffect(() => {
     startTimer();
     return () => clearTimeout(timerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   function handleUndo() {
@@ -76,22 +62,12 @@ function UndoToast({ id, productName, onUndo }) {
 
 export function BagPage() {
   const navigate = useNavigate();
-  // Shared with Layout's own sidebar badge (see CartContext.jsx) - reading
-  // from context here instead of a page-local useState is what keeps that
-  // badge in sync with whatever this page does (remove an item, and the
-  // sidebar count drops immediately) rather than a page-local list that
-  // silently resets to the same 3 seed items every time this page
-  // remounts.
+
   const { items, setItems } = useCart();
   const authorizedFetch = useAuthorizedFetch();
   const { products, error, findProduct } = useProducts();
   const selectAllRef = useRef(null);
 
-  // confirmProductId drives the alert dialog itself; leavingProductId is
-  // separate so the row can play its own fade-out (see .cart-item.leaving)
-  // for ROW_EXIT_MS before removeItem actually drops it from context -
-  // removing it from state immediately would cut the animation off on
-  // its very first frame.
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState(null);
@@ -106,18 +82,13 @@ export function BagPage() {
   // reads from this instead of the raw, unfiltered items array, so a
   // seeded entry whose product the admin has since deleted (findProduct
   // misses) can't silently skew a total or count while still going undone
-  // (see completeRemoval) via raw items. Cart-mutation calls (setItems)
-  // intentionally keep operating on raw items - this is a display/calc
-  // derivation only, not a replacement for cart state itself.
+
   const resolvedItems = items
     .map((it) => ({ ...it, product: findProduct(it.productId) }))
     .filter((it) => it.product);
 
   const selectedCount = resolvedItems.filter((it) => it.selected).length;
 
-  // indeterminate has no JSX/HTML attribute equivalent - it only exists as
-  // a DOM property, so it has to be set imperatively here rather than
-  // passed as a prop the way checked is below.
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = selectedCount > 0 && selectedCount < resolvedItems.length;
@@ -156,16 +127,10 @@ export function BagPage() {
     cancelHold();
   }
 
-  // Snapshotting the item + its index here (not inside the ROW_EXIT_MS
-  // setTimeout below) is what lets Undo put it back in the same spot -
-  // by the time that timeout fires, removeItem has already run and the
-  // item is gone from `items`, so there'd be nothing left to snapshot.
   function completeRemoval(productId) {
     const removedIndex = items.findIndex((it) => it.productId === productId);
     const removedItem = items[removedIndex];
-    // Seeded cart entries can point at a slug the admin has since deleted
-    // from the catalog - findProduct then returns undefined, so fall back
-    // to a generic label rather than crashing on product.name.
+
     const product = findProduct(productId);
     removeItem(productId);
     setLeavingProductId(null);
@@ -212,9 +177,7 @@ export function BagPage() {
 
   function handleRemovePromo() {
     // No backend call - there's nothing to undo server-side. usage_count
-    // was already incremented by the successful validate call (see
-    // promoCodeService.js's own comment on why that's this app's one
-    // real "use" event).
+
     setAppliedPromo(null);
     setPromoError(null);
   }
@@ -240,17 +203,6 @@ export function BagPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [confirmProductId]);
 
-  // Catalog fetch (ProductsContext) hasn't resolved yet - products is null
-  // only during that initial load. CartContext's items exist synchronously
-  // (see INITIAL_CART_ITEMS), so without this gate the very first render
-  // would call findProduct before there's anything to find, crashing on
-  // product.name/product.price_cents reads below - same one-time
-  // "still loading" gate ProductDetailPage.jsx already uses.
-  //
-  // A failed fetch also leaves products === null forever, so that alone
-  // can't distinguish "still loading" from "load failed" - check error
-  // first and render the same inline-error convention ShopPage/
-  // AdminProductsPage use instead of hanging on a blank page.
   if (error) {
     return (
       <p className="verify-error" role="alert">
@@ -265,18 +217,12 @@ export function BagPage() {
   const deliveryTotal = resolvedItems.filter((it) => it.fulfillment === 'delivery').length;
   const pickupTotal = resolvedItems.filter((it) => it.fulfillment === 'pickup').length;
 
-  // resolvedItems already excludes entries findProduct couldn't resolve
-  // (see the derivation above), so it.product is guaranteed here.
   const selectedItems = resolvedItems.filter((it) => it.selected);
   const subtotalCents = selectedItems.reduce((sum, it) => sum + it.product.price_cents * it.qty, 0);
   const deliverySelected = selectedItems.filter((it) => it.fulfillment === 'delivery');
   const pickupSelected = selectedItems.filter((it) => it.fulfillment === 'pickup');
   const deliveryCents = deliverySelected.reduce((sum, it) => sum + it.surchargeCents, 0);
-  // Derived from the CURRENTLY applied code's type/value and the CURRENT
-  // subtotal every render - never frozen at whatever discount_cents the
-  // server returned at apply-time, so removing an item after applying a
-  // percentage code correctly shrinks the discount instead of leaving it
-  // stale.
+
   const discountCents = !appliedPromo
     ? 0
     : appliedPromo.discount_type === 'percentage'
@@ -287,7 +233,7 @@ export function BagPage() {
 
   return (
     <div className="cart-root">
-      <nav className="product-detail-breadcrumb" aria-label="Breadcrumb">
+      <nav className="cart-breadcrumb" aria-label="Breadcrumb">
         <Link to="/shop">Shop</Link>
         <ChevronRightIcon aria-hidden="true" />
         <span aria-current="page">Bag</span>
@@ -542,6 +488,7 @@ export function BagPage() {
               <button
                 type="button"
                 className={`cart-remove-btn${holding ? ' holding' : ''}`}
+                style={{ '--remove-hold-ms': `${REMOVE_HOLD_MS}ms` }}
                 onPointerDown={(e) => {
                   e.preventDefault();
                   startHold();

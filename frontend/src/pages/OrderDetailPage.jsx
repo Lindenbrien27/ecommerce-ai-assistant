@@ -19,9 +19,6 @@ import {
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-// computeOrderTotal itself already handles the "no pricing data at all"
-// case (see utils/pricing.js) - null here means skip the cost breakdown
-// entirely rather than rendering one with holes in it.
 function CostBreakdown({ order }) {
   const total = computeOrderTotal(order);
   if (total === null) return null;
@@ -66,54 +63,27 @@ function formatDate(value) {
 }
 
 // Real tracking-page URLs for the three carriers this app's seed data
-// actually uses (see migrations/1784973065584_initial-schema.sql) - not
-// guessing at a generic format, since each carrier's own URL scheme is
-// different. Falls back to plain, non-linked text for any other/unknown
-// carrier rather than building a link that would 404.
-const CARRIER_TRACKING_URL = {
+
+export const CARRIER_TRACKING_URL = {
   UPS: (n) => `https://www.ups.com/track?tracknum=${encodeURIComponent(n)}`,
   USPS: (n) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(n)}`,
   FedEx: (n) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`,
 };
 
-function trackingUrl(carrier, trackingNumber) {
+export function trackingUrl(carrier, trackingNumber) {
   const build = carrier && CARRIER_TRACKING_URL[carrier];
   return build ? build(trackingNumber) : null;
 }
 
-// The four forward-progression statuses this app actually has (see the
-// `status` CHECK constraint in the same migration) - cancelled is handled
-// separately below since it's a branch-off, not a further step in this
-// sequence, and the order data model has no history of *which* step a
-// cancelled order reached before it was cancelled to honestly place it here.
-const STATUS_STEPS = [
+export const STATUS_STEPS = [
   { key: 'processing', label: 'Processing' },
   { key: 'shipped', label: 'Shipped' },
   { key: 'out_for_delivery', label: 'Out for delivery' },
   { key: 'delivered', label: 'Delivered' },
 ];
 
-// The vertical journey's own first node - "Order placed" isn't one of this
-// app's real status values (the status column starts at 'processing'
-// already), but created_at is a real timestamp for the moment the order
-// came in, and every order has one, so it's an honest first step rather
-// than a fabricated "Payment authorized" event this app has no separate
-// timestamp for.
 const JOURNEY_STEPS = [{ key: 'placed', label: 'Order placed' }, ...STATUS_STEPS];
 
-// Only "placed" and "delivered" have a real date anywhere in this app's
-// data model (order.created_at / .estimated_delivery) - there's no
-// per-step timestamp history for "processing"/"shipped"/"out for
-// delivery", so those intentionally show no date under them rather than a
-// fabricated one. "Est." only prefixes the delivered date while the order
-// hasn't actually arrived yet - once status is genuinely 'delivered',
-// estimated_delivery doubles as an honest stand-in for when that happened
-// (same convention OrdersPage's own historySubtitle already uses), so
-// calling it an *estimate* at that point would be less accurate, not more.
-// A returned order was necessarily delivered first (a refund is the only
-// thing that sets 'returned', and a cancelled order can't be refunded), so
-// it gets the same treatment 'delivered' does throughout this file: the
-// delivery already happened, so its date isn't an estimate any more.
 const DELIVERY_HAPPENED = ['delivered', 'returned'];
 
 function journeyDates(order) {
@@ -128,11 +98,6 @@ function journeyDates(order) {
   };
 }
 
-// 'returned' is set only by the admin refund endpoint (see
-// adminOrderService.refundOrder), never by the status dropdown - but it's a
-// real, customer-visible status, so it needs a real badge here rather than
-// falling through to the unstyled lowercase fallback below. Same icon and
-// wording OrdersPage's own history list already uses for it.
 const STATUS_BADGE = {
   delivered: { label: 'Delivered', icon: CheckIcon, className: 'delivered' },
   returned: { label: 'Returned', icon: UndoIcon, className: 'returned' },
@@ -150,23 +115,11 @@ function StatusBadge({ status }) {
   );
 }
 
-// The left panel's vertical timeline (replacing the old horizontal route
-// stepper) - completed steps get a small filled dot, the current step a
-// larger one (the one moment worth calling out), upcoming steps a hollow
-// ring, all on one continuous connecting line.
 function OrderJourney({ order }) {
   if (order.status === 'cancelled') {
     return <p className="order-route-cancelled">This order was cancelled.</p>;
   }
 
-  // 'returned' isn't one of STATUS_STEPS, so findIndex would return -1 and
-  // render every step hollow - a fully-delivered-then-returned order
-  // looking as though processing hadn't even started. Unlike 'cancelled'
-  // (which gets the short-circuit above, because there's no record of which
-  // step it reached), a returned order is known to have run the whole
-  // sequence, so it pins to the last step with everything before it
-  // complete. The "Returned" badge at the top of the page is what says the
-  // journey didn't end there.
   const currentIndex =
     order.status === 'returned'
       ? STATUS_STEPS.length - 1
@@ -176,9 +129,7 @@ function OrderJourney({ order }) {
   return (
     <ol className="order-journey" aria-label={`Order progress: ${order.status.replace(/_/g, ' ')}`}>
       {JOURNEY_STEPS.map((step, i) => {
-        // "placed" (i === 0) always already happened; the four real
-        // statuses start at journey index 1, so currentIndex (into
-        // STATUS_STEPS) shifts by one to line up with this longer list.
+
         const stepIndex = i - 1;
         const completed = i === 0 || stepIndex <= currentIndex;
         const current = i !== 0 && stepIndex === currentIndex;
@@ -197,14 +148,8 @@ function OrderJourney({ order }) {
   );
 }
 
-// The one real, working next action this app can back with actual data -
-// only rendered when the order actually has a carrier/tracking number, and
-// only a clickable link when that carrier's own URL scheme is known (see
-// trackingUrl above) rather than a button that would lead nowhere.
 function NextStep({ order }) {
-  // 'returned' joins 'cancelled' here: a live "track your package" widget is
-  // wrong for something the customer has already sent back, and the tracking
-  // number on the order is the outbound shipment's, not the return's.
+
   if (order.status === 'cancelled' || order.status === 'returned' || !order.tracking_number) return null;
   const url = trackingUrl(order.carrier, order.tracking_number);
 
@@ -270,13 +215,11 @@ export function OrderDetailPage() {
   const mailtoUrl = order ? invoiceMailtoUrl(order) : null;
 
   return (
-    <>
+    <div className="order-detail-root">
       <Link to="/orders" className="back-link">
         &larr; All Orders
       </Link>
-      {/* The heading (the order number itself) moved into Layout.jsx's
-          shared page-header row, alongside the search bar/theme toggle -
-          see Layout.jsx's getPageHeader, which reads it from :orderNumber. */}
+      {}
 
       <div aria-live="polite">
         {error && (
@@ -374,6 +317,6 @@ export function OrderDetailPage() {
           </p>
         </>
       )}
-    </>
+    </div>
   );
 }

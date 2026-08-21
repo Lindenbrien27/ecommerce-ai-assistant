@@ -93,7 +93,7 @@ test('updatePromoCode merges provided fields with the existing row and never tou
     const setClause = sql.split(/WHERE/i)[0];
     assert.doesNotMatch(setClause, /usage_count\s*=/);
     assert.doesNotMatch(setClause, /code\s*=\s*\$/);
-    assert.equal(params[params.length - 1], 'SPRING15'); // WHERE code = $N
+    assert.equal(params[params.length - 1], 'SPRING15');
     return { rows: [{ code: 'SPRING15', discount_type: 'percentage', discount_value: 20, usage_limit: null, usage_count: 4, expires_at: null, active: true }] };
   });
 

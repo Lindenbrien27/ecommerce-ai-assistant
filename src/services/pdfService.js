@@ -1,4 +1,4 @@
-// src/services/pdfService.js
+
 const PDFDocument = require('pdfkit');
 const { formatCents, computeOrderTotal } = require('../utils/pricing');
 
@@ -14,13 +14,6 @@ function addressLines(order) {
   return lines.filter(Boolean);
 }
 
-// Pure content builder, no PDF library involved - mirrors the frontend's
-// buildInvoiceLines/downloadInvoice split (frontend/src/utils/invoice.js)
-// so the field/total logic is unit-testable without touching pdfkit or a
-// PDF byte stream. Returns null when there's no shipping address on file
-// yet, or no pricing data (mirrors computeOrderTotal's own "skip entirely,
-// don't render a document with holes in it" convention) - either makes a
-// real invoice impossible to produce.
 function buildInvoiceFields(order) {
   if (!hasShippingAddress(order)) return null;
   const total = computeOrderTotal(order);
@@ -39,11 +32,6 @@ function buildInvoiceFields(order) {
   };
 }
 
-// Deliberately excludes every pricing field - the standard real-world
-// convention for a document warehouse staff handle (they don't need to
-// know what the customer paid). Tested by asserting the exact key set
-// below, not by grepping PDF bytes (pdfkit's output stream isn't reliably
-// greppable for literal text).
 function buildPackingSlipFields(order) {
   if (!hasShippingAddress(order)) return null;
 

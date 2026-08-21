@@ -10,19 +10,6 @@ const THEME_MODES = [
   { key: 'system', label: 'System', icon: MonitorIcon },
 ];
 
-// Sidebar's account menu - replaces the old decorative profile chip + the
-// always-visible Logout button below it with a single real trigger and a
-// floating popover, same open/close/outside-click-catcher pattern as
-// CategoryBadgesEditor's own popover. Adapted from a reference "account
-// menu" screenshot, but only keeping what's actually real here: an
-// avatar+email header (no fabricated name field - this app only has an
-// email per customer, see AuthContext), the theme trio (now a real 3-way
-// light/dark/system control, see useTheme), Address/Payment Methods/Help &
-// Support (real routes landing on ComingSoonPage, same honest "not built
-// yet" pattern as Shop Now/Coupons/Wishlist - there's no address or payment
-// data model behind either yet, see App.jsx), and real Sign Out - not the
-// reference's Profile/Preferences/My Tasks/Completed rows, since none of
-// those are real features here.
 export function ProfileMenu() {
   const { email, logout } = useAuth();
   const { mode, setMode } = useTheme();

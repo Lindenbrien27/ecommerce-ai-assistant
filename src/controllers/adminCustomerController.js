@@ -1,4 +1,4 @@
-// src/controllers/adminCustomerController.js
+
 const adminCustomerService = require('../services/adminCustomerService');
 const orderService = require('../services/orderService');
 const { logError } = require('../utils/logger');

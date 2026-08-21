@@ -46,8 +46,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  // useAuthorizedFetch reads its token from AuthContext, which reads it
-  // from sessionStorage at mount.
+
   sessionStorage.setItem(TOKEN_STORAGE_KEY, 'the-token');
   mockOrder();
 });
@@ -71,10 +70,6 @@ it('renders the live tracking widget for an in-flight order', async () => {
   expect(screen.getByText(/1Z999AA10123456784/)).toBeInTheDocument();
 });
 
-// 'returned' is only reachable through the admin refund endpoint, and this
-// page had no handling for it at all - it fell through to a lowercase,
-// unstyled fallback badge, rendered its journey as though nothing had
-// happened yet, and still offered live package tracking.
 it('renders a proper Returned badge for a refunded order', async () => {
   mockOrder({ status: 'returned' });
   const { container } = renderPage();
@@ -82,8 +77,7 @@ it('renders a proper Returned badge for a refunded order', async () => {
 
   const badge = container.querySelector('.order-status-badge');
   expect(badge).toHaveTextContent('Returned');
-  // The class the CSS for this status is written against, not the generic
-  // in-motion 'active' fallback.
+
   expect(badge).toHaveClass('returned');
   expect(badge?.querySelector('svg')).toBeTruthy();
 });
@@ -94,9 +88,9 @@ it('shows the whole journey as complete for a returned order, not as though it n
   await screen.findByText('ORD-1001');
 
   const steps = container.querySelectorAll('.order-journey-step');
-  // Order placed + the four forward statuses.
+
   expect(steps).toHaveLength(5);
-  // A returned order was necessarily delivered first, so nothing is hollow.
+
   steps.forEach((step) => expect(step).toHaveClass('completed'));
   expect(container.querySelector('.order-journey-step.current')).toHaveTextContent('Delivered');
 });
@@ -115,8 +109,6 @@ it('hides the live tracking widget for a returned order', async () => {
   renderPage();
   await screen.findByText('ORD-1001');
 
-  // The order still carries the outbound shipment's tracking number, but
-  // the customer has already sent the item back.
   expect(screen.queryByText(/1Z999AA10123456784/)).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: /track shipment/i })).not.toBeInTheDocument();
 });

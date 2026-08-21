@@ -13,11 +13,6 @@ async function withServer(t, run) {
   await run(`http://localhost:${port}`);
 }
 
-// requireCustomerAuth (src/middleware/customerAuth.js) reads a Bearer
-// token from the Authorization header, not a cookie - that's the admin
-// auth convention (adminToken cookie), not the customer one. Same
-// Authorization: `Bearer ${issueToken(email)}` pattern test/rateLimiter.test.js
-// already uses for this exact middleware.
 function customerAuthHeaders(email = 'jane.doe@example.com') {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${issueToken(email)}` };
 }

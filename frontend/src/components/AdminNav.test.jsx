@@ -25,6 +25,9 @@ function renderNav(initialPath = '/admin') {
             <Route path="/admin/customers" element={<p>Customers page</p>} />
             <Route path="/admin/promo-codes" element={<p>Promo codes page</p>} />
             <Route path="/admin/orders/:orderNumber" element={<p>Order detail page</p>} />
+            <Route path="/admin/inventory" element={<p>Stock ledger page</p>} />
+            <Route path="/admin/inventory/reorder" element={<p>Reorder queue page</p>} />
+            <Route path="/admin/inventory/purchase-orders" element={<p>Purchase orders page</p>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -91,4 +94,33 @@ it('logs out when the logout button is clicked', async () => {
   await waitFor(() => {
     expect(global.fetch).toHaveBeenCalledWith('/api/admin/auth/logout', { method: 'POST' });
   });
+});
+
+it('shows the Inventory group collapsed by default off an inventory route', async () => {
+  renderNav('/admin');
+  await screen.findByText('admin@example.com');
+  expect(screen.queryByRole('link', { name: /stock ledger/i })).not.toBeInTheDocument();
+});
+
+it('auto-expands the Inventory group when mounted on an inventory sub-route', async () => {
+  renderNav('/admin/inventory/reorder');
+  await screen.findByText('admin@example.com');
+  expect(screen.getByRole('link', { name: /reorder queue/i })).toBeInTheDocument();
+});
+
+it('marks the Reorder Queue sub-link active and its siblings inactive', async () => {
+  renderNav('/admin/inventory/reorder');
+  await screen.findByText('admin@example.com');
+  expect(screen.getByRole('link', { name: /reorder queue/i })).toHaveClass('active');
+  expect(screen.getByRole('link', { name: /stock ledger/i })).not.toHaveClass('active');
+  expect(screen.getByRole('link', { name: /purchase orders/i })).not.toHaveClass('active');
+});
+
+it('expands and collapses the Inventory group on click', async () => {
+  renderNav('/admin');
+  await screen.findByText('admin@example.com');
+  fireEvent.click(screen.getByRole('button', { name: /inventory/i }));
+  expect(screen.getByRole('link', { name: /stock ledger/i })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /inventory/i }));
+  expect(screen.queryByRole('link', { name: /stock ledger/i })).not.toBeInTheDocument();
 });

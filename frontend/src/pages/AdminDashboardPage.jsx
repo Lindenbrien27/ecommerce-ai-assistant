@@ -8,8 +8,6 @@ export function AdminDashboardPage() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
 
-  // Fetches once on mount - unlike AdminOrdersPage/AdminProductsPage,
-  // this page has no filters/pagination params to react to.
   useEffect(() => {
     let cancelled = false;
     setError(null);

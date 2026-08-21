@@ -1,4 +1,4 @@
--- Up Migration
+
 
 INSERT INTO products (slug, name, description, category, price_cents, original_price_cents, cover_image_url, icon, sku, stock_quantity, colorways) VALUES
 ('headphones', 'Wireless Noise-Cancelling Headphones', 'Over-ear comfort with active noise cancellation.', 'Audio', 14999, NULL, '/images/products/luke-peterson-lUMj2Zv5HUE-unsplash.jpg', 'headphones', 'AUD-HP-001', 42,
@@ -13,7 +13,5 @@ INSERT INTO products (slug, name, description, category, price_cents, original_p
   '[{"id":"white","label":"White","hex":"#f2f2f2"},{"id":"black","label":"Black","hex":"#1a1a1a"}]'::jsonb),
 ('cloud-shift-runner', 'Cloud Shift Runner', 'Daily road runner with breathable mesh, a single-density foam midsole, and a rubber outsole built for steady miles.', 'Sneakers', 9600, 12800, NULL, 'sneaker', 'SNK-CS-006', 31,
   '[{"id":"cherry","label":"Cherry","hex":"#c81e3a"},{"id":"navy","label":"Navy","hex":"#1e3a5f"},{"id":"white","label":"White","hex":"#f2f2f2"},{"id":"yellow","label":"Yellow","hex":"#f2c14e"},{"id":"green","label":"Green","hex":"#b9e63a"}]'::jsonb);
-
--- Down Migration
 
 DELETE FROM products WHERE slug IN ('headphones', 'keyboard', 'chair', 'monitor', 'cable', 'cloud-shift-runner');

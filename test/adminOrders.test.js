@@ -49,7 +49,7 @@ test('GET /api/admin/orders returns orders across all customers with a total cou
 test('GET /api/admin/orders?page=2&pageSize=10 forwards page and pageSize', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '15' }] };
-    assert.deepEqual(params.slice(2), [10, 10]); // pageSize 10, offset (2-1)*10
+    assert.deepEqual(params.slice(2), [10, 10]);
     return { rows: [] };
   });
 
@@ -230,9 +230,7 @@ test('POST /api/admin/orders/:orderNumber/refund returns 400 for a cancelled ord
 });
 
 test('POST /api/admin/orders/:orderNumber/refund succeeds with a full round-trip response', async (t) => {
-  // The refund's writes run inside a transaction on a client checked out
-  // via pool.connect(); only the initial SELECT still goes through
-  // pool.query (see adminOrderService.refundOrder).
+
   t.mock.method(pool, 'query', async (sql) => {
     if (/^SELECT \* FROM orders/.test(sql.trim())) {
       return { rows: [{ order_number: 'ORD-1001', customer_email: 'jane@example.com', product_name: 'Sneakers', status: 'delivered', unit_price_cents: 5000, delivery_cost_cents: 0, vat_cents: 0, voucher_cents: 0, refunded_at: null }] };

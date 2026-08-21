@@ -30,9 +30,7 @@ it('fetches products once and exposes them via useProducts', async () => {
   );
 
   renderProbe();
-  // The single fixture product's name renders twice - once in the product
-  // list, once in the findProduct('headphones') probe below it - so this
-  // has to assert on all matches rather than a single unique one.
+
   expect((await screen.findAllByText('Wireless Noise-Cancelling Headphones')).length).toBeGreaterThan(0);
   expect(global.fetch).toHaveBeenCalledWith('/api/products');
   expect(global.fetch).toHaveBeenCalledTimes(1);

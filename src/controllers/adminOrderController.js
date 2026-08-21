@@ -41,9 +41,6 @@ async function listOrders(req, res) {
   }
 }
 
-// Reuses orderService.getOrderByNumber directly - identical lookup and
-// cache handling as the customer path, just without the ownership check
-// customer requests need (an admin isn't scoped to one customer's orders).
 async function getOrder(req, res) {
   try {
     const order = await orderService.getOrderByNumber(req.params.orderNumber);
@@ -133,8 +130,6 @@ async function updateShipping(req, res) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // A no-op re-save (admin clicks Save without changing anything) must
-    // not re-notify the customer.
     const changed = !previous || previous.carrier !== carrier || previous.tracking_number !== trackingNumber;
     let emailed = false;
     if (changed) {

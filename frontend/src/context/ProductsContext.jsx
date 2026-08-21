@@ -2,11 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const ProductsContext = createContext(null);
 
-// Single shared fetch for the real product catalog - mirrors OrdersContext's
-// "fetch once, mounted once in Layout" pattern exactly: ShopPage,
-// ProductDetailPage, BagPage, WishlistPage, and Layout's own page-header
-// title lookup all need the same catalog, and each fetching independently
-// would be redundant round-trips for data that doesn't change per-page.
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState(null);
   const [error, setError] = useState(null);

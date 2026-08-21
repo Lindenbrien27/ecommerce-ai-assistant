@@ -1,10 +1,6 @@
 const { verifyAdminToken } = require('../services/adminAuthService');
 const { auditLog } = require('../config/auditLog');
 
-// Reads the httpOnly cookie (see adminAuthController.js), not an
-// Authorization header - unlike requireCustomerAuth, the admin token is
-// never exposed to frontend JS at all, so there's nothing for a client to
-// put in a header.
 function requireAdminAuth(req, res, next) {
   const token = req.cookies && req.cookies.adminToken;
 

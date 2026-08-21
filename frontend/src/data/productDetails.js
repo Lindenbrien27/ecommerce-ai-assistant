@@ -1,16 +1,5 @@
-// Extra content ProductDetailPage.jsx needs that SHOP_PRODUCTS itself
-// doesn't carry (rating/reviews/specs, and Cloud Shift Runner's own
-// sizes) - kept as a separate keyed lookup, not new fields bolted onto
-// every SHOP_PRODUCTS entry, since ProductCard/the shop grid never reads
-// any of this. A product's presence as a key here (not a boolean flag
-// back on its SHOP_PRODUCTS entry) is what ProductCard/ProductDetailPage
-// both treat as "this one has a real detail page" - one source of truth
-// instead of two that could drift apart.
-//
-// Ratings/review counts/specs below are fabricated promotional content,
-// the same tier ShopNowDialog's AirBuds White and Cloud Shift Runner
-// itself already are - this app has no real reviews table or spec sheet
-// data anywhere to read these from.
+
+
 export const PRODUCT_DETAILS = {
   'cloud-shift-runner': {
     rating: 4.5,

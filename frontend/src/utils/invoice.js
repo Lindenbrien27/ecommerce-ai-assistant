@@ -2,15 +2,6 @@ import { computeOrderTotal, formatCents } from './pricing.js';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
 
-// Shared by the order history list's own download button and the order
-// detail page's Download/Email header actions - one real receipt built
-// entirely from data this app already has (unit_price_cents/delivery_cost
-// _cents/vat_cents/voucher_cents all exist per order - see migrations/
-// 1785095226496_add-order-pricing-and-product-icon.sql), not three separate
-// hand-copied implementations that could drift apart. Returns null (not an
-// empty array) when there's no pricing data at all, matching
-// computeOrderTotal's own "skip entirely, don't render a receipt with
-// holes in it" convention.
 export function buildInvoiceLines(order) {
   const total = computeOrderTotal(order);
   if (total === null) return null;
@@ -51,12 +42,6 @@ export function downloadInvoice(order) {
   URL.revokeObjectURL(url);
 }
 
-// A real mailto: link, not a fake "sent!" confirmation this app has no
-// email-sending backend to back - opens the customer's own mail client
-// with the exact same receipt text already pre-filled as the body, same
-// honesty bar as the download above. Returns null when there's no pricing
-// data (same as buildInvoiceLines), so the caller can skip rendering the
-// action entirely rather than opening a mail client with an empty receipt.
 export function invoiceMailtoUrl(order) {
   const lines = buildInvoiceLines(order);
   if (lines === null) return null;

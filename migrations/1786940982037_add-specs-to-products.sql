@@ -1,0 +1,5 @@
+
+
+ALTER TABLE products ADD COLUMN specs JSONB NOT NULL DEFAULT '{}';
+
+ALTER TABLE products DROP COLUMN specs;

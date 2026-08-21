@@ -1,4 +1,4 @@
-// src/routes/adminCustomerRoutes.js
+
 const { Router } = require('express');
 const { listCustomers, getCustomer, getCustomerOrders } = require('../controllers/adminCustomerController');
 

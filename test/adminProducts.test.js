@@ -157,7 +157,7 @@ test('GET /api/admin/products?page=2&pageSize=10 forwards page and pageSize', as
   t.mock.method(pool, 'query', async (sql, params) => {
     if (/DISTINCT category/.test(sql)) return { rows: [] };
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '15' }] };
-    assert.deepEqual(params.slice(2), [10, 10]); // pageSize 10, offset (2-1)*10
+    assert.deepEqual(params.slice(2), [10, 10]);
     return { rows: [] };
   });
 

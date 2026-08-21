@@ -1,4 +1,4 @@
--- Up Migration
+
 
 CREATE TABLE customer_profiles (
   email TEXT PRIMARY KEY,
@@ -31,8 +31,6 @@ CREATE TABLE customer_payment_methods (
   billing_name TEXT NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Down Migration
 
 DROP TABLE IF EXISTS customer_payment_methods;
 DROP TABLE IF EXISTS customer_addresses;

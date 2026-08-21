@@ -1,4 +1,4 @@
-// test/adminCustomerService.test.js
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../src/config/db');
@@ -41,7 +41,7 @@ test('getCustomers filters by q using ILIKE', async (t) => {
 
 test('getCustomers reports hasMore when more rows remain beyond the page size', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
-    assert.equal(params[1], 3); // pageSize(2) + 1
+    assert.equal(params[1], 3);
     return {
       rows: [
         { customer_email: 'a@example.com', order_count: '1', total_spent_cents: '1000', last_order_at: '2026-07-24T00:00:00Z' },
@@ -58,7 +58,7 @@ test('getCustomers reports hasMore when more rows remain beyond the page size', 
 
 test('getCustomers computes the correct OFFSET for page 2', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
-    assert.equal(params[2], 20); // (page 2 - 1) * pageSize(20)
+    assert.equal(params[2], 20);
     return { rows: [] };
   });
 

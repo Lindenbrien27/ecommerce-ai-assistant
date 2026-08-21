@@ -1,4 +1,4 @@
-// frontend/src/pages/AdminCustomersPage.jsx
+
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext.jsx';
@@ -24,7 +24,7 @@ export function AdminCustomersPage() {
   const [error, setError] = useState(null);
 
   // Same "snapshot the request's own filters, drop a stale response"
-  // pattern AdminOrdersPage.jsx's loadMore already uses.
+
   const qRef = useRef(q);
   qRef.current = q;
 

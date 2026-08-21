@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, FilterIcon } from '../components/icons.jsx';
+import { ChevronDownIcon, ChevronRightIcon } from '../components/icons.jsx';
 import { ProductCard } from '../components/ProductCard.jsx';
 import { ShopNowDialog } from '../components/ShopNowDialog.jsx';
 import { DEFAULT_WISHLISTED_IDS } from '../data/shopProducts.js';
@@ -21,31 +21,31 @@ function sortProducts(products, sortKey) {
   return sorted;
 }
 
-// Layout.jsx's shared .page-header already renders the compact "Shop"
-// icon+title for this route (see its PAGE_HEADERS map) - that one stays
-// untouched. Everything below is this page's own content, starting with
-// its own bigger breadcrumb/title/subtitle block, which is what actually
-// replicates the reference design's hero. Two stacked headers, by design:
-// shared compact nav chrome above, this page's own hero below it.
 export function ShopPage() {
   const [wishlisted, setWishlisted] = useState(() => new Set(DEFAULT_WISHLISTED_IDS));
   const [sortKey, setSortKey] = useState('newest');
   const [sortOpen, setSortOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
-  // Reopens on every mount (full page load, or navigating back to /shop) -
-  // a promo popup, not a one-time dismissal this app would need to
-  // persist anywhere.
+
   const [shopNowOpen, setShopNowOpen] = useState(true);
 
   const { products, error } = useProducts();
   const visibleCategories = products ? [...new Set(products.map((p) => p.category))] : [];
 
-  const visibleProducts = useMemo(() => {
+  const sortedProducts = useMemo(() => {
     if (!products) return [];
-    const filtered = activeCategory ? products.filter((p) => p.category === activeCategory) : products;
-    return sortProducts(filtered, sortKey);
-  }, [products, activeCategory, sortKey]);
+    return sortProducts(products, sortKey);
+  }, [products, sortKey]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map();
+    for (const product of sortedProducts) {
+      counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [sortedProducts]);
+
+  const visibleProducts = activeCategory ? sortedProducts.filter((p) => p.category === activeCategory) : sortedProducts;
 
   function toggleWishlist(id) {
     setWishlisted((prev) => {
@@ -70,20 +70,13 @@ export function ShopPage() {
 
       <div className="shop-hero">
         <div>
-          <h2 className="shop-hero-title">All Products</h2>
-          <p className="shop-hero-subtitle">Audio, workspace gear, and everyday essentials — all in one place.</p>
+          <h2 className="shop-hero-title">
+            The desk, the door, <em>the drawer.</em>
+          </h2>
+          <p className="shop-hero-subtitle">Six categories, one cart — real stock, real prices, restocked weekly.</p>
         </div>
 
         <div className="shop-hero-actions">
-          <button
-            type="button"
-            className={`shop-filter-toggle${filtersOpen ? ' active' : ''}`}
-            onClick={() => setFiltersOpen((o) => !o)}
-            aria-pressed={filtersOpen}
-          >
-            <FilterIcon aria-hidden="true" /> Show Filters
-          </button>
-
           <div className="shop-sort">
             <button
               type="button"
@@ -92,7 +85,7 @@ export function ShopPage() {
               aria-haspopup="menu"
               aria-expanded={sortOpen}
             >
-              Sort by: {activeSortLabel} <ChevronDownIcon aria-hidden="true" />
+              Sort: {activeSortLabel} <ChevronDownIcon aria-hidden="true" />
             </button>
 
             {sortOpen && (
@@ -120,47 +113,47 @@ export function ShopPage() {
         </div>
       </div>
 
-      {filtersOpen && (
-        <div className="shop-filter-row" role="group" aria-label="Filter by category">
-          <button
-            type="button"
-            className={`pill shop-filter-chip${activeCategory === null ? ' active' : ''}`}
-            onClick={() => setActiveCategory(null)}
-            aria-pressed={activeCategory === null}
-          >
-            All
-          </button>
-          {visibleCategories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className={`pill shop-filter-chip${activeCategory === category ? ' active' : ''}`}
-              onClick={() => setActiveCategory(category)}
-              aria-pressed={activeCategory === category}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      )}
-
       {error && (
         <p className="verify-error" role="alert">
           {error}
         </p>
       )}
 
-      {!error && (
-        <div className="shop-grid">
-          {visibleProducts.map((product) => (
-            <ProductCard
-              key={product.slug}
-              product={product}
-              wishlisted={wishlisted.has(product.slug)}
-              onToggleWishlist={() => toggleWishlist(product.slug)}
-            />
-          ))}
-        </div>
+      {!error && products && products.length > 0 && (
+        <>
+          <nav className="shop-tabs" aria-label="Filter by category">
+            <button
+              type="button"
+              className={`shop-tab${activeCategory === null ? ' active' : ''}`}
+              aria-label="All"
+              onClick={() => setActiveCategory(null)}
+            >
+              All <span className="shop-tab-count">{products.length}</span>
+            </button>
+            {visibleCategories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                className={`shop-tab${activeCategory === category ? ' active' : ''}`}
+                aria-label={category}
+                onClick={() => setActiveCategory(category)}
+              >
+                {category} <span className="shop-tab-count">{categoryCounts.get(category)}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="shop-grid">
+            {visibleProducts.map((product) => (
+              <ProductCard
+                key={product.slug}
+                product={product}
+                wishlisted={wishlisted.has(product.slug)}
+                onToggleWishlist={() => toggleWishlist(product.slug)}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

@@ -1,17 +1,11 @@
-// src/services/adminCustomerService.js
+
 const { pool } = require('../config/db');
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
-// total_spent_cents excludes cancelled orders (they generated no actual
-// revenue); order_count still includes them (a fulfillment/activity count,
-// not a revenue one).
 const TOTAL_SPENT_SQL = `SUM(COALESCE(unit_price_cents,0) + COALESCE(delivery_cost_cents,0) + COALESCE(vat_cents,0) - COALESCE(voucher_cents,0)) FILTER (WHERE status <> 'cancelled')`;
 
-// pg returns bigint/numeric aggregate columns (COUNT, SUM) as strings, not
-// JS numbers - converting here once means every caller (controller,
-// frontend) can treat these as real numbers without re-parsing.
 function normalizeAggregateRow(row) {
   return {
     ...row,

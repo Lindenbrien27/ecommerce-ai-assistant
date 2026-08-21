@@ -4,10 +4,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProductsProvider } from '../context/ProductsContext.jsx';
 import { ProductDetailPage } from './ProductDetailPage.jsx';
 
-// cloud-shift-runner is the one product with a PRODUCT_DETAILS entry
-// (frontend/src/data/productDetails.js) - ProductDetailPage renders
-// nothing real for a slug without one (it redirects to /shop), so this is
-// the only slug worth testing against here.
 const PRODUCT = {
   slug: 'cloud-shift-runner',
   name: 'Cloud Shift Runner',
@@ -37,9 +33,7 @@ beforeEach(() => {
 
 it('renders the product fetched from the real API by slug', async () => {
   renderPage();
-  // The breadcrumb's current-page crumb also renders the product name
-  // (pre-existing markup, unrelated to this conversion), so this scopes
-  // to the heading rather than using findByText, which would match both.
+
   expect(await screen.findByRole('heading', { name: 'Cloud Shift Runner' })).toBeInTheDocument();
   expect(screen.getByText('$96.00')).toBeInTheDocument();
   expect(screen.getByText('$128.00')).toBeInTheDocument();

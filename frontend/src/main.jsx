@@ -4,6 +4,7 @@ import App from './App.jsx';
 import { Sentry } from './config/sentry.js';
 import { ErrorFallback } from './components/ErrorFallback.jsx';
 import './index.css';
+import './shadcn.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

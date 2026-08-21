@@ -3,25 +3,13 @@ import { useAuthorizedFetch } from '../hooks/useAuthorizedFetch.js';
 
 const OrdersContext = createContext(null);
 
-// Single shared fetch/pagination state for the signed-in customer's order
-// list - both OrdersPage (the full list) and Layout's sidebar (My
-// Orders/Coupons counts) need this same data now, and firing one fetch
-// from each independently doubled every authenticated page load's request
-// count for no benefit (the second request just re-fetched what the first
-// one already had, server-side cache or not - still a real extra
-// round-trip). One provider, mounted once in Layout, both consume it.
 export function OrdersProvider({ children }) {
   const authorizedFetch = useAuthorizedFetch();
   const [orders, setOrders] = useState(null);
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
-  // Keyed by product_icon (the same stable identifier ProductImage.jsx and
-  // CategoryBadgesEditor.jsx already key off of) - a Set of icon values is
-  // exactly what OrdersPage needs to filter by, with no label<->icon
-  // lookup required on this side. Exposed as the raw setter, not a
-  // per-icon toggle - CategoryBadgesEditor stages edits in its own local
-  // draft Set and only ever replaces this whole Set at once, on Save.
+
   const [selectedCategories, setSelectedCategories] = useState(() => new Set());
 
   async function loadPage(cursor) {

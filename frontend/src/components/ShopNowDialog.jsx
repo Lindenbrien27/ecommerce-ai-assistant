@@ -1,58 +1,21 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CartIcon, CheckIcon, StarIcon, XIcon } from './icons.jsx';
+import { CartIcon, XIcon } from './icons.jsx';
 
-const FINISHES = ['Pearl', 'Frost', 'Cloud', 'Sand', 'Mist'];
-const FEATURES = ['Open-Fit Comfort', 'Low-Latency Pairing', 'Slim Charging Case'];
+const FINISHES = [
+  { name: 'Pearl', swatch: '#f1ece0', material: 'warm ivory ABS, soft-touch finish' },
+  { name: 'Frost', swatch: '#dfe6ea', material: 'cool pale grey-blue ABS, matte' },
+  { name: 'Cloud', swatch: '#e7e6df', material: 'neutral warm-white ABS, satin' },
+  { name: 'Sand', swatch: '#d8c9ab', material: 'warm taupe ABS, matches oak and walnut' },
+  { name: 'Mist', swatch: '#d6d0dd', material: 'soft lavender-grey ABS, matte' },
+];
 
-// Like Reaction Floating Particle Effect's color palette - same set
-// ProductCard uses (see its own HEART_COLORS comment) - vivid pink, red,
-// purple, coral, light orange, randomized per particle.
-const HEART_COLORS = ['#ff2d78', '#ef4444', '#a855f7', '#ff6b6b', '#ff9f43'];
+const FEATURES = ['Open-fit comfort', 'Low-latency pairing', 'Slim charging case'];
 
-function randomBetween(min, max) {
-  return min + Math.random() * (max - min);
-}
-
-// A one-off promotional dialog, not a product-grid item - AirBuds White
-// isn't in SHOP_PRODUCTS (see data/shopProducts.js), so its copy/rating/
-// stock count live here as plain content rather than fields the real
-// catalog schema would need to grow to support one promo card.
 export function ShopNowDialog({ onClose }) {
-  const [finish, setFinish] = useState('Cloud');
+  const [finishIndex, setFinishIndex] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
-
-  // Like Reaction Floating Particle Effect - same particle system
-  // ProductCard's photo/corner-button taps use (see .heart-burst in
-  // index.css), duplicated locally rather than extracted into a shared
-  // hook: this dialog is a one-off promo, not a second reusable card, and
-  // the two components don't share a wishlisted-toggle shape to hang a
-  // hook off of (ProductCard's is lifted to ShopPage; this one's local).
-  const [hearts, setHearts] = useState([]);
-  const heartIdRef = useRef(0);
-  const lastTapAtRef = useRef(0);
-
-  function handleWishlistClick() {
-    setWishlisted((w) => !w);
-    const now = performance.now();
-    const isSpam = now - lastTapAtRef.current < 30;
-    lastTapAtRef.current = now;
-    heartIdRef.current += 1;
-    const particle = {
-      id: heartIdRef.current,
-      color: HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)],
-      size: Math.round(randomBetween(32, 64)),
-      x: Math.round(randomBetween(-45, 45)),
-      rotate: Math.round(randomBetween(-15, 15)),
-      rise: isSpam ? -Math.round(randomBetween(240, 320)) : -Math.round(randomBetween(140, 210)),
-      duration: isSpam ? Number(randomBetween(2.2, 3).toFixed(2)) : Number(randomBetween(1.5, 2.2).toFixed(2)),
-    };
-    setHearts((prev) => [...prev.slice(-23), particle]);
-  }
-
-  function removeHeart(id) {
-    setHearts((prev) => prev.filter((h) => h.id !== id));
-  }
+  const finish = FINISHES[finishIndex];
 
   return (
     <div className="shop-now-scrim" onClick={onClose}>
@@ -67,124 +30,93 @@ export function ShopNowDialog({ onClose }) {
           <XIcon />
         </button>
 
-        <div className="shop-now-content">
-          <div className="shop-now-eyebrow">
-            <span>Audio</span>
-            <span className="shop-now-tooltip-wrap">
-              <span className="shop-now-stock-badge" tabIndex={0} aria-describedby="shop-now-stock-tip">
-                Popular · 6 left
-              </span>
-              <span className="shop-now-tooltip" role="tooltip" id="shop-now-stock-tip">
-                The last {finish} batch sold out in under 2 days — restocks land every other Friday.
-              </span>
-            </span>
-          </div>
+        <div className="shop-now-media">
+          <img src="/images/products/earbuds-wood-table-d-MoiV98pc-unsplash.jpg" alt="AirBuds White earbuds and charging case" />
+          <p className="shop-now-media-caption">AirBuds White — shown in Pearl</p>
+        </div>
 
-          <h2 className="shop-now-title" id="shop-now-title">AirBuds White</h2>
+        <div className="shop-now-content">
+          <h2 className="shop-now-title" id="shop-now-title">
+            The pair that lives on your table, <em>not in a drawer.</em>
+          </h2>
           <p className="shop-now-desc">
-            White wireless earbuds with open-fit comfort, fast pairing, and a slim pocket charging case.
+            Open-fit comfort, low-latency pairing, and a slim charging case — small enough to leave out,
+            good-looking enough that you will.
           </p>
 
           <div className="shop-now-rating">
-            <span className="shop-now-stars">
-              <StarIcon />
-              <StarIcon />
-              <StarIcon />
-              <StarIcon />
-              <StarIcon style={{ opacity: 'var(--opacity-muted)' }} />
+            <span className="shop-now-stars" aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <svg key={i} viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 1l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L10 15l-5.6 3.1L5.8 11.8 1 7.5l6.4-.6z" />
+                </svg>
+              ))}
+              <svg viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 'var(--opacity-muted)' }}>
+                <path d="M10 1l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L10 15l-5.6 3.1L5.8 11.8 1 7.5l6.4-.6z" />
+              </svg>
             </span>
             <span className="shop-now-rating-score">4.7</span>
-            <span className="shop-now-rating-count">362 reviews</span>
+            <span>362 reviews</span>
           </div>
 
           <div className="shop-now-price-row">
-            <span className="badge badge--danger shop-now-discount">18% OFF</span>
             <span className="shop-now-price-now">$119.00</span>
             <span className="shop-now-price-was">$149.00</span>
+            <span className="shop-now-discount">18% off</span>
           </div>
 
           <ul className="shop-now-features">
             {FEATURES.map((feature) => (
-              <li key={feature}>
-                <CheckIcon /> {feature}
-              </li>
+              <li key={feature}>{feature}</li>
             ))}
           </ul>
 
           <div className="shop-now-finish-block">
-            <div className="shop-now-finish-head">
-              <span>Finish</span>
-              <span className="shop-now-tech-specs">Tech Specs</span>
-            </div>
-            <div className="shop-now-swatch-row">
-              {FINISHES.map((label) => (
+            <p className="shop-now-finish-head">Finish — 5 shades of white</p>
+            <div className="shop-now-swatch-row" role="group" aria-label="Choose a finish">
+              {FINISHES.map((f, i) => (
                 <button
-                  key={label}
+                  key={f.name}
                   type="button"
-                  className={`shop-now-swatch${finish === label ? ' active' : ''}`}
-                  aria-pressed={finish === label}
-                  onClick={() => setFinish(label)}
+                  className={`shop-now-swatch${i === finishIndex ? ' active' : ''}`}
+                  style={{ '--swatch-color': f.swatch }}
+                  aria-pressed={i === finishIndex}
+                  onClick={() => setFinishIndex(i)}
                 >
-                  {label}
-                  {finish === label && <CheckIcon className="shop-now-swatch-check" />}
+                  <span>{String(i + 1).padStart(2, '0')}</span>
                 </button>
               ))}
             </div>
+            <p className="shop-now-specimen-label">
+              <b>
+                {String(finishIndex + 1).padStart(2, '0')} — {finish.name}
+              </b>{' '}
+              <span>{finish.material}</span>
+            </p>
           </div>
 
           <div className="shop-now-actions">
             <Link to="/bag" className="shop-now-add-btn">
-              <CartIcon /> Add to Bag
+              <CartIcon /> Add to bag
             </Link>
             <button
               type="button"
               className={`shop-now-wishlist-btn${wishlisted ? ' active' : ''}`}
               aria-pressed={wishlisted}
-              onClick={handleWishlistClick}
+              onClick={() => setWishlisted((w) => !w)}
             >
               <span className="shop-now-wishlist-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" className="svg-outline" aria-hidden="true">
-                  <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z" />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M12 21s-7.5-4.6-10-9.1C.5 8.4 2 5 5.5 5c2 0 3.5 1.2 4.5 2.7C11 6.2 12.5 5 14.5 5 18 5 19.5 8.4 18 11.9 15.5 16.4 12 21 12 21z" />
                 </svg>
-                <svg viewBox="0 0 24 24" width="16" height="16" className="svg-filled" aria-hidden="true">
-                  <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Z" />
-                </svg>
-                <svg viewBox="0 0 100 100" width={100} height={100} className="svg-celebrate" aria-hidden="true">
-                  <polygon points="10,10 20,20" />
-                  <polygon points="10,50 20,50" />
-                  <polygon points="20,80 30,70" />
-                  <polygon points="90,10 80,20" />
-                  <polygon points="90,50 80,50" />
-                  <polygon points="80,80 70,70" />
-                </svg>
-                {hearts.map((h) => (
-                  <svg
-                    key={h.id}
-                    viewBox="0 0 24 24"
-                    className="heart-burst heart-burst--dialog"
-                    style={{
-                      width: `${h.size}px`,
-                      height: `${h.size}px`,
-                      '--burst-color': h.color,
-                      '--burst-x': `${h.x}px`,
-                      '--burst-rot': `${h.rotate}deg`,
-                      '--burst-rise': `${h.rise}px`,
-                      '--burst-duration': `${h.duration}s`,
-                    }}
-                    onAnimationEnd={() => removeHeart(h.id)}
-                    aria-hidden="true"
-                  >
-                    <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Z" />
-                  </svg>
-                ))}
               </span>
-              Wishlist
+              {wishlisted ? 'Saved' : 'Save'}
             </button>
           </div>
-        </div>
 
-        <div className="shop-now-media">
-          <img src="/images/products/earbuds-wood-table-d-MoiV98pc-unsplash.jpg" alt="AirBuds White earbuds and charging case" />
+          <p className="shop-now-stock">
+            Back in stock this week — around <b>6 left</b> in {finish.name}.
+          </p>
         </div>
       </div>
     </div>

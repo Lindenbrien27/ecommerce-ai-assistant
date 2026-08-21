@@ -53,9 +53,6 @@ test('GET /api-docs relaxes style-src to unsafe-inline (swagger-ui-bundle.js app
     const docsRes = await fetch(`${base}/api-docs`);
     assert.match(docsRes.headers.get('content-security-policy'), /style-src 'self' 'unsafe-inline'/);
 
-    // Every other route keeps the strict policy - confirms the override in
-    // src/middleware/securityHeaders.js (apiDocsStyleOverride) is actually
-    // scoped to /api-docs and doesn't leak into the rest of the app.
     const healthRes = await fetch(`${base}/health`);
     const healthCsp = healthRes.headers.get('content-security-policy');
     assert.match(healthCsp, /style-src 'self'/);

@@ -1,16 +1,7 @@
--- Up Migration
 
--- Address/Payment Methods were removed from the account settings UI
--- (Profile-only for now) - dropping the now-unreferenced tables rather
--- than leaving dead schema behind. The original CREATE TABLE migration
--- (1785850534790_add-account-settings-tables.sql) is left untouched as
--- the historical record of what actually ran; this migration is the
--- honest, separate "and then we removed it" step.
 
 DROP TABLE IF EXISTS customer_payment_methods;
 DROP TABLE IF EXISTS customer_addresses;
-
--- Down Migration
 
 CREATE TABLE IF NOT EXISTS customer_addresses (
   email TEXT PRIMARY KEY,

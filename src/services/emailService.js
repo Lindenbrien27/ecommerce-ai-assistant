@@ -1,12 +1,6 @@
 const { Resend } = require('resend');
 const { logError } = require('../utils/logger');
 
-// Same "degrades gracefully, nothing else needs to change" pattern as a
-// missing ANTHROPIC_API_KEY (see requiredEnv.js) - RESEND_* isn't in
-// REQUIRED_ENV_VARS, so the app still starts and the OTP flow still works
-// without it, just without actually emailing anyone. isConfigured() lets
-// callers (otpController) decide what to do about that instead of this
-// module silently no-op'ing in a way that looks like success.
 function isConfigured() {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 }
@@ -19,10 +13,6 @@ function getClient() {
   return client;
 }
 
-// Returns whether the email actually went out. Callers must not treat a
-// `false` here as a request failure - see the "no enumeration" reasoning in
-// otpController.js for why POST /api/auth/otp/request always responds the
-// same way regardless of this result.
 async function sendOtpEmail(email, code) {
   if (!isConfigured()) return false;
 

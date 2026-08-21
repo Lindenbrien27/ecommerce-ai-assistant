@@ -5,7 +5,6 @@ import { formatCents } from '../utils/pricing.js';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-// Same status -> pill class map AdminOrdersPage.jsx already uses.
 const STATUS_BADGE_CLASS = {
   processing: 'status-active',
   shipped: 'status-active',
@@ -84,9 +83,6 @@ export function AdminCustomerDetailPage() {
 
   if (!customer) return null;
 
-  // Contact info comes from the most recent order (first in the
-  // already-DESC-sorted list) - there's no account-level contact info
-  // anywhere in this schema beyond the email itself.
   const latest = customer.orders[0];
 
   return (

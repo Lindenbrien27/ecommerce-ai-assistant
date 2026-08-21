@@ -1,16 +1,31 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { motion, useInView } from 'framer-motion';
 
-// Exported on its own (not just used internally by AnimatedList below) so
-// any scrollable list in this app can get the same "pop in as it scrolls
-// into view" treatment around its own real markup, without going through
-// AnimatedList's string-items/selection/keyboard-nav machinery - see
-// OrderHistoryRow in OrdersPage.jsx for a caller that wraps its own
-// existing <li> content with this instead of using <AnimatedList> directly.
+const prefersReducedMotion =
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 export function AnimatedItem({ children, delay = 0, index, as = 'div', className = 'animated-list-item', onMouseEnter, onClick }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { amount: 0.5, once: false });
+  const inView = useInView(ref, { amount: 0.5, once: true });
   const MotionTag = motion[as];
+
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    let raf1;
+    let raf2;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setHasMounted(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const animate = hasMounted && inView ? { scale: 1, opacity: 1 } : { scale: 0.7, opacity: 0 };
+
   return (
     <MotionTag
       ref={ref}
@@ -18,19 +33,17 @@ export function AnimatedItem({ children, delay = 0, index, as = 'div', className
       onMouseEnter={onMouseEnter}
       onClick={onClick}
       initial={{ scale: 0.7, opacity: 0 }}
-      animate={inView ? { scale: 1, opacity: 1 } : { scale: 0.7, opacity: 0 }}
-      transition={{ duration: 0.2, delay }}
-      className={className}
+      animate={animate}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2, delay }}
+      onAnimationStart={() => setIsAnimating(true)}
+      onAnimationComplete={() => setIsAnimating(false)}
+      className={`${className} transform-gpu${isAnimating ? ' will-change-transform' : ''}`}
     >
       {children}
     </MotionTag>
   );
 }
 
-// react-bits' AnimatedList (JS/CSS variant), ported off Tailwind onto this
-// app's own CSS-var theming (see .animated-list* rules in index.css) so it
-// picks up light/dark like every other component instead of carrying its
-// own hardcoded dark palette.
 export function AnimatedList({
   items = [],
   onItemSelect,

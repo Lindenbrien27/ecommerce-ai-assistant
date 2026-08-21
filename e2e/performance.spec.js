@@ -14,12 +14,7 @@ test.describe('performance', () => {
 
     const mainBundle = findResponse(responses, (p) => /^\/assets\/index-.*\.js$/.test(p));
     expect(mainBundle, 'expected the main bundle to have been requested').toBeTruthy();
-    // Real browsers send Accept-Encoding: gzip, deflate, br - this is what
-    // the app actually serves in response, not a curl request with a
-    // manually forced header. compression@1.8+ supports brotli (via
-    // Node's built-in zlib) as well as gzip and prefers whichever the
-    // client asked for first, so either is correct - what matters is that
-    // the response isn't going out uncompressed.
+
     expect(['gzip', 'br']).toContain(mainBundle.headers()['content-encoding']);
   });
 
@@ -58,9 +53,6 @@ test.describe('performance', () => {
     expect([...jsChunksLoaded].some((p) => p.includes('/OrderDetailPage-'))).toBe(true);
     expect([...jsChunksLoaded].some((p) => p.includes('/ChatPage-'))).toBe(false);
 
-    // Back to /orders, then the account menu's real "Help & Support" link -
-    // both still real client-side <Link>s (not a full page load, which
-    // would defeat the point of this specific lazy-loading check).
     await page.click('.back-link');
     await expect(page).toHaveURL(/\/orders$/);
     await page.click('.profile-menu-trigger');

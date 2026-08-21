@@ -5,7 +5,7 @@ const OTP_LENGTH = 6;
 
 export function VerifyForm({ onVerified }) {
   const headingRef = useFocusOnMount();
-  const [step, setStep] = useState('email'); // 'email' | 'otp'
+  const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
   const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState(null);
@@ -29,7 +29,7 @@ export function VerifyForm({ onVerified }) {
       try {
         data = await res.json();
       } catch {
-        // non-JSON response - fall through to the generic error below
+
       }
 
       if (!res.ok) {
@@ -37,10 +37,6 @@ export function VerifyForm({ onVerified }) {
         return;
       }
 
-      // Only ever present outside production, and only when there's no real
-      // email provider configured to have sent the code instead (see
-      // authController.js) - safe to render unconditionally here since the
-      // backend already refuses to include it in prod.
       setDevCode((data && data.devCode) || null);
       setDigits(Array(OTP_LENGTH).fill(''));
       setStep('otp');
@@ -67,7 +63,7 @@ export function VerifyForm({ onVerified }) {
       try {
         data = await res.json();
       } catch {
-        // non-JSON response - fall through to the generic error below
+
       }
 
       if (!res.ok) {

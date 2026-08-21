@@ -33,9 +33,7 @@ test('createProduct rejects a negative stock_quantity', async (t) => {
 });
 
 test('createProduct rejects a slug that is not a safe URL/path segment', async (t) => {
-  // slug is both the primary key and the literal :slug path segment in
-  // /api/products/:slug, /admin/products/:slug/edit, and /shop/:productId -
-  // a `/` here would create a row no route could ever fetch or edit again.
+
   await assert.rejects(
     adminProductService.createProduct({ ...VALID_FIELDS, slug: 'bad/slug' }),
     (err) => {
@@ -105,8 +103,8 @@ test('updateProduct merges the given fields onto the existing row', async (t) =>
       return { rows: [{ slug: 'headphones', name: 'Old Name', description: 'Old desc', category: 'Audio', price_cents: 100, original_price_cents: null, cover_image_url: null, icon: 'headphones', sku: 'AUD-HP-001', stock_quantity: 5, colorways: [] }] };
     }
     assert.match(sql, /UPDATE products SET/);
-    assert.equal(params[0], 'New Name'); // name
-    assert.equal(params[3], 100); // price_cents unchanged from current row
+    assert.equal(params[0], 'New Name');
+    assert.equal(params[3], 100);
     return { rows: [{ slug: 'headphones', name: 'New Name', price_cents: 100 }] };
   });
 
@@ -189,7 +187,7 @@ test('getAdminProducts paginates using LIMIT/OFFSET derived from page and pageSi
     if (/DISTINCT category/.test(sql)) return { rows: [] };
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '5' }] };
     assert.match(sql, /LIMIT \$3 OFFSET \$4/);
-    assert.deepEqual(params.slice(2), [2, 2]); // pageSize 2, page 2 -> offset (2-1)*2 = 2
+    assert.deepEqual(params.slice(2), [2, 2]);
     return { rows: [{ slug: 'a' }, { slug: 'b' }] };
   });
 
@@ -204,7 +202,7 @@ test('getAdminProducts clamps pageSize to MAX_PAGE_SIZE and page to at least 1',
   t.mock.method(pool, 'query', async (sql, params) => {
     if (/DISTINCT category/.test(sql)) return { rows: [] };
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '0' }] };
-    assert.deepEqual(params.slice(2), [100, 0]); // pageSize clamped 999 -> 100, page clamped 0 -> 1 -> offset 0
+    assert.deepEqual(params.slice(2), [100, 0]);
     return { rows: [] };
   });
 

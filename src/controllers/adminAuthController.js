@@ -8,8 +8,7 @@ const { logError } = require('../utils/logger');
 const { auditLog } = require('../config/auditLog');
 
 const ADMIN_COOKIE_NAME = 'adminToken';
-// Matches adminAuthService's ADMIN_TOKEN_TTL (30m) - the cookie shouldn't
-// outlive the JWT it carries.
+
 const ADMIN_COOKIE_MAX_AGE_MS = 30 * 60 * 1000;
 
 function adminCookieOptions() {
@@ -21,11 +20,6 @@ function adminCookieOptions() {
   };
 }
 
-// Unlike requestOtpHandler's deliberate "always the same response" shape
-// (authController.js), a 403 here is fine and doesn't need to be
-// enumeration-safe: the caller already proved they own a real email via a
-// Google-signed token before this branch is ever reached, so there's no
-// guessing surface a 403-vs-200 distinction could leak.
 async function googleLoginHandler(req, res) {
   if (!isGoogleAuthConfigured()) {
     return res.status(500).json({ error: 'Admin login is not configured.' });
@@ -66,12 +60,7 @@ function meHandler(req, res) {
 }
 
 function logoutHandler(req, res) {
-  // maxAge deliberately omitted here - clearCookie already expires the
-  // cookie immediately on its own, and passing maxAge alongside it is
-  // deprecated as of Express 4.19 (will be ignored outright in v5). The
-  // other attributes (httpOnly/secure/sameSite) still need to match
-  // adminCookieOptions() exactly, or the browser won't recognize this as
-  // the same cookie to clear.
+
   const { maxAge, ...clearCookieOptions } = adminCookieOptions();
   res.clearCookie(ADMIN_COOKIE_NAME, clearCookieOptions);
   res.json({ ok: true });

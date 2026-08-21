@@ -3,12 +3,6 @@ const { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('./orderService');
 
 const REQUIRED_FIELDS = ['slug', 'name', 'category', 'price_cents', 'sku'];
 
-// slug is both the primary key and the literal path segment in
-// /api/products/:slug, /admin/products/:slug/edit, and /shop/:productId -
-// lowercase alphanumeric segments joined by single hyphens, matching every
-// existing seeded slug (e.g. 'cloud-shift-runner'). Anything else (a `/`,
-// whitespace, `?`, `#`, `%`, uppercase, ...) would create a row that's
-// permanently unreachable through any of those routes.
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 class ValidationError extends Error {}
@@ -45,9 +39,7 @@ function validateNumericFields(fields) {
 
 // A UNIQUE-violation's constraint name tells us which column collided -
 // "products_pkey" is the slug's primary key, anything else with "sku" in
-// its name is the sku's own UNIQUE constraint - so a create/update against
-// either can surface a specific, distinguishable error rather than a
-// generic "something already exists".
+
 function mapUniqueViolation(err) {
   if (err.code === '23505') {
     if (err.constraint && err.constraint.includes('sku')) return new ConflictError('sku');
@@ -56,22 +48,12 @@ function mapUniqueViolation(err) {
   return err;
 }
 
-// Admin-only, paginated - deliberately separate from productService.js's
-// getProducts(), which the storefront needs to return the *entire*
-// catalog unpaginated (ProductsContext resolves arbitrary productIds
-// against it for the cart/wishlist, ShopPage needs every category
-// present for its own filter). Sharing one function between "give me
-// everything" and "give me a page" callers would force one of them to
-// compromise.
 async function getAdminProducts({ q = null, category = null, page = 1, pageSize = DEFAULT_PAGE_SIZE } = {}) {
   const clampedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
   const clampedPage = Math.max(1, page);
   const offset = (clampedPage - 1) * clampedPageSize;
   const searchTerm = q ? `%${q}%` : null;
 
-  // No WHERE clause here, deliberately - the category filter dropdown
-  // should always offer every real category, not just the ones that
-  // happen to survive whatever filter is currently applied.
   const categoriesResult = await pool.query('SELECT DISTINCT category FROM products ORDER BY category');
   const categories = categoriesResult.rows.map((row) => row.category);
 
@@ -99,8 +81,8 @@ async function createProduct(fields) {
   validateCreateFields(fields);
   try {
     const { rows } = await pool.query(
-      `INSERT INTO products (slug, name, description, category, price_cents, original_price_cents, cover_image_url, icon, sku, stock_quantity, colorways)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO products (slug, name, description, category, price_cents, original_price_cents, cover_image_url, icon, sku, stock_quantity, colorways, specs)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         fields.slug,
@@ -114,6 +96,7 @@ async function createProduct(fields) {
         fields.sku,
         fields.stock_quantity ?? 0,
         JSON.stringify(fields.colorways ?? []),
+        JSON.stringify(fields.specs ?? {}),
       ]
     );
     return rows[0];
@@ -122,11 +105,6 @@ async function createProduct(fields) {
   }
 }
 
-// Fetches the current row first and merges - PATCH accepts any subset of
-// fields, and a plain SQL UPDATE with unconditional SET clauses would
-// overwrite every unlisted field with NULL/undefined. slug itself is never
-// updatable (it's the URL/primary-key identifier); a PATCH changes a
-// product's other attributes, not its identity.
 async function updateProduct(slug, fields) {
   validateNumericFields(fields);
 
@@ -146,14 +124,15 @@ async function updateProduct(slug, fields) {
     sku: fields.sku ?? current.sku,
     stock_quantity: fields.stock_quantity ?? current.stock_quantity,
     colorways: fields.colorways !== undefined ? fields.colorways : current.colorways,
+    specs: fields.specs !== undefined ? fields.specs : current.specs,
   };
 
   try {
     const { rows } = await pool.query(
       `UPDATE products SET
          name = $1, description = $2, category = $3, price_cents = $4, original_price_cents = $5,
-         cover_image_url = $6, icon = $7, sku = $8, stock_quantity = $9, colorways = $10, updated_at = now()
-       WHERE slug = $11
+         cover_image_url = $6, icon = $7, sku = $8, stock_quantity = $9, colorways = $10, specs = $11, updated_at = now()
+       WHERE slug = $12
        RETURNING *`,
       [
         merged.name,
@@ -166,6 +145,7 @@ async function updateProduct(slug, fields) {
         merged.sku,
         merged.stock_quantity,
         JSON.stringify(merged.colorways),
+        JSON.stringify(merged.specs),
         slug,
       ]
     );

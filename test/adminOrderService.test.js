@@ -50,7 +50,7 @@ test('getAdminOrders paginates using LIMIT/OFFSET derived from page and pageSize
   t.mock.method(pool, 'query', async (sql, params) => {
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '5' }] };
     assert.match(sql, /LIMIT \$3 OFFSET \$4/);
-    assert.deepEqual(params.slice(2), [2, 2]); // pageSize 2, page 2 -> offset (2-1)*2 = 2
+    assert.deepEqual(params.slice(2), [2, 2]);
     return {
       rows: [
         { order_number: 'ORD-1002', created_at: '2026-01-02T00:00:00Z', id: 2 },
@@ -69,7 +69,7 @@ test('getAdminOrders paginates using LIMIT/OFFSET derived from page and pageSize
 test('getAdminOrders clamps pageSize to MAX_PAGE_SIZE and page to at least 1', async (t) => {
   t.mock.method(pool, 'query', async (sql, params) => {
     if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: '0' }] };
-    assert.deepEqual(params.slice(2), [100, 0]); // pageSize clamped 999 -> 100, page clamped 0 -> 1 -> offset 0
+    assert.deepEqual(params.slice(2), [100, 0]);
     return { rows: [] };
   });
 
@@ -180,9 +180,7 @@ test('updateOrderShipping also invalidates that customer\'s cached order-history
 });
 
 test("ORDER_STATUSES deliberately excludes 'returned' so the status-PATCH dropdown can never set it", () => {
-  // 'returned' lives in the database CHECK constraint (see
-  // migrations/1786928000000_add-order-refund-fields.sql) but must stay out
-  // of this allowlist - refundOrder is the only path allowed to set it.
+
   assert.ok(!adminOrderService.ORDER_STATUSES.includes('returned'));
 });
 
@@ -206,11 +204,6 @@ const REFUNDED_ORDER_ROW = {
   refunded_at: '2026-01-02T00:00:00Z',
 };
 
-// refundOrder's three writes run inside a real transaction on a single
-// client checked out via pool.connect(), so they're mocked separately from
-// the initial SELECT (which still goes through pool.query). `handler` only
-// ever sees the three real statements - BEGIN/COMMIT/ROLLBACK are recorded
-// on the returned tx object instead.
 function mockRefundTransaction(t, handler) {
   const tx = { statements: [], began: false, committed: false, rolledBack: false, released: false };
   const client = {
@@ -239,7 +232,6 @@ function mockRefundTransaction(t, handler) {
   return tx;
 }
 
-// The happy-path transaction body for an order that restocks cleanly.
 function defaultRefundHandler(sql) {
   if (/AND refunded_at IS NULL/.test(sql)) return { rows: [{ ...REFUNDED_ORDER_ROW }] };
   if (/^UPDATE products/.test(sql)) return { rows: [{ slug: 'sneakers' }] };
@@ -272,7 +264,6 @@ test('refundOrder rejects a second refund on an already-refunded order', async (
   );
 });
 
-
 test('refundOrder rejects refunding a cancelled order', async (t) => {
   mockOrderSelect(t, { ...EXISTING_ORDER, status: 'cancelled' });
   t.mock.method(pool, 'connect', async () => assert.fail('should never open a transaction for a cancelled order'));
@@ -286,7 +277,6 @@ test('refundOrder rejects refunding a cancelled order', async (t) => {
 test('refundOrder rejects an amount that exceeds the order total', async (t) => {
   mockOrderSelect(t);
 
-  // total = 5000 + 500 + 0 - 0 = 5500
   await assert.rejects(
     adminOrderService.refundOrder('ORD-1001', { amountCents: 5501, restock: false, reason: null }),
     adminOrderService.ValidationError
@@ -321,14 +311,12 @@ test('refundOrder restocks when the product name still matches a live row', asyn
   const updated = await adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: true, reason: 'Item damaged' });
   assert.equal(updated.status, 'returned');
   assert.equal(updated.restocked, true);
-  // guarded order UPDATE + products UPDATE + restocked flag UPDATE
+
   assert.equal(tx.statements.length, 3);
 });
 
 test('refundOrder restocks exactly one product when two share the same name', async (t) => {
-  // products.name has no uniqueness constraint (slug is the primary key,
-  // sku is the unique one), so colorway variants can legitimately share a
-  // name. A single returned item must credit exactly one of them.
+
   const products = [
     { slug: 'sneakers-white', name: 'Sneakers', stock_quantity: 7 },
     { slug: 'sneakers-black', name: 'Sneakers', stock_quantity: 3 },
@@ -338,9 +326,7 @@ test('refundOrder restocks exactly one product when two share the same name', as
   mockRefundTransaction(t, (sql, params) => {
     if (/AND refunded_at IS NULL/.test(sql)) return { rows: [{ ...REFUNDED_ORDER_ROW }] };
     if (/^UPDATE products/.test(sql)) {
-      // The restock must narrow to one row by primary key, picked
-      // deterministically - not a bare `WHERE name = $1` that would hit
-      // every same-named row at once.
+
       assert.match(sql, /WHERE slug = \(SELECT slug FROM products WHERE name = \$1 ORDER BY slug LIMIT 1\)/);
       const matched = products
         .filter((p) => p.name === params[0])
@@ -357,7 +343,7 @@ test('refundOrder restocks exactly one product when two share the same name', as
   assert.equal(updated.restocked, true);
   assert.deepEqual(
     products.map((p) => p.stock_quantity),
-    [7, 4] // only sneakers-black (first by slug) got the unit back
+    [7, 4]
   );
 });
 
@@ -365,7 +351,7 @@ test('refundOrder reports restocked:false without erroring when the product name
   mockOrderSelect(t);
   mockRefundTransaction(t, (sql) => {
     if (/AND refunded_at IS NULL/.test(sql)) return { rows: [{ ...REFUNDED_ORDER_ROW }] };
-    if (/^UPDATE products/.test(sql)) return { rows: [] }; // no matching product - renamed/deleted
+    if (/^UPDATE products/.test(sql)) return { rows: [] };
     return { rows: [] };
   });
 
@@ -381,7 +367,7 @@ test('refundOrder does not attempt to restock when restock is false', async (t) 
   });
 
   await adminOrderService.refundOrder('ORD-1001', { amountCents: 2000, restock: false, reason: null });
-  assert.equal(tx.statements.length, 1); // the orders UPDATE only, no products UPDATE
+  assert.equal(tx.statements.length, 1);
 });
 
 test('refundOrder wraps its writes in a committed transaction and always releases the client', async (t) => {
@@ -432,7 +418,7 @@ test('refundOrder invalidates the order cache and that customer\'s cached order-
 test('refundOrder guards the UPDATE with refunded_at IS NULL to prevent concurrent refunds', async (t) => {
   mockOrderSelect(t);
   mockRefundTransaction(t, (sql) => {
-    // Verify the UPDATE includes the guard
+
     assert.match(sql, /AND refunded_at IS NULL/);
     return { rows: [{ ...REFUNDED_ORDER_ROW }] };
   });
@@ -444,9 +430,7 @@ test('refundOrder guards the UPDATE with refunded_at IS NULL to prevent concurre
 test('refundOrder throws ConflictError and rolls back when the guarded UPDATE matches 0 rows (concurrent refund)', async (t) => {
   mockOrderSelect(t);
   const tx = mockRefundTransaction(t, (sql) => {
-    // Guarded UPDATE found no matching rows: the order existed per SELECT,
-    // but refunded_at is no longer NULL (concurrent refund happened between
-    // SELECT and UPDATE).
+
     if (/AND refunded_at IS NULL/.test(sql)) return { rows: [] };
     return { rows: [] };
   });
@@ -465,7 +449,7 @@ test('refundOrder does not attempt to restock if the guarded order UPDATE fails 
   mockOrderSelect(t);
   const tx = mockRefundTransaction(t, (sql) => {
     if (/AND refunded_at IS NULL/.test(sql)) return { rows: [] };
-    // Should never reach the products UPDATE
+
     assert.fail(`Unexpected query after guarded UPDATE failure: ${sql}`);
   });
 
@@ -474,7 +458,7 @@ test('refundOrder does not attempt to restock if the guarded order UPDATE fails 
     adminOrderService.ConflictError
   );
 
-  assert.equal(tx.statements.length, 1); // the guarded UPDATE only
+  assert.equal(tx.statements.length, 1);
 });
 
 test('refundOrder issues the products UPDATE only after the guarded order UPDATE succeeds', async (t) => {
@@ -495,6 +479,6 @@ test('refundOrder issues the products UPDATE only after the guarded order UPDATE
 
   const updated = await adminOrderService.refundOrder('ORD-1001', { amountCents: 5500, restock: true, reason: null });
   assert.equal(updated.restocked, true);
-  // guarded order UPDATE + products UPDATE + final restocked flag UPDATE
+
   assert.equal(tx.statements.length, 3);
 });

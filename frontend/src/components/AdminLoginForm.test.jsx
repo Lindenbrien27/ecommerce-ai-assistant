@@ -40,12 +40,6 @@ describe('handleGoogleCredential', () => {
   });
 });
 
-// Component-level tests below cover the gaps the standalone handleGoogleCredential
-// tests above can't reach: nothing in the component previously read
-// handleGoogleCredential's return value, loadGsiScript() had no .catch, and
-// nothing checked VITE_GOOGLE_CLIENT_ID was actually set before calling
-// Google's initialize(). Rendering through AdminLoginForm (not just calling
-// the exported function directly) is what exercises those wiring gaps.
 function renderForm() {
   return render(
     <AdminAuthProvider>
@@ -66,9 +60,7 @@ describe('AdminLoginForm', () => {
     delete window.google;
     __resetGsiScriptStateForTests();
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
-    // AdminAuthProvider fires its own GET /me on mount - default this to a
-    // harmless "not logged in" response so it doesn't interfere with the
-    // fetch mocks each test below sets up for the Google credential POST.
+
     global.fetch.mockResolvedValue({ ok: false });
   });
 
@@ -96,10 +88,7 @@ describe('AdminLoginForm', () => {
     });
 
     renderForm();
-    // window.google is already present (mocked above), so loadGsiScript()
-    // resolves via its fast path - no <script> tag is ever created here,
-    // matching what actually happens on a real page navigation that isn't
-    // the very first one to load the GSI script.
+
     await waitFor(() => expect(capturedCallback).toBeTypeOf('function'));
 
     await act(async () => {
